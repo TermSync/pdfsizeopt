@@ -1,33 +1,32 @@
-"""pdfsizeopt: PDF file size optimizer
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-pdfsizeopt works with Python 2.4, 2.5, 2.6 and 2.7. It doesn't work with
-Python 3.x.
-
-This Python script implements some techniques for making PDF files smaller
-without any visual quality or interactivity loss.
-See also https://github.com/pts/pdfsizeopt for more information,
-including documentation, installation instructions, a white paper describing
-what optimizations are done in this script and why, and presentation slides
-about the same.
-
-This script needs a Unix system, with Ghostscript (gs), sam2p or imgdataopt,
-pngout (--use-pngout=no to disable), jbig2 (--use-jbig2=no to disable)
-Future versions may relax the system requirements.
-
-This script doesn't optimize the serialization of objects it doesn't modify.
-Use tool.pdf.Compress in Multivalent.jar from http://multivalent.sf.net/ for
-that. This script runs Multivalent if --use-multivalent=yes is specified.
-"""
+# pdfsizeopt: PDF file size optimizer
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 2 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+# pdfsizeopt works with Python 2.4, 2.5, 2.6 and 2.7. It doesn't work with
+# Python 3.x.
+#
+# This Python script implements some techniques for making PDF files smaller
+# without any visual quality or interactivity loss.
+# See also https://github.com/pts/pdfsizeopt for more information,
+# including documentation, installation instructions, a white paper describing
+# what optimizations are done in this script and why, and presentation slides
+# about the same.
+#
+# This script needs a Unix system, with Ghostscript (gs), sam2p or imgdataopt,
+# pngout (--use-pngout=no to disable), jbig2 (--use-jbig2=no to disable)
+# Future versions may relax the system requirements.
+#
+# This script doesn't optimize the serialization of objects it doesn't modify.
+# Use tool.pdf.Compress in Multivalent.jar from http://multivalent.sf.net/ for
+# that. This script runs Multivalent if --use-multivalent=yes is specified.
 
 __author__ = 'pts@fazekas.hu (Peter Szabo)'
 
