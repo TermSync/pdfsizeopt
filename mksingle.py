@@ -207,7 +207,7 @@ if not ((2, 4) <= sys.version_info[:2] < (3, 0)):
       'fatal: Python version 2.4, 2.5, 2.6 or 2.7 needed for: %s\n' % sys.path[0])
   sys.exit(1)
 
-from pdfsizeopt import main
+from lib import main
 sys.exit(main.main(sys.argv, zip_file=sys.path[0]))
 '''.strip()
 

@@ -214,9 +214,8 @@ import sys
 import time
 import zlib
 
-from pdfsizeopt import cff
-from pdfsizeopt import psproc
-
+from lib import cff
+from lib import psproc
 
 class Error(Exception):
   """Comon base class for exceptions defined in this module."""

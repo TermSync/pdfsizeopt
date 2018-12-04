@@ -41,9 +41,9 @@ import sys
 import zlib
 import unittest
 
-from pdfsizeopt import cff
-from pdfsizeopt import float_util
-from pdfsizeopt import main
+from lib import cff
+from lib import float_util
+from lib import main
 
 
 class PdfSizeOptTest(unittest.TestCase):

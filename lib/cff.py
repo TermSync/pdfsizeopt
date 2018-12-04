@@ -7,8 +7,7 @@ http://www.adobe.com/devnet/font/pdfs/5176.CFF.pdf
 import re
 import struct
 
-from pdfsizeopt import float_util
-
+from lib import float_util
 
 try:
   from itertools import izip

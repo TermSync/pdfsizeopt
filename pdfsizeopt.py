@@ -37,5 +37,6 @@ if os.path.isfile(os.path.join(
     script_dir, 'lib', 'pdfsizeopt', 'main.py')):
   sys.path[0] = os.path.join(script_dir, 'lib')
 
-from pdfsizeopt import main
+import lib
+from lib import main
 sys.exit(main.main(sys.argv, script_dir=script_dir))
