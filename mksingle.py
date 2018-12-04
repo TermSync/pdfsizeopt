@@ -244,7 +244,7 @@ def new_zipinfo(file_name, file_mtime, permission_bits=0644):
 
 
 def main(argv):
-  assert os.path.isfile('lib/pdfsizeopt/main.py')
+  assert os.path.isfile('lib/main.py')
   zip_output_file_name = 't.zip'
   single_output_file_name = 'pdfsizeopt.single'
   try:
@@ -257,10 +257,10 @@ def main(argv):
   try:
     for file_name in (
         # 'pdfsizeopt/pdfsizeopt_pargparse.py',  # Not needed.
-        'pdfsizeopt/__init__.py',
-        'pdfsizeopt/cff.py',
-        'pdfsizeopt/float_util.py',
-        'pdfsizeopt/main.py'):
+        '__init__.py',
+        'cff.py',
+        'float_util.py',
+        'main.py'):
       code_orig = open('lib/' + file_name, 'rb').read()
       # The zip(1) command also uses localtime. The ZIP file format doesn't
       # store the time zone.
@@ -278,7 +278,7 @@ def main(argv):
     zf.writestr(new_zipinfo('__main__.py', time_now),
                 'import m')
 
-    file_name = 'pdfsizeopt/psproc.py'
+    file_name = 'psproc.py'
     code_orig = open('lib/' + file_name, 'rb').read()
     file_mtime = time.localtime(os.stat('lib/' + file_name).st_mtime)[:6]
     code_mini = MinifyPostScriptProcsets(file_name, code_orig)
