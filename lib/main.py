@@ -52,6 +52,9 @@ FLAGS_HELP = r"""
 --use-jbig2=YES_NO; default: yes
   Run jbig2 for optimizing images embedded in PDF? Affects only images with
   2 colors. Needs the external optimizer tool jbig2.
+--use-sam2p-pr=YES_NO; default: yes
+  Run sam2p with predictors enabled for optimizing images embedded in PDF?
+  Needs external optimizer tool sam2p.
 --use-image-optimizer=PROG[,...]
   Run the specified image optimizer programs (comma-separated list) for
   optimizing images embedded in PDF. Can be specified multiple times. If
@@ -71,6 +74,10 @@ FLAGS_HELP = r"""
   (There are some other sobstitutions as well in CMD_PATTERN.) The CMD_PATTERN
   can be used to run an image optimizer whose command-line syntax is not
   built in to pdfsizeopt.
+--do-fast-bilevel-images=YES_NO; default: no
+  Disable some slow image optimizers for bilevel images in favor of jbig2.
+  This flag is smart, and it disables optimizers only if jbig2 is enabled,
+  and the to-be-disabled optimizer is very unlikely to be better than jbig2.
 --do-require-image-optimizers=YES_NO; default: yes
   Check for the existence of image optimizer programs, before reading the
   input PDF?
@@ -737,6 +744,10 @@ def GetCmdName(cmd_pattern):
   cmd_name = cmd_pattern.split()  # TODO(pts): Windows unquote "...".
   if not cmd_name:
     return None
+  if cmd_pattern.startswith('sam2p -j:quiet -pdf:2 -c zip:1:9 '):
+    return 'sam2p_np'
+  if cmd_pattern.startswith('sam2p -j:quiet -c zip:15:9 '):
+    return 'sam2p_pr'
   cmd_name = os.path.basename(cmd_name[0].lower())
   cmd_name = NONWORD_RE.sub('_', cmd_name)
   return cmd_name
@@ -860,9 +871,13 @@ class PdfObj(object):
   """Matches one or more PDF whitespace characters."""
 
   PDF_STREAM_OR_ENDOBJ_RE = re.compile(
-      r'(stream(?:\r\n|[\0\t\n\r\f ])|'
+      r'(stream(?:[\0\t\f ]*\r?\n|[\0\t\f ])|'
       r'endobj(?:\r\n|[\0\t\n\r\f /%]|\Z))')
-  """Matches stream or endobj in a PDF obj in .group(1)."""
+  """Matches stream or endobj in a PDF obj in .group(1).
+
+  pdf_reference_1-7.pdf requires stream\r?\n, we are more permissive.
+  Example: 2019-05-21-azure.pdf in https://github.com/pts/pdfsizeopt/issues/117
+  """
 
   PDF_PREFIXED_STREAM_OR_ENDOBJ_RE = re.compile(
       r'[\0\t\n\r\f \)>\]]' + PDF_STREAM_OR_ENDOBJ_RE.pattern)
@@ -1439,7 +1454,8 @@ class PdfObj(object):
             'expected endstream+endobj in obj %d at ofs=%s' %
             (obj_def_obj_num, file_ofs + stream_end_idx))
       LogWarning(
-          'incorrect /Length fixed for obj %d' % obj_def_obj_num)
+          'incorrect /Length fixed for obj %d: %d to %d' %
+          (obj_def_obj_num, stream_end_idx - stream_start_idx, match.end(1)))
       self.Set('Length', match.end(1))  # Trailing whitespace included.
       stream_end_idx = match.end(1) + stream_start_idx
       if end_ofs_out is not None:
@@ -1811,6 +1827,21 @@ class PdfObj(object):
     else:
       return data
 
+  @classmethod
+  def _CheckDictHead(self, head):
+    """Check syntax of a head of a dict or stream obj."""
+    if not head.startswith('<<'):
+      raise PdfTokenParseError(
+         'expected a dict or stream obj: %r')
+    if not head.endswith('>>'):
+      if '>>' in head:
+        if 'endobj' in head or 'endstream' in head:
+          raise PdfTokenParseError('syntax error in endobj/endstream')
+        else:
+          raise PdfTokenParseError('missing endobj/endstream')
+      else:
+        raise PdfTokenParseError('dict obj must end with >>')
+
   def Get(self, key, default=None):
     """Get value for key if self.head is a PDF dict.
 
@@ -1827,8 +1858,7 @@ class PdfObj(object):
       raise TypeError('slash in the key= argument')
     if self._cache is None:
       assert self._head is not None
-      assert self.head.startswith('<<') and self.head.endswith('>>'), (
-          'expected a dict or stream obj')
+      self._CheckDictHead(self.head)
       if ('/' + key) not in self._head:
         # Quick return False, without having to parse.
         # TODO(pts): Special casing for /Length, we don't want to parse that.
@@ -1857,8 +1887,7 @@ class PdfObj(object):
       self.SerializeSimpleValue(value)  # just for the TypeError
     if self._cache is None:
       assert self._head is not None
-      assert self.head.startswith('<<') and self.head.endswith('>>'), (
-          'expected a dict or stream obj')
+      self._CheckDictHead(self.head)
       self._cache = self.ParseDict(self._head)
     if value is None:
       if key in self._cache:
@@ -4047,9 +4076,11 @@ class ImageData(object):
       pdf_image_data['Filter'] = '/JBIG2Decode'
     if self.bpc == 1 and self.color_type == 'indexed-rgb':
       # Such images are emitted by PNGOUT.
-      if self.plte in ('\0\0\0\xff\xff\xff', '\0\0\0'):
+      plte = self.plte[:6]
+      if plte in ('\0\0\0\xff\xff\xff', '\0\0\0', '\0\0\0\0\0\0'):
         pdf_image_data['ColorSpace'] = '/DeviceGray'
-      elif self.plte in ('\xff\xff\xff\0\0\0', '\xff\xff\xff'):
+      elif plte in ('\xff\xff\xff\0\0\0', '\xff\xff\xff',
+                    '\xff\xff\xff\xff\xff\xff'):
         # TODO(pts): Test this.
         pdf_image_data['ColorSpace'] = '/DeviceGray'
         pdf_image_data['Decode'] = '[1 0]'
@@ -4061,10 +4092,24 @@ class ImageData(object):
     if self.bpc != 1:
       return False
     if (self.color_type == 'indexed-rgb' and
-        self.plte in ('\0\0\0\xff\xff\xff', '\0\0\0',
-                      '\xff\xff\xff\0\0\0', '\xff\xff\xff')):
+        self.plte in ('\0\0\0\xff\xff\xff', '\0\0\0', '\0\0\0\0\0\0',
+                      '\xff\xff\xff\0\0\0', '\xff\xff\xff',
+                      '\xff\xff\xff\xff\xff\xff')):
       return True
     return self.color_type == 'gray'
+
+  def MaybeConvertToGray1(self):
+    """Tries to convert to color_type='gray', bpc=1. Returns self."""
+    if self.color_type == 'indexed-rgb' and self.bpc == 1:
+      plte = self.plte[:6]
+      if plte in ('\0\0\0\xff\xff\xff', '\0\0\0', '\0\0\0\0\0\0'):
+        self.color_type = 'gray'
+        self.plte = None
+      elif plte in ('\xff\xff\xff\0\0\0', '\xff\xff\xff',
+                    '\xff\xff\xff\xff\xff\xff'):
+        self.color_type = 'gray'
+        self.plte = None
+        self.is_inverted = not self.is_inverted
 
   def UpdatePdfObj(self, pdf_obj, do_check_dimensions=True):
     """Update the /Subtype/Image PDF XObject from self."""
@@ -4111,8 +4156,11 @@ class ImageData(object):
       pdf_obj.Set('Decode', None)  # Use the default, it's shorter.
     pdf_obj.stream = pdf_image_data['.stream']
 
+  def CanCompressToZipPng(self):
+    return self.compression in ('zip-png', 'zip', 'none')
+
   def CompressToZipPng(
-      self, do_try_invert=False, is_high_effort=True,
+      self, do_try_invert=False, effort=9,
       _invert_table=''.join(chr(i) for i in xrange(255, -1, -1))):
     """Compress self.idat to self.compression == 'zip-png'."""
     assert self
@@ -4155,7 +4203,7 @@ class ImageData(object):
         output.append(idat[i : i + bytes_per_row])
 
     # TODO(pts): Maybe use a smaller effort? We're not optimizing anyway.
-    self.idat = zlib.compress(''.join(output), 6 + 3 * bool(is_high_effort))
+    self.idat = zlib.compress(''.join(output), effort)
     self.compression = 'zip-png'
     if do_try_invert:
       self.is_inverted = not self.is_inverted
@@ -6811,7 +6859,8 @@ class PdfData(object):
                    do_just_read=False, return_none_if_status=None,
                    do_remove_targetfn_on_success=True, is_inverted=False,
                    need_gray=False):
-    """Converts sourcefn to targetfn using cmd_pattern, returns ImageData."""
+    """Converts sourcefn to targetfn using cmd_pattern, returns
+    (cmd_name, image_data) pair."""
     if not isinstance(sourcefn, str):
       raise TypeError
     if not isinstance(targetfn, str):
@@ -6825,11 +6874,20 @@ class PdfData(object):
         'targetfnq': ShellQuoteFileName(targetfn),
         'pngout_gray_flags': '',
         'optipng_gray_flags': '',
+        'sam2p_np_gray_flags': '',
+        'sam2p_pr_gray_flags': '',
     }
     if need_gray:
       cmd_values_dict['pngout_gray_flags'] = '-c0 '
       # -nc: No color type reduction.
       cmd_values_dict['optipng_gray_flags'] = '-nc -np '
+      cmd_values_dict['sam2p_np_gray_flags'] = '-s Gray1:Gray2:Gray4:Gray8:stop '
+      cmd_values_dict['sam2p_pr_gray_flags'] = '-s Gray1:Gray2:Gray4:Gray8:stop '
+    else:
+      cmd_values_dict['sam2p_np_gray_flags'] = (
+          '-s Gray1:Indexed1:Gray2:Indexed2:Rgb1:Gray4:Indexed4:'
+          'Rgb2:Gray8:Indexed8:Rgb4:Rgb8:stop ')
+
     assert '%(targetfnq)s' in cmd_pattern, cmd_pattern
     cmd = cmd_pattern % cmd_values_dict
 
@@ -7135,14 +7193,39 @@ class PdfData(object):
 
     return png_files
 
-  SAM2P_GRAYSCALE_MODE = 'Gray1:Gray2:Gray4:Gray8:stop'
-
   # !!! Do proper PDF token sequence parsing (ParseTokensToSafe).
   PDFDATA_INDEXED_COLORSPACE_FOR_SUB_RE = re.compile(
       r'\A\[[\0\t\n\r\f ]*/Indexed[\0\t\n\r\f ]*'
       r'/([^\0\t\n\r\f /<(]+)(?s).*')
 
-  def OptimizeImages(self, img_cmd_patterns):
+  @classmethod
+  def _IsSlowCmdName(cls, cmd_name):
+    return ('pngout' in cmd_name or 'zopflipng' in cmd_name or
+            'optipng' in cmd_name or 'ect' in cmd_name or
+            'advpng' in cmd_name or 'pngwolf' in cmd_name)
+
+  def _ConvertImageWithJbig2(self, image, cmd_name, cmd_pattern, obj_num,
+                             color_type):
+    """Converts with jbig2. Assumes image is saved to image.file_name."""
+    old_image, image = image, ImageData(image)
+    if color_type != 'gray':
+      image.SavePng(  # Changes .file_name.
+          file_name=TMP_PREFIX + 'img-%d.gray.png' % obj_num,
+          do_force_gray=True)
+    image.idat = self.ConvertImage(
+        sourcefn=image.file_name,
+        is_inverted=image.is_inverted,
+        targetfn=TMP_PREFIX + 'img-%d.jbig2' % obj_num,
+        cmd_pattern=cmd_pattern,
+        cmd_name=cmd_name,
+        do_just_read=True)[1]
+    if image.file_name != old_image.file_name:
+      os.remove(image.file_name)
+    image.compression = 'jbig2'
+    image.file_name = TMP_PREFIX + 'img-%d.jbig2' % obj_num
+    return cmd_name, image
+
+  def OptimizeImages(self, img_cmd_patterns, do_fast_bilevel_images):
     """Optimize image XObjects in the PDF."""
     if not isinstance(img_cmd_patterns, (list, tuple)):
       raise TypeError
@@ -7379,7 +7462,7 @@ class PdfData(object):
         # We try to invert (do_try_invert=True) to get rid of `/Decode [1 0]',
         # thus saving a few bytes.
         image2 = ImageData(image1).CompressToZipPng(
-            do_try_invert=image1.is_inverted, is_high_effort=True)
+            do_try_invert=image1.is_inverted)
         # image2 won't be None here.
       except FormatUnsupported, e:
         #LogProportionalInfo('LoadPdfImageObj does not support obj: %s' % e)
@@ -7406,10 +7489,10 @@ class PdfData(object):
           image1.idat = zlib.compress(image1.idat, 9)
           image1.compression = 'zip'
         if len(image1.idat) < len(image2.idat):
-          # For testing: ./pdfsizeopt.py -use-pngout=false PLRM.pdf
+          # For testing: ./pdfsizeopt.py --use-pngout=false PLRM.pdf
+          # image1.file_name is None.
           images[obj_num].append(('parse-image1', image1))
-        # image2.file_name (*.parse.png) will be removed by
-        # os.remove(rendered_image_file_name).
+        # Saving it so it can be converted with sam2p_np.
         image2.SavePng(file_name=TMP_PREFIX + 'img-%d.parse.png' % obj_num)
         images[obj_num].append(('parse', image2))
 
@@ -7417,6 +7500,22 @@ class PdfData(object):
       return self
     LogInfo('optimizing %s images of %s bytes in total' %
             (image_count, image_total_size))
+
+    sam2p_np_pattern = sam2p_pr_pattern = None
+    img_cmd_patterns2 = []
+    has_jbig2 = False
+    for cmd_pattern in img_cmd_patterns:
+      cmd_name = GetCmdName(cmd_pattern)
+      if cmd_name == 'sam2p_np':
+        sam2p_np_pattern = cmd_pattern
+      elif cmd_name == 'sam2p_pr':
+        sam2p_pr_pattern = cmd_pattern
+      else:
+        img_cmd_patterns2.append(cmd_pattern)
+      if 'jbig2' in cmd_name:
+        has_jbig2 = True
+    assert sam2p_np_pattern is not None, 'Missing sam2p_np command pattern.'
+    img_cmd_patterns = img_cmd_patterns2
 
     # Render images which we couldn't convert in-process, using ImageRenderer.
     for gs_device in sorted(device_image_objs):
@@ -7434,6 +7533,8 @@ class PdfData(object):
           # ImageData().Load(..., is_inverted=True) below.
           images[obj_num].append(
               ('gs', ImageData().Load(file_name=rendered_images[obj_num])))
+        rendered_images = None  # Save memory.
+    device_img_objs = None  # Save memory.
 
     # Optimize images.
     bytes_saved = 0
@@ -7444,6 +7545,23 @@ class PdfData(object):
     for obj_num in sorted(images):
       # !! TODO(pts): Don't load all images to memory (maximum 2).
       obj = self.objs[obj_num]
+      # Eventually obj_images will contain:
+      #
+      # * rendered_image: One or more images created by pdfsizeopt
+      #   (LoadPdfImageObj, possibly with CompressToZipPng) or Ghostscript.
+      #   Not optimized yet.
+      # * np_image: A 'zip'-compressed (no predictor), color_type-optimized,
+      #   bpc-optimized image, optimized by sam2p (file format: PDF) or
+      #   imgdataopt (file format: extended PNG) from the last rendered_image.
+      # * oi_image: A 'zip-png'-compressed (with predictor),
+      #   color_type-optimized, bpc-optimized image, file format: PNG,
+      #   created by sam2p (optimized) or imgdataopt (optimized) or
+      #   pdfsizeopt (CompressToZipPng + SavePng, not optimized) from
+      #   np_image.
+      # * cmd_image: An optimized image created by one of the image
+      #   optimizers (other than sam2p and imgdataopt) from oi_image. These
+      #   image optimizers are tried: img_cmd_patterns. It's essential that
+      #   each image optimizer can read PNG files, because oi_image is a PNG.
       obj_images = images[obj_num]
       obj_width = PdfObj.ResolveReferences(obj.Get('Width'), self.objs)
       obj_height = PdfObj.ResolveReferences(obj.Get('Height'), self.objs)
@@ -7451,8 +7569,9 @@ class PdfData(object):
         wd_ht = (obj_width, obj_height)
         i_wd_ht = (image.width, image.height)
         assert wd_ht == i_wd_ht, (obj_num, wd_ht, i_wd_ht, method, obj.head)
-      assert len(obj_images) >= 1, obj_images
+      assert obj_images
       assert obj_images[-1][0] in ('parse', 'gs')
+      obj_images[-1][1].MaybeConvertToGray1()
       rendered_tuple = obj_images[-1][1].ToDataTuple()
       target_image = by_rendered_tuple.get(rendered_tuple)
       if target_image is not None:  # We have already rendered this image.
@@ -7464,19 +7583,44 @@ class PdfData(object):
         assert obj_width == target_image.width
         assert obj_height == target_image.height
         obj_images.append(('#prev-rendered-best', target_image))
-        image_tuple = target_image.ToDataTuple()
+        image_tuple = rendered_tuple
+        target_image = None  # Save memory.
+      elif (do_fast_bilevel_images and has_jbig2 and
+            obj_images[-1][1].bpc == 1 and
+            obj_images[-1][1].color_type in ('gray', 'indexed-rgb') and
+            obj_images[-1][1].CanCompressToZipPng() and
+            (obj_width * obj_height) >> 16):  # Shortcut to do jbig2 only.
+        oi_image = obj_images[-1][1]
+        if not (oi_image.color_type == 'gray' and
+                oi_image.compression == 'zip-png' and
+                (oi_image.file_name or '').endswith('.png')):
+          oi_image = ImageData(oi_image)
+          oi_image.CompressToZipPng(
+              do_try_invert=oi_image.is_inverted, effort=3)
+          oi_image.SavePng(
+              file_name=TMP_PREFIX + 'img-%d.save-oi.png' % obj_num,
+              do_force_gray=True)
+          obj_images.append(('jbig2_oi', oi_image))
+        obj_images_size = len(obj_images)
+        for cmd_pattern in img_cmd_patterns:
+          cmd_name = GetCmdName(cmd_pattern)
+          if 'jbig2' in cmd_name:
+            obj_images.append(self._ConvertImageWithJbig2(
+                oi_image, cmd_name, cmd_pattern, obj_num, 'gray'))
+        oi_image = None  # Save memory later.
+        for _, old_image in obj_images[:obj_images_size]:
+          os.remove(old_image.file_name)
+        old_image = None   # Save memory.
+        image_tuple = rendered_tuple  # No more caching, just pacity.
       else:
-        is_inverted = obj_images[-1][1].is_inverted
         rendered_image_file_name = obj_images[-1][1].file_name
-        # TODO(pts): use KZIP or something to further optimize the ZIP stream
-        if obj_num in force_grayscale_obj_nums:
-          sam2pnp_mode = self.SAM2P_GRAYSCALE_MODE
-        else:
-          sam2pnp_mode = ('Gray1:Indexed1:Gray2:Indexed2:Rgb1:Gray4:Indexed4:'
-                          'Rgb2:Gray8:Indexed8:Rgb4:Rgb8:stop')
+        rendered_image_is_inverted = obj_images[-1][1].is_inverted
+        assert rendered_image_file_name is not None
+        assert rendered_image_file_name.endswith('.png')
         obj_images.append(self.ConvertImage(
-            is_inverted=is_inverted,
             sourcefn=rendered_image_file_name,
+            is_inverted=rendered_image_is_inverted,
+            need_gray=(obj_num in force_grayscale_obj_nums),
             targetfn=TMP_PREFIX + 'img-%d.sam2p-np.pdf' % obj_num,
             # We specify -s here to explicitly exclude SF_Opaque for
             # single-color images.
@@ -7490,15 +7634,41 @@ class PdfData(object):
             #    empty_page.pdf from !)
             # * We specify `sam2p -j:quiet' unconditionally, because the
             #   console output of sam2p is useless. (Ignored by imgdataopt.)
-            cmd_pattern=('sam2p -j:quiet -pdf:2 -c zip:1:9 -s ' +
-                          ShellQuote(sam2pnp_mode) +
-                          ' -- %(sourcefnq)s %(targetfnq)s'),
+            cmd_pattern=sam2p_np_pattern,
             cmd_name='sam2p_np'))
-
-        image_tuple = obj_images[-1][1].ToDataTuple()
-        target_image = by_image_tuple.get(image_tuple)
-        assert image_tuple[0] == obj_width
-        assert image_tuple[1] == obj_height
+        for _, old_image in obj_images[:-2]:
+          if old_image.file_name is not None:
+            os.remove(old_image.file_name)
+        old_image = None   # Save memory.
+        np_image = obj_images[-1][1]
+        assert np_image.width == obj_width
+        assert np_image.height == obj_height
+        assert np_image.compression == 'zip'
+        assert not np_image.is_interlaced, (
+            'Unexpected interlaced sam2p_np image.')
+        # See force_grayscale_obj_nums why this image must be grayscale.
+        # Image optimizers such as optipng (in img_cmd_pattern) need
+        # grayscale input (in pr_image_file_name) to produce
+        # grayscale output.
+        assert (not (obj_num in force_grayscale_obj_nums) or
+                np_image.color_type == 'gray'), (
+            'Grayscale needed for image, got %s' %
+            np_image.color_type)
+        is_bilevel_image = (np_image.bpc == 1 and
+                            np_image.color_type in ('gray', 'indexed-rgb'))
+        do_save_oi_fast = False
+        if (do_fast_bilevel_images and is_bilevel_image and has_jbig2 and
+            (obj_width * obj_height) >> 14):
+          if (obj_width * obj_height) >> 16:
+            do_save_oi_fast = True
+            img_cmd_patterns = [cmd_pattern for cmd_pattern in img_cmd_patterns
+                                if 'jbig2' in GetCmdName(cmd_pattern)]
+          else:
+            do_save_oi_fast = False
+            img_cmd_patterns = [
+                cmd_pattern for cmd_pattern in img_cmd_patterns
+                if not self._IsSlowCmdName(GetCmdName(cmd_pattern))]
+        image_tuple = np_image.ToDataTuple()
         target_image = by_image_tuple.get(image_tuple)
         if target_image is not None:  # We have already optimized this image.
           # For testing: pts2.ziplzw.pdf
@@ -7507,36 +7677,51 @@ class PdfData(object):
           LogProportionalInfo(
               'using already processed image for obj %s' % obj_num)
           obj_images.append(('#prev-processed-best', target_image))
+          target_image = None  # Save memory.
         else:
-          if obj_num in force_grayscale_obj_nums:
-            sam2p_s_flags = '-s %s ' % ShellQuote(self.SAM2P_GRAYSCALE_MODE)
+          np_image_bpc = np_image.bpc
+          np_image_color_type = np_image.color_type
+          if sam2p_pr_pattern is None or do_save_oi_fast:
+            # No need for need_gray=..., sam2p_np has already done it.
+            # TODO(pts): Can we use rendered_image_file_name (a .png)
+            #            instead of np_image here, thus not having to save a
+            #            temporary .png?
+            obj_images.append(('save_oi', ImageData(np_image)
+                .CompressToZipPng(do_try_invert=np_image.is_inverted,
+                                  effort=(9 - 6 * do_save_oi_fast))
+                .SavePng(file_name=TMP_PREFIX + 'img-%d.save-oi.png' % obj_num)
+                ))
+            np_image = None  # Save memory reference.
           else:
-            sam2p_s_flags = ''
-          obj_images.append(self.ConvertImage(
-              is_inverted=is_inverted,
-              sourcefn=rendered_image_file_name,
-              targetfn=TMP_PREFIX + 'img-%d.sam2p-pr.png' % obj_num,
-              cmd_pattern=('sam2p -j:quiet ' + sam2p_s_flags +
-                           '-c zip:15:9 -- %(sourcefnq)s %(targetfnq)s'),
-              cmd_name='sam2p_pr',
-              do_remove_targetfn_on_success=False))  # Will remove manually.
-          pr_image = obj_images[-1][1]
-          old_pr_file_name = pr_image.file_name
-          # See force_grayscale_obj_nums why this image must be grayscale.
-          # Image optimizers such as optipng (in img_cmd_pattern) need
-          # grayscale input (in pr_image_file_name) to produce
-          # grayscale output.
-          assert (not (obj_num in force_grayscale_obj_nums) or
-                  pr_image.color_type == 'gray'), (
-              'Grayscale needed for np image, got %s' %
-              pr_image.color_type)
+            np_image = None  # Save memory reference.
+            # We can't to use `sourcefn=np_image.file_name, because
+            # it's a .pdf if generated by sam2p (please note that imgdataopt
+            # generates a .png), and sam2p can't reliably read .pdf files,
+            # because it runs `gs -sDEVICE=pnmraw', to which some
+            # Ghostscript versions report `Unknown device: pnmraw'.
+            obj_images.append(self.ConvertImage(
+                sourcefn=rendered_image_file_name,
+                is_inverted=rendered_image_is_inverted,
+                need_gray=(obj_num in force_grayscale_obj_nums),
+                targetfn=TMP_PREFIX + 'img-%d.sam2p-pr.png' % obj_num,
+                cmd_pattern=sam2p_pr_pattern,
+                cmd_name='sam2p_pr',
+                do_remove_targetfn_on_success=False))  # Will remove manually.
+          os.remove(rendered_image_file_name)
+          oi_image = obj_images[-1][1]
+          assert oi_image.width == obj_width
+          assert oi_image.height == obj_height
+          assert oi_image.compression == 'zip-png'
+          assert not oi_image.is_interlaced
+          assert oi_image.bpc == np_image_bpc
+          assert oi_image.color_type == np_image_color_type
 
           # !! add /FlateEncode again to all obj_images to find the smallest
           #    (maybe to UpdatePdfObj)
           cmd_names_used = set()
           for cmd_pattern in img_cmd_patterns:
             cmd_name = GetCmdName(cmd_pattern)
-            if not cmd_name:
+            if not cmd_name or cmd_name in ('sam2p_pr', 'sam2p_np'):
               continue
             if cmd_name in cmd_names_used:
               i = 2
@@ -7548,24 +7733,10 @@ class PdfData(object):
                 i += 1
             cmd_names_used.add(cmd_name)
             if 'jbig2' in cmd_name:
-              if (pr_image.bpc == 1 and
-                  pr_image.color_type in ('gray', 'indexed-rgb')):
-                obj_images.append((cmd_name, ImageData(pr_image)))
-                if obj_images[-1][1].color_type != 'gray':
-                  obj_images[-1][1].SavePng(  # Changes .file_name.
-                      file_name=TMP_PREFIX + 'img-%d.gray.png' % obj_num,
-                      do_force_gray=True)
-                obj_images[-1][1].idat = self.ConvertImage(
-                    sourcefn=obj_images[-1][1].file_name,
-                    targetfn=TMP_PREFIX + 'img-%d.jbig2' % obj_num,
-                    cmd_pattern=cmd_pattern,
-                    cmd_name=cmd_name,
-                    do_just_read=True)[1]
-                if obj_images[-1][1].file_name != pr_image.file_name:
-                  os.remove(obj_images[-1][1].file_name)
-                obj_images[-1][1].compression = 'jbig2'
-                obj_images[-1][1].file_name = (
-                    TMP_PREFIX + 'img-%d.jbig2' % obj_num)
+              if is_bilevel_image:
+                obj_images.append(self._ConvertImageWithJbig2(
+                    oi_image, cmd_name, cmd_pattern, obj_num,
+                    oi_image.color_type))
               continue
             return_none_if_status = None
             if 'pngout' in cmd_name:
@@ -7573,8 +7744,8 @@ class PdfData(object):
               # original file'
               return_none_if_status = 0x200
             image_item = self.ConvertImage(
-                sourcefn=pr_image.file_name,
-                is_inverted=is_inverted,
+                sourcefn=oi_image.file_name,
+                is_inverted=oi_image.is_inverted,
                 need_gray=(obj_num in force_grayscale_obj_nums),
                 targetfn=TMP_PREFIX + 'img-%d.%s.png' % (obj_num, cmd_name),
                 cmd_pattern=cmd_pattern,
@@ -7584,16 +7755,13 @@ class PdfData(object):
               obj_images.append(image_item)
               image_item = None
 
-          # No need for the file pr_image.filename on disk anymore, we've
+          # No need for the file oi_image.filename on disk anymore, we've
           # loaded it to obj_images with cmd_name='sam2p_pr', and we've used
           # it as an input for img_cmd_patterns.
-          assert pr_image.file_name == old_pr_file_name
-          os.remove(pr_image.file_name)
-          pr_image = None  # Save memory later.
+          os.remove(oi_image.file_name)
+          oi_image = None  # Save memory later.
 
           # TODO(pts): For very small (10x10) images, try uncompressed too.
-
-        os.remove(rendered_image_file_name)
 
       obj_infos = [(obj.size, '#orig', '', obj, None)]
       # Populate obj_infos from obj_images.
@@ -7683,8 +7851,8 @@ class PdfData(object):
         # before.
 
       if obj_infos[0][4] is not None:
-        by_rendered_tuple[rendered_tuple] = obj_infos[0][4]
-        by_image_tuple[image_tuple] = obj_infos[0][4]
+        by_rendered_tuple[rendered_tuple] = by_image_tuple[image_tuple] = (
+            obj_infos[0][4])
         # TODO(pts): !! Cache something if obj_infos[0][4] is None, seperate
         # case for len(obj_info) == 1.
         # TODO(pts): Investigate why the original image can be the smallest.
@@ -9188,6 +9356,8 @@ IMAGE_OPTIMIZER_CMD_MAP = {
     'advpng3': 'advpng -z3 -f %(targetfnq)s',
     'advpng4': 'advpng -z4 -f %(targetfnq)s',  # Slowest, this uses Zopfli.
     'pngwolf': 'pngwolf --in=%(sourcefnq)s --out=%(targetfnq)s',  # Also for pngwolf-zopfli . See discussion on https://github.com/pts/pdfsizeopt/issues/87
+    'sam2p_np': 'sam2p -j:quiet -pdf:2 -c zip:1:9 %(sam2p_np_gray_flags)s-- %(sourcefnq)s %(targetfnq)s',
+    'sam2p_pr': 'sam2p -j:quiet -c zip:15:9 %(sam2p_pr_gray_flags)s-- %(sourcefnq)s %(targetfnq)s',
 }
 
 def GetVersionSpec(zip_file):
@@ -9284,7 +9454,7 @@ class Flags(object):
     f = self
     self.SetDefaultsFromHelp(FLAGS_HELP)  # Only for bools.
     # TODO(pts): Add =auto for use_pngout, use_jbig2, use_multivalent.
-    f.use_pngout = f.use_jbig2 = None
+    f.use_pngout = f.use_jbig2 = f.use_sam2p_pr = None
     f.mode = 'optimize'
     f.img_cmds = []
     f.args = []
@@ -9399,6 +9569,11 @@ def main(argv, script_dir=None, zip_file=None):
         f.img_cmds.append('jbig2')
       if f.use_pngout is True or (f.use_pngout is None and is_no_img_cmds):
         f.img_cmds.append('pngout')
+      if f.use_sam2p_pr is True or (f.use_sam2p_pr is None and is_no_img_cmds):
+        f.img_cmds.append('sam2p_pr')
+      if not [1 for cmd_pattern in f.img_cmds
+              if GetCmdName(cmd_pattern) == 'sam2p_np']:
+        f.img_cmds.append('sam2p_np')  # Enabled by default.
       img_cmd_patterns = []
       for cmd in f.img_cmds:
         if cmd in ('', 'no', 'none', 'sam2p', 'imgdataopt'):
@@ -9513,7 +9688,9 @@ def main(argv, script_dir=None, zip_file=None):
         do_regenerate_all_fonts=f.do_regenerate_all_fonts)
   if f.do_optimize_images:
     pdf.ConvertInlineImagesToXObjects()
-    pdf.OptimizeImages(img_cmd_patterns=img_cmd_patterns)
+    pdf.OptimizeImages(
+        img_cmd_patterns=img_cmd_patterns,
+        do_fast_bilevel_images=f.do_fast_bilevel_images)
   if f.do_optimize_streams:
     # We call this before pdf.OptimizeObjs, so pdf.OptimizeObjs can found
     # more duplicate objs (in case the same stream data was compressed
