@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/python2.7
 
 """:" # pdfsizeopt: PDF file size optimizer
 
