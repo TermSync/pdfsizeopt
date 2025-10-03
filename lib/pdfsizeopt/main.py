@@ -209,22 +209,16 @@ FLAGS_HELP = r"""
 # script from http://pdfsizeopt.googlecode.com/svn/trunk/pdfsizeopt.py
 # won't expand that to a useful version number.
 
-__pychecker__ = (
-    'maxlines=999 maxlocals=99 unusednames=self,cls maxreturns=99 '
-    'maxbranches=9999')
+__pychecker__ = 'maxlines=999 maxlocals=99 unusednames=self,cls maxreturns=99 maxbranches=9999'
 
 import getopt
 import os
 import os.path
-import re
-import struct
 import sys
 import time
 import zlib
 
-from pdfsizeopt import cff
-from pdfsizeopt import psproc
-
+from lib.pdfsizeopt.cff import *
 
 class Error(Exception):
   """Comon base class for exceptions defined in this module."""
@@ -242,85 +236,85 @@ TMP_PREFIX = '///dev/null/psotmp..'  # Will be overridden in main.
 VERBOSITY = 999
 
 
-def LogFatal(msg, exit_code=2):
+def log_fatal(msg, exit_code=2):
   sys.stderr.write('fatal: %s\n' % (msg,))
   sys.stderr.flush()  # Not needed.
   sys.exit(exit_code)
 
 
-def LogError(msg):
+def log_error(msg):
   if VERBOSITY >= 20:
     sys.stderr.write('error: %s\n' % (msg,))
     sys.stderr.flush()  # Not needed.
 
 
-def LogWarning(msg):
+def log_warning(msg):
   if VERBOSITY >= 30:
     sys.stderr.write('warning: %s\n' % (msg,))
     sys.stderr.flush()  # Not needed.
 
 
-def LogInfo(msg, is_proportional=False):
+def log_info(msg, is_proportional=False):
   if VERBOSITY >= (40, 50)[bool(is_proportional)]:
     sys.stderr.write('info: %s\n' % (msg,))
     sys.stderr.flush()  # Not needed.
 
 
-def LogProportionalInfo(msg):
+def log_proportional_info(msg):
   if VERBOSITY >= 50:
     sys.stderr.write('info: %s\n' % (msg,))
     sys.stderr.flush()  # Not needed.
 
 
-def NeedToolLogOutput():
+def need_tool_log_output():
   return VERBOSITY >= 60
 
 
-def VerifyGs(gs_cmd, is_verbose):
+def verify_gs(gs_cmd, is_verbose):
   q = '\''
   if sys.platform.startswith('win'):
     q = ''
   if is_verbose:
-    LogInfo('verifying Ghostscript: %s' % gs_cmd)
+    log_info('verifying Ghostscript: %s' % gs_cmd)
   gs_cmd2 = gs_cmd + ' -dNODISPLAY -c %s/GSOK === quit%s' % (q, q)
   # It would also work without RedirectOutput, because Ghostscript writes
   # the interesting message to stdout.
   f = os.popen(RedirectOutput(gs_cmd2, mode=True), 'rb')
   data = f.read()
   if is_verbose:
-    LogInfo('output from Ghostscript: %r' % data)
+    log_info('output from Ghostscript: %r' % data)
   if f.close():
     if is_verbose:
-      LogInfo('Ghostscript failed')
+      log_info('Ghostscript failed')
     return False
   lines = data.rstrip('\n').split('\n')
   if not lines or lines[-1] != '/GSOK':
     if is_verbose:
-      LogInfo('missing /GSOK from Ghostscript')
+      log_info('missing /GSOK from Ghostscript')
     return False
   lines.pop()
   if not lines or ' Ghostscript ' not in lines[0]:
     if is_verbose:
-      LogInfo('missing Ghostscript version info')
+      log_info('missing Ghostscript version info')
     return False
   lines = [line for line in lines if not line.startswith('Copyright ') and
            'NO WARRANTY' not in line]
   data = '; '.join(lines)
   # Example: data == 'GPL Ghostscript 9.02 (2011-03-30)'.
   if is_verbose:
-    LogInfo('Ghostscript version info: %r' % (data,))
+    log_info('Ghostscript version info: %r' % (data,))
   return data
 
 
-def FindExeOnPath(prog):
+def find_exe_on_path(prog):
   """Return pathname to the executable prog, or None if not found."""
   exe_ext = ''
   if sys.platform.startswith('win') and '.' not in os.path.basename(prog):
     exe_ext = '.exe'
-  return FindOnPath(prog + exe_ext)
+  return find_on_path(prog + exe_ext)
 
 
-def GetGsCommand(is_verbose=False, _cache=[]):
+def get_gs_command(is_verbose=False, _cache=[]):
   """Return shell command-line prefix for running Ghostscript (gs)."""
   if _cache:
     return _cache[0]
@@ -350,15 +344,15 @@ def GetGsCommand(is_verbose=False, _cache=[]):
   gs_cmd = os.getenv('PDFSIZEOPT_GS', None)
   if gs_cmd is None:
     if sys.platform.startswith('win'):  # Windows: win32 or win64
-      gs_cmd = FindOnPath(os.path.join('pdfsizeopt_gswin', 'gswin32c.exe'))
+      gs_cmd = find_on_path(os.path.join('pdfsizeopt_gswin', 'gswin32c.exe'))
       if gs_cmd is not None:
         # wine-1.2 works with or without quoting here, but Windows XP
         # requires quoting if the path to gs_cmd contains whitespace.
         gs_cmd = prefix + ShellQuote(gs_cmd)
-        data = VerifyGs(gs_cmd, is_verbose=is_verbose)
+        data = verify_gs(gs_cmd, is_verbose=is_verbose)
       if not data:
         gs_cmd = prefix + 'gswin32c'
-        data = VerifyGs(gs_cmd, is_verbose=is_verbose)
+        data = verify_gs(gs_cmd, is_verbose=is_verbose)
       if not data:
         # if os.getenv('PROCESSOR_ARCHITECTURE', 'x86') != 'x86':
         if not os.getenv('PROGRAMFILES(X86)', ''):  # 32-bit Windows.
@@ -376,50 +370,49 @@ def GetGsCommand(is_verbose=False, _cache=[]):
                   fn = os.path.join(d, entry, 'bin', 'gswin32c.exe')
                   if os.path.isfile(fn):
                     gs_cmd = prefix + ShellQuote(fn)
-                    data = VerifyGs(gs_cmd, is_verbose=is_verbose)
+                    data = verify_gs(gs_cmd, is_verbose=is_verbose)
                     if data:
                       break
-                    LogInfo('this Ghostscript does not work: %s' % gs_cmd)
+                    log_info('this Ghostscript does not work: %s' % gs_cmd)
                     data = gs_cmd = None
               if gs_cmd is not None:
                 break
       if not data or gs_cmd is None:
         raise RuntimeError('Could not find a working Ghostscript.')
     else:
-      gs_cmd = FindOnPath(os.path.join('pdfsizeopt_gs', 'gs'))
+      gs_cmd = find_on_path(os.path.join('pdfsizeopt_gs', 'gs'))
       if gs_cmd is not None:
         gs_cmd = prefix + ShellQuote(gs_cmd)
-        data = VerifyGs(gs_cmd, is_verbose=is_verbose)
+        data = verify_gs(gs_cmd, is_verbose=is_verbose)
       if not data and sys.platform.startswith('darwin'):
         # http://pages.uoregon.edu/koch/ and MacTeX have it.
-        gs_cmd = FindOnPath('gs-noX11')
+        gs_cmd = find_on_path('gs-noX11')
         if gs_cmd is not None:
           gs_cmd = prefix + ShellQuote(gs_cmd)
-          data = VerifyGs(gs_cmd, is_verbose=is_verbose)
+          data = verify_gs(gs_cmd, is_verbose=is_verbose)
       if not data:
         gs_cmd, data = prefix + 'gs', None
   if data is None:
-    data = VerifyGs(gs_cmd, is_verbose=is_verbose)
+    data = verify_gs(gs_cmd, is_verbose=is_verbose)
   if not data:
     raise RuntimeError('Ghostscript does not seem to work: %s' % gs_cmd)
-  gs_cmd_print = gs_cmd
   if os.sep not in gs_cmd[len(prefix):]:
     gs_cmd2 = gs_cmd
     if gs_cmd2.startswith('"'):  # Approximately correct on Windows and Unix.
       i = gs_cmd2.find('"', 1)
       if i > 0:
         gs_cmd2 = gs_cmd[1 : i]
-    gs_cmd_print = FindExeOnPath(gs_cmd2)
+    gs_cmd_print = find_exe_on_path(gs_cmd2)
     if not gs_cmd_print:
       gs_cmd_print = gs_cmd
   else:
     gs_cmd_print = gs_cmd
-  LogInfo('using Ghostscript %s: %s' % (gs_cmd_print, data))
+  log_info('using Ghostscript %s: %s' % (gs_cmd_print, data))
   _cache.append(gs_cmd)
   return gs_cmd
 
 
-def RedirectOutputUnix(cmd, mode=False):
+def redirect_output_unix(cmd, mode=False):
   """Returns cmd with output redirected.
 
   Args:
@@ -439,8 +432,7 @@ def RedirectOutputUnix(cmd, mode=False):
   return 'exec%s;%s' % (suffix, cmd + '')
 
 
-WINDOWS_COMMAND_QUOTED_OR_SEP_RE = re.compile(
-    r'"[^"]+"|>[^&\n]*(?:&&?|\r\n|\n|\Z)|&&?|\r\n|\n')
+WINDOWS_COMMAND_QUOTED_OR_SEP_RE = re.compile(r'"[^"]+"|>[^&\n]*(?:&&?|\r\n|\n|\Z)|&&?|\r\n|\n')
 """Matches a double-quoted string literal or a command separator
 (& or && or newline) or an stdout-redirect until the separator
 on a Windows cmd.exe command-line.
@@ -451,7 +443,7 @@ TODO(pts): Handle \" and \\ better in quoted strings.
 """
 
 
-def RedirectOutputWindows(cmd, mode=False):
+def redirect_output_windows(cmd, mode=False):
   """See the docstring of RedirectOutputUnix."""
   # These command suffixes indeed work on Windows.
   # https://serverfault.com/a/132964/27885
@@ -469,18 +461,16 @@ def RedirectOutputWindows(cmd, mode=False):
        (mode or '>' not in cmd))):  # Simple, appending will do.
     return cmd + suffix
   if mode is None:
-    replf = (lambda match: suffix * (match.group()[0] not in '">') +
-                           suffixb * (match.group()[0] == '>') + match.group())
+    replf = (lambda match: suffix * (match.group()[0] not in '">') + suffixb * (match.group()[0] == '>') + match.group())
   else:
     replf = lambda match: suffix * (match.group()[0] not in ics) + match.group()
   return WINDOWS_COMMAND_QUOTED_OR_SEP_RE.sub(replf, cmd + '\n').rstrip('\n')
 
 
-RedirectOutput = (RedirectOutputUnix, RedirectOutputWindows)[
-    sys.platform.startswith('win')]
+RedirectOutput = (redirect_output_unix, redirect_output_windows)[sys.platform.startswith('win')]
 
 
-def FindMultivalentJar(file_name):
+def find_multivalent_jar(file_name):
   """Find Multivalent.jar
 
   Args:
@@ -489,7 +479,7 @@ def FindMultivalentJar(file_name):
     Pathname to Multivalent.jar or None.
   """
   assert os.sep not in file_name
-  multivalent_jar = FindOnPath(file_name)
+  multivalent_jar = find_on_path(file_name)
   if multivalent_jar is None:
     slash_file_name = os.sep + file_name
     for item in os.getenv('CLASSPATH', '').split(os.pathsep):
@@ -501,7 +491,7 @@ def FindMultivalentJar(file_name):
   return multivalent_jar
 
 
-def GetMultivalentCompressCommand(libexec_dir, _cache=[]):
+def get_multivalent_compress_command(libexec_dir, _cache=[]):
   """Returns the Multivalent tool.pdf.Compress command prefix.
 
   Args:
@@ -512,39 +502,36 @@ def GetMultivalentCompressCommand(libexec_dir, _cache=[]):
   """
   if _cache:
     return _cache[0]
-  compress_exe = FindExeOnPath('multivalent_compress')
+  compress_exe = find_exe_on_path('multivalent_compress')
   if compress_exe is not None:
     result = ShellQuote(compress_exe)
   else:
     multivalent_jar = None
     if multivalent_jar is None:
-      multivalent_jar = FindMultivalentJar('MultivalentCompress.jar')
+      multivalent_jar = find_multivalent_jar('MultivalentCompress.jar')
     if multivalent_jar is None:
-      multivalent_jar = FindMultivalentJar('Multivalent20060102.jar')
+      multivalent_jar = find_multivalent_jar('Multivalent20060102.jar')
     if multivalent_jar is None:
-      multivalent_jar = FindMultivalentJar('Multivalent.jar')
+      multivalent_jar = find_multivalent_jar('Multivalent.jar')
     if not multivalent_jar:
-      LogFatal(
+      log_fatal(
           'Multivalent.jar not found. Make sure it is on the $PATH, '
           'or it is one of the files on the $CLASSPATH.', 3)
     if os.pathsep in multivalent_jar:
-      raise ValueError(
-          '$CLASSPATH separator %s in Multivalent.jar pathname: %s' %
-          (os.pathsep, multivalent_jar))
-    LogInfo('using Multivalent.jar: %s' % (multivalent_jar,))
+      raise ValueError('$CLASSPATH separator %s in Multivalent.jar pathname: %s' % (os.pathsep, multivalent_jar))
+    log_info('using Multivalent.jar: %s' % (multivalent_jar,))
 
-    if (libexec_dir is not None and
-          os.path.isfile(os.path.join(libexec_dir, 'avian'))):
+    if (libexec_dir is not None and os.path.isfile(os.path.join(libexec_dir, 'avian'))):
       multivalent_java = os.path.join(libexec_dir, 'avian')
     else:
-      multivalent_java = FindExeOnPath('java')
+      multivalent_java = find_exe_on_path('java')
       if multivalent_java is None:
-        multivalent_java = FindExeOnPath('avian')
+        multivalent_java = find_exe_on_path('avian')
     if multivalent_java is None:
-      LogFatal(
+      log_fatal(
           'Java needed by Multivalent not found. '
           'Specify --use-multivalent=no or install Java (JRE) or Avian', 3)
-    LogInfo('using Java for Multivalent: %s' % (multivalent_java,))
+    log_info('using Java for Multivalent: %s' % (multivalent_java,))
 
     # Without -Djava.awt.headless=true on Mac OS X within an ssh as a
     # currently non-interactive user, Multivalent will fail with
@@ -553,9 +540,9 @@ def GetMultivalentCompressCommand(libexec_dir, _cache=[]):
     #   not enough permissions.
     result = (
         '%s -cp %s -Djava.awt.headless=true tool.pdf.Compress' %
-        (ShellQuote(multivalent_java), ShellQuoteFileName(multivalent_jar)))
+        (ShellQuote(multivalent_java), shell_quote_file_name(multivalent_jar)))
 
-  LogInfo('using Multivalent compress command: %s' % (result,))
+  log_info('using Multivalent compress command: %s' % (result,))
   _cache.append(result)
   return result
 
@@ -563,7 +550,7 @@ def GetMultivalentCompressCommand(libexec_dir, _cache=[]):
 UNIX_SHELL_NEED_QUOTE_RE = re.compile(r'[^-_.+,:/a-zA-Z0-9]')
 
 
-def ShellQuoteUnix(string):
+def shell_quote_unix(string):
   """Quotes (escapes) a command-line argument for Unix (Bourne shell).
 
   Args:
@@ -582,7 +569,7 @@ WINDOWS_SHELL_NEED_QUOTE_RE = re.compile(r'[ \t%"<>&|]')
 WINDOWS_SHELL_QUOTE_RE = re.compile(r'(\\+)("|\Z)|(")')
 
 
-def ShellQuoteWindows(string):
+def shell_quote_windows(string):
   """Quotes (escapes) a command-line argument for Windows.
 
   Does the quoting according to inverse of the rules defined in
@@ -609,15 +596,13 @@ def ShellQuoteWindows(string):
   if string and not WINDOWS_SHELL_NEED_QUOTE_RE.search(string):
     return string
   return '"%s"' % WINDOWS_SHELL_QUOTE_RE.sub(
-      lambda match: r'\\' * len(match.group(1) or '') +
-                    r'\"' * len(match.group(2) or match.group(3) or ''),
-      string)
+      lambda match: r'\\' * len(match.group(1) or '') + r'\"' * len(match.group(2) or match.group(3) or ''), string)
 
 
-ShellQuote = (ShellQuoteUnix, ShellQuoteWindows)[sys.platform.startswith('win')]
+ShellQuote = (shell_quote_unix, shell_quote_windows)[sys.platform.startswith('win')]
 
 
-def ShellQuoteFileName(string, is_gs=False):
+def shell_quote_file_name(string, is_gs=False):
   # TODO(pts): Make it work on non-Unix systems.
   if string.startswith('-') and len(string) > 1:
     string = '.%s%s' % (os.sep, string)
@@ -630,7 +615,7 @@ def ShellQuoteFileName(string, is_gs=False):
     # os.path.isabs and os.path.join don't work correctly, we implement our
     # own.
     if (is_gs and
-        GetGsCommand()[1 : 8] == ':&cd \\&' and
+        get_gs_command()[1 : 8] == ':&cd \\&' and
         not string.startswith('\\\\') and not string[1 : 3] == ':\\'):
       cwd = os.getcwd()
       if cwd.startswith('UNC\\'):  # wine-1.6.3.
@@ -646,32 +631,32 @@ def ShellQuoteFileName(string, is_gs=False):
   return ShellQuote(string)
 
 
-def FormatPercent(num, den):
+def format_percent(num, den):
   if den == 0:
     return '?%'
   return '%d%%' % int((num * 100 + (den / 2)) // den)
 
 
-def FormatPercentTwoDigits(num, den):
+def format_percent_two_digits(num, den):
   if den == 0:
     return '?%'
   v = (num * 10000 + (den / 2)) // den
   return '%d.%02d%%' % divmod(v, 100)
 
 
-def EnsureRemoved(file_name):
+def ensure_removed(file_name):
   try:
     os.remove(file_name)
   except OSError:
     assert not os.path.exists(file_name)
 
 
-def Rename(fromfn, tofn):
+def rename(fromfn, tofn):
   """Like os.rename, but works on Windows if the destination exists."""
   try:
     os.rename(fromfn, tofn)
     return
-  except OSError, e:
+  except OSError as e:
     # On Windows: WindowsError:
     # [Error 183] Cannot create a file when that file already exists.
     # sys.platform.startswith('win') and e[0] == 183):
@@ -683,13 +668,13 @@ def Rename(fromfn, tofn):
           pass
         os.rename(fromfn, tofn)
         return
-      except OSError, e:
+      except OSError as e:
         pass
-  LogFatal(
+  log_fatal(
       'unable to rename from %r to %r: %s' % (fromfn, tofn, e), 4)
 
 
-def FindOnPath(file_name):
+def find_on_path(file_name):
   """Find file_name on $PATH, and return the full pathname or None."""
   path = os.getenv('PATH', None)
   is_win = sys.platform.startswith('win')
@@ -709,7 +694,7 @@ def FindOnPath(file_name):
   return None
 
 
-def PermissiveZlibDecompress(data):
+def permissive_zlib_decompress(data):
   """Decompress (inflate) an RFC 1950 deflated string, maybe w/o checksum.
 
   Args:
@@ -737,7 +722,7 @@ def PermissiveZlibDecompress(data):
     # This won't work data = zlib.decompress(buffer(data, 2), -wbits)
     # It may raise: zlib.error: Error -5 while decompressing data: incomplete or truncated stream
     zd = zlib.decompressobj(-wbits)
-    data = zd.decompress(buffer(data, 2))
+    data = zd.decompress(data[2:])
     data += zd.flush()
     if len(zd.unused_data) >= 4:  # Full Adler-32 checksum.
       # Python 2.4 or 2.5 zlib.adler32(...) may return signed or unsigned.
@@ -750,7 +735,7 @@ def PermissiveZlibDecompress(data):
 NONWORD_RE = re.compile(r'\W+')
 
 
-def GetCmdName(cmd_pattern):
+def get_cmd_name(cmd_pattern):
   cmd_name = cmd_pattern.split()  # TODO(pts): Windows unquote "...".
   if not cmd_name:
     return None
@@ -881,8 +866,8 @@ class PdfObj(object):
   """Matches one or more PDF whitespace characters."""
 
   PDF_STREAM_OR_ENDOBJ_RE = re.compile(
-      r'(stream(?:[\0\t\f ]*\r?\n|[\0\t\f ])|'
-      r'endobj(?:\r\n|[\0\t\n\r\f /%]|\Z))')
+      r'(stream(?:[\x00\t\f ]*\r?\n|[\x00\t\f ])|'
+      r'endobj(?:\r\n|[\x00\t\n\r\f /%]|\Z))')
   """Matches stream or endobj in a PDF obj in .group(1).
 
   pdf_reference_1-7.pdf requires stream\r?\n, we are more permissive.
@@ -890,40 +875,40 @@ class PdfObj(object):
   """
 
   PDF_PREFIXED_STREAM_OR_ENDOBJ_RE = re.compile(
-      r'[\0\t\n\r\f \)>\]]' + PDF_STREAM_OR_ENDOBJ_RE.pattern)
+      r'[\x00\t\n\r\f \)>\]]' + PDF_STREAM_OR_ENDOBJ_RE.pattern)
   """Matches stream or endobj in a PDF obj, prefixed with 1 char."""
 
   REST_OF_R_RE = re.compile(
-      r'(?:[\0\t\n\r\f ]|%[^\r\n]*[\r\n])+([-+]?\d+)'
-      r'(?:[\0\t\n\r\f ]|%[^\r\n]*[\r\n])+R(?=[\0\t\n\r\f /%<>\[\](])')
+      r'(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+([-+]?\d+)'
+      r'(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+R(?=[\x00\t\n\r\f /%<>\[\](])')
   """Matches the generation number and the 'R' (followed by a char)."""
 
   PDF_END_OF_REF_RE = re.compile(
-      r'[\0\t\n\r\f ]R(?=[\0\t\n\r\f /%(<>\[\]]|\Z)')
+      r'[\x00\t\n\r\f ]R(?=[\x00\t\n\r\f /%(<>\[\]]|\Z)')
   """Matches the whitespace, the 'R' and looks ahead 1 char."""
 
-  PDF_REF_END_RE = re.compile(r'[\0\t\n\r\f ]R\Z')
+  PDF_REF_END_RE = re.compile(r'[\x00\t\n\r\f ]R\Z')
   """Matches a whitespace char and an R at the end of the string."""
 
   PDF_REF_AT_EOS_RE = re.compile(
       r'([-+]?\d+)'
-      r'(?:[\0\t\n\r\f ]|%[^\r\n]*[\r\n])+([-+]?\d+)'
-      r'(?:[\0\t\n\r\f ]|%[^\r\n]*[\r\n])+R\Z')
+      r'(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+([-+]?\d+)'
+      r'(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+R\Z')
   """Matches an <x> <y> R at end-of-string."""
 
   PDF_REF_RE = re.compile(
-      PDF_REF_AT_EOS_RE.pattern[:-2] + r'(?=[\0\t\n\r\f /%(<>\[\]]|\Z)')
+      PDF_REF_AT_EOS_RE.pattern[:-2] + r'(?=[\x00\t\n\r\f /%(<>\[\]]|\Z)')
   """Matches an <x> <y> R."""
 
   PDF_NUMBER_OR_REF_RE = re.compile(
-      r'([-+]?\d+)(?=[\0\t\n\r\f /%(<>\[\]])(?:'
-      r'(?:[\0\t\n\r\f ]|%[^\r\n]*[\r\n])+([-+]?\d+)'
-      r'(?:[\0\t\n\r\f ]|%[^\r\n]*[\r\n])+R'
-      r'(?=[\0\t\n\r\f /%(<>\[\]]|\Z))?')
+      r'([-+]?\d+)(?=[\x00\t\n\r\f /%(<>\[\]])(?:'
+      r'(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+([-+]?\d+)'
+      r'(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+R'
+      r'(?=[\x00\t\n\r\f /%(<>\[\]]|\Z))?')
   """Matches a number or an <x> <y> R."""
 
   LENGTH_OF_STREAM_RE = re.compile(
-      r'/Length(?:[\0\t\n\r\f ]|%[^\r\n]*[\r\n])+' +
+      r'/Length(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+' +
       PDF_NUMBER_OR_REF_RE.pattern)
   """Matches `/Length <x>' or `/Length <x> <y> R'."""
 
@@ -931,7 +916,7 @@ class PdfObj(object):
   """Matches the beginning of a subset font name (starting with slash)."""
 
   PDF_COMMENTS_OR_WHITESPACE_RE = re.compile(
-      r'(?:[\0\t\n\r\f ]+(?![\0\t\n\r\f ])|%[^\r\n]*(?:[\r\n]|\Z))*')
+      r'(?:[\x00\t\n\r\f ]+(?![\x00\t\n\r\f ])|%[^\r\n]*(?:[\r\n]|\Z))*')
       # TODO(pts): Does this do fewer backtracks than the one below?
       # r'[\0\t\n\r\f ]*(?:%[^\r\n]*(?:[\r\n]|\Z)[\0\t\n\r\f ]*)*')
   """Matches any number (0 is OK) of terminated comments and whitespace.
@@ -944,12 +929,12 @@ class PdfObj(object):
   """Matches any number (>= 1) of terminated comments and whitespace."""
 
   PDF_JUST_OBJ_DEF_RE = re.compile(
-      r'(\d+)[\0\t\n\r\f ]+(\d+)[\0\t\n\r\f ]+obj'
-      r'(?=[\0\t\n\r\f %/<\[({])')
+      r'(\d+)[\x00\t\n\r\f ]+(\d+)[\x00\t\n\r\f ]+obj'
+      r'(?=[\x00\t\n\r\f %/<\[({])')
   """Matches an `obj' definition without leading or trailing whitespace."""
 
   PDF_OBJ_DEF_RE = re.compile(
-      r'[\0\t\n\r\f ]*' + PDF_JUST_OBJ_DEF_RE.pattern +
+      r'[\x00\t\n\r\f ]*' + PDF_JUST_OBJ_DEF_RE.pattern +
       PDF_COMMENTS_OR_WHITESPACE_RE.pattern)
   """Matches an `obj' definition with maybe leading and trailing whitespace.
 
@@ -959,8 +944,8 @@ class PdfObj(object):
   """
 
   PDF_OBJ_DEF_OR_XREF_RE = re.compile(
-      PDF_JUST_OBJ_DEF_RE.pattern + r'[\0\t\n\r\f ]*'
-      r'|xref[\0\t\n\r\f ]+|startxref[\0\t\n\r\f ]+')
+      PDF_JUST_OBJ_DEF_RE.pattern + r'[\x00\t\n\r\f ]*'
+      r'|xref[\x00\t\n\r\f ]+|startxref[\x00\t\n\r\f ]+')
   """Matches an `obj' definition, xref or startxref.
 
   It's important that leading whitespace is not ignored.
@@ -969,7 +954,7 @@ class PdfObj(object):
   """
 
   PDF_HEXTOKENS_SAFE_HEX_ESCAPE_RE = re.compile(
-      r'[^-+A-Za-z0-9_./#\[\]()<>{}\0\t\n\r\f ]')
+      r'[^-+A-Za-z0-9_./#\[\]()<>{}\x00\t\n\r\f ]')
   """Matches a single name character which needs to be hex-escaped.
 
   This regexp should be matched against a PDF token sequence (rather than a
@@ -984,14 +969,14 @@ class PdfObj(object):
   members of PDF_SAFE_KEEP_HEX_ESCAPED_RE,. """
 
   PDF_OPTIMIZED_KEEP_HEX_ESCAPED_RE = re.compile(
-      r'[/#\[\]()<>{}\0\t\n\r\f %]')
+      r'[/#\[\]()<>{}\x00\t\n\r\f %]')
   """Like PDF_SAFE_KEEP_HEX_ESCAPED_RE, but contains only a minimum set of
   characters so that the PDF is still valid.
 
   The output with this regexp won't be a safe PDF token sequence.
   """
 
-  PDF_SAFE_KEEP_HEX_ESCAPED_RE = cff.NAME_CHAR_TO_HEX_KEEP_ESCAPED_RE
+  PDF_SAFE_KEEP_HEX_ESCAPED_RE = NAME_CHAR_TO_HEX_KEEP_ESCAPED_RE
   """Matches a single character to be kept escaped internally to pdfsizeopt."""
 
   PDF_STRING_UNSAFE_CHARS = '<>(){}[]\\\v/\0\t\n\r\f %#'
@@ -1036,7 +1021,7 @@ class PdfObj(object):
   'foo&bar' all the way to the end, but PDF_TOKENS_UNSAFE_CHARS_RE isn't found.
   """
 
-  PDF_TOKENS_UNSAFE_CHARS_RE = re.compile(r'[{}\\\v\0\t\n\r\f%\\]+')
+  PDF_TOKENS_UNSAFE_CHARS_RE = re.compile(r'[{}\\\v\x00\t\n\r\f%\\]+')
   """Matches a single unsafe character in a PDF token sequence.
 
   * Space is not unsafe, we need it for `/Length 5'.
@@ -1061,18 +1046,18 @@ class PdfObj(object):
   """
 
   PDF_ANGLE_BRACKET_FOR_SIMPLE_RE = re.compile(
-      r'<(?:<|[\0\t\n\r\f 0-9a-fA-F]*>?)|>(?:>)?')
+      r'<(?:<|[\x00\t\n\r\f 0-9a-fA-F]*>?)|>(?:>)?')
   """Matches angle bracket constructs.
 
   Useful for detecting PDF token sequence syntax errors in simple parsing."""
 
   PDF_HEX_STRING_LITERAL_OR_DICT_RE = re.compile(
-      r'<(?:<|[\0\t\n\r\f 0-9a-fA-F]*>?)')
+      r'<(?:<|[\x00\t\n\r\f 0-9a-fA-F]*>?)')
   """Matches a << or a PDF hex <...> string literal, without maybe the
   trailing >."""
 
   PDF_HEX_STRING_LITERAL_RE = re.compile(
-      r'<[\0\t\n\r\f 0-9a-fA-F]*>?')
+      r'<[\x00\t\n\r\f 0-9a-fA-F]*>?')
   """Matches a PDF hex <...> string literal, where the trailing > is optional,
   but then anchored to \Z."""
 
@@ -1086,7 +1071,7 @@ class PdfObj(object):
   """
 
   PDF_TOKENS_NONSIMPLE_CHAR_RE = re.compile(
-      r'[^-+A-Za-z0-9_.#/\[\]<>\0\t\n\r\f ' +
+      r'[^-+A-Za-z0-9_.#/\[\]<>\x00\t\n\r\f ' +
       PDF_UNSAFE_NAME_IN_SIMPLE_RE.pattern[1 : -1] + r']')
   """Matches a non-simple character in a PDF obj, needs the
   PDF_TOKENS_INTERESTING_RE parser.
@@ -1103,11 +1088,11 @@ class PdfObj(object):
 
   # !!! Faster regexps by splitting. Do some benchmarks on huge PDFs.
   PDF_TOKENS_INTERESTING_RE = re.compile(
-      PDF_COMMENT_OR_WHITESPACE_RE.pattern + r'(?=([^\0\t\n\r\f ]|\Z))|'  # 1. Comment or whitespace.
+      PDF_COMMENT_OR_WHITESPACE_RE.pattern + r'(?=([^\x00\t\n\r\f ]|\Z))|'  # 1. Comment or whitespace.
       r'\(([^\\()\r]*)\)|'  # 2. Simple string: without parens or backslash.
       r'(\()|'  # 3. Beginning of a complicated string.
-      r'(/[-+A-Za-z0-9_.]*[^<>(){}\[\]/\0\t\n\r\f %\-+A-Za-z0-9_.][^<>(){}\[\]/\0\t\n\r\f %]*)|' +  # 4. Name with explicit hex (#AB) escape or name which needs hex-escaping. !!! Reuse PDF_SAFE_KEEP_HEX_ESCAPED_RE.
-      r'(/(?=[<>(){}\[\]/\0\t\n\r\f %]|\Z))|' +  # 5. An empty name token.
+      r'(/[-+A-Za-z0-9_.]*[^<>(){}\[\]/\x00\t\n\r\f %\-+A-Za-z0-9_.][^<>(){}\[\]/\x00\t\n\r\f %]*)|' +  # 4. Name with explicit hex (#AB) escape or name which needs hex-escaping. !!! Reuse PDF_SAFE_KEEP_HEX_ESCAPED_RE.
+      r'(/(?=[<>(){}\[\]/\x00\t\n\r\f %]|\Z))|' +  # 5. An empty name token.
       r'(#[0-9a-fA-F]{0,2})|' +  # 6. A hex-escape (usually in a name or a keyword).
       r'(' + PDF_HEX_STRING_LITERAL_OR_DICT_RE.pattern + ')|'  # 7. Hex string literal or stray <.
       r'([{}\\\v\)]|>>?)|'  # 8. Invalid PDF tokens (except for >>). (At least invalid outside name tokens.)
@@ -1117,7 +1102,7 @@ class PdfObj(object):
   PDF_EMPTY_NAME_TOKEN_RE = re.compile('/(?:[<>(){}\[\]/\0\t\n\r\f %]|\Z)')
 
   PDF_WHITESPACE_IN_SIMPLE_RE = re.compile(
-      r'([^\0\t\n\r\f ])[\0\t\n\r\f ]+(?=([^\0\t\n\r\f ]|\Z))')
+      r'([^\x00\t\n\r\f ])[\x00\t\n\r\f ]+(?=([^\x00\t\n\r\f ]|\Z))')
   """Matches whitespace in a simple obj head."""
 
   PDF_NUMBER_AT_EOS_RE = re.compile(r'(?:([-])|[+]?)0*(\d*(?:[.]\d*)?)\Z')
@@ -1139,20 +1124,20 @@ class PdfObj(object):
   """Matches a PDF keyword (e.g. true, false, null, obj) or number."""
 
   PDF_STARTXREF_EOF_RE = re.compile(
-      r'[>\0\t\n\r\f ]startxref[\0\t\n\r\f ]+(\d+)(?:[\0\t\n\r\f ]+'
-      r'%%EOF[\0\t\n\r\f ]*)?')
+      r'[>\x00\t\n\r\f ]startxref[\x00\t\n\r\f ]+(\d+)(?:[\x00\t\n\r\f ]+'
+      r'%%EOF[\x00\t\n\r\f ]*)?')
   PDF_STARTXREF_EOF_AT_EOS_RE = re.compile(
       PDF_STARTXREF_EOF_RE.pattern + r'\Z')
   """Matches whitespace (or >), startxref, offset, then EOF at EOS."""
 
   PDF_VERSION_HEADER_RE = re.compile(
-      r'%PDF-(1[.]\d)%?(\r?\n%[\x80-\xff]{1,4}\r?\n|[\0\t\n\r\f ])')
+      r'%PDF-(1[.]\d)%?(\r?\n%[\x80-\xff]{1,4}\r?\n|[\x00\t\n\r\f ])')
   """Matches the header with the version at the beginning of the PDF."""
 
   PDF_TRAILER_RE = re.compile(
-      r'(?s)trailer[\0\t\n\r\f ]*(<<.*?>>)' +
+      r'(?s)trailer[\x00\t\n\r\f ]*(<<.*?>>)' +
       PDF_COMMENTS_OR_WHITESPACE_RE.pattern +
-      r'(?:startxref|xref)[\0\t\n\r\f ]')
+      r'(?:startxref|xref)[\x00\t\n\r\f ]')
   """Matches from 'trailer' to 'startxref' or 'xref'.
 
   TODO(pts): Match more generally, see multiple trailers for testing in:
@@ -1161,11 +1146,11 @@ class PdfObj(object):
 
   PDF_PREFIXED_STARTXREF_RE = re.compile(
       '>>' + PDF_COMMENTS_OR_WHITESPACE_RE.pattern +
-      r'(startxref|xref)[\0\t\n\r\f ]')
+      r'(startxref|xref)[\x00\t\n\r\f ]')
   """Matches startxref or xref in a PDF trailer, prefixed with >>."""
 
   PDF_XREF_SECTION_RE = re.compile(
-      r'[\0\t\n\r\f ]*(xref[\0\t\n\r\f ]+)\d+[\0\t\n\r\f ]+\d+[\0\t\n\r\f ]+')
+      r'[\x00\t\n\r\f ]*(xref[\x00\t\n\r\f ]+)\d+[\x00\t\n\r\f ]+\d+[\x00\t\n\r\f ]+')
   """Matches the start of a PDF xref section.
 
   Some broken PDFs have whitespace in front the xref, so we accept that.
@@ -1173,35 +1158,35 @@ class PdfObj(object):
   """
 
   PDF_XREF_SUBSECTION_OR_TRAILER_RE = re.compile(
-      r'(\d+)[\0\t\n\r\f ]+(\d+)[\0\t\n\r\f ]+|'
-      r'[\0\t\n\r\f ]*(xref[\0\t\n\r\f ]|trailer(?:[\0\t\n\r\f ]|<<))')
+      r'(\d+)[\x00\t\n\r\f ]+(\d+)[\x00\t\n\r\f ]+|'
+      r'[\x00\t\n\r\f ]*(xref[\x00\t\n\r\f ]|trailer(?:[\x00\t\n\r\f ]|<<))')
   """Matches a PDF xref entry, or the 'xref' or 'trailer' keyword."""
 
   PDF_XREF_ENTRY_RE = re.compile(
-      r'(\d{10})[\0\t\n\r\f ](\d{5})[\0\t\n\r\f ]([nf])'
-      r'[\0\t\n\r\f ]{2}')
+      r'(\d{10})[\x00\t\n\r\f ](\d{5})[\x00\t\n\r\f ]([nf])'
+      r'[\x00\t\n\r\f ]{2}')
   """Matches a single PDF xref entry: obj_num, offset and slot type."""
 
   PDF_OBJ_OR_TRAILER_RE = re.compile(
-      r'[\n\r](?:(\d+)[\0\t\n\r\f ]+(\d+)[\0\t\n\r\f ]+obj\b|'
-      r'trailer(?=[\0\t\n\r\f ]|<<))')
+      r'[\n\r](?:(\d+)[\x00\t\n\r\f ]+(\d+)[\x00\t\n\r\f ]+obj\b|'
+      r'trailer(?=[\x00\t\n\r\f ]|<<))')
   """Matches an 'obj' start or a 'trailer' start."""
 
-  PDF_TRAILER_WORD_RE = re.compile(r'[\0\t\n\r\f ](trailer[\0\t\n\r\f ]*<<)')
+  PDF_TRAILER_WORD_RE = re.compile(r'[\x00\t\n\r\f ](trailer[\x00\t\n\r\f ]*<<)')
   """Matches whitespace, the 'trailer' and some more chars."""
 
   PDF_ENDSTREAM_ENDOBJ_RE = re.compile(
-      r'([\0\t\n\r\f ]*)endstream[\0\t\n\r\f ]+endobj(?:[\0\t\n\r\f /]|\Z)')
+      r'([\x00\t\n\r\f ]*)endstream[\x00\t\n\r\f ]+endobj(?:[\x00\t\n\r\f /]|\Z)')
   """Matches endstream+endobj."""
 
-  PDF_BAD_NUMBER_RE = re.compile(r'([\0\t\n\r\f \[])[.](?=[\0\t\n\r\f \]])')
+  PDF_BAD_NUMBER_RE = re.compile(r'([\x00\t\n\r\f \[])[.](?=[\x00\t\n\r\f \]])')
   """Matches a bad (unparsable) number."""
 
   PDF_SIMPLE_VALUE_RE = re.compile(
-      r'(?s)[\0\t\n\r\f ]*('
+      r'(?s)[\x00\t\n\r\f ]*('
       r'\[.*?\]|<<.*?>>|<[^>]*>|\(.*?\)|%[^\n\r]*|'
       + PDF_REF_RE.pattern + '|'
-      r'/?[^\[\]()<>{}/\0\t\n\r\f %]+)')
+      r'/?[^\[\]()<>{}/\x00\t\n\r\f %]+)')
   """Matches a single PDF token or comment in a simplistic way.
 
   For [...], <<...>> and (...) which contain nested delimiters, only a prefix
@@ -1209,23 +1194,23 @@ class PdfObj(object):
   """
 
   PDF_SIMPLEST_KEY_VALUE_RE = re.compile(
-      r'[\0\t\n\r\f ]*/([-+A-Za-z0-9_.]+)(?=[\0\t\n\r\f /\[(<])'
-      r'[\0\t\n\r\f ]*('
-      r'\d+[\0\t\n\r\f ]+\d+[\0\t\n\r\f ]+R|'
-      r'\([^()\\]*\)|(?s)<(?!<).*?>|'
+      r'[\x00\t\n\r\f ]*/([-+A-Za-z0-9_.]+)(?=[\x00\t\n\r\f /\[(<])'
+      r'[\x00\t\n\r\f ]*('
+      r'\d+[\x00\t\n\r\f ]+\d+[\x00\t\n\r\f ]+R|'
+      r'\([^()\\]*\)|<(?!<)(.|\n)*?>|'
       r'\[[^%(\[\]]*\]|<<[^%(<>]*>>|'
-      r'/?[-+A-Za-z0-9_.]+(?=[\0\t\n\r\f /\[(<]|\Z))')
+      r'/?[-+A-Za-z0-9_.]+(?=[\x00\t\n\r\f /\[(<]|\Z))')
   """Matches a very simple PDF key--value pair, in a most simplistic way."""
   # TODO(pts): How to prevent backtracking if the regexp doesn't match?
 
-  PDF_WHITESPACE_AT_EOS_RE = re.compile(r'[\0\t\n\r\f ]*\Z')
+  PDF_WHITESPACE_AT_EOS_RE = re.compile(r'[\x00\t\n\r\f ]*\Z')
   """Matches whitespace (0 or more) at end of string."""
 
-  PDF_WHITESPACE_RE = re.compile(r'[\0\t\n\r\f ]+')
+  PDF_WHITESPACE_RE = re.compile(r'[\x00\t\n\r\f ]+')
   """Matches whitespace (1 or more)."""
 
   PDF_WHITESPACE_OR_HEX_STRING_RE = re.compile(
-      r'[\0\t\n\r\f ]+|(<<)|<(?!<)([^>]*)>')
+      r'[\x00\t\n\r\f ]+|(<<)|<(?!<)([^>]*)>')
   """Matches whitespace (1 or more) or a hex string constant or <<."""
 
   PDF_NAME_HEX_OR_HASHMARK_RE = re.compile(r'#([0-9a-fA-F]{2})?')
@@ -1240,7 +1225,7 @@ class PdfObj(object):
   PDF_NONNAME_CHAR_RE = re.compile('[%s]' % re.escape(PDF_NONNAME_CHARS))
   """Matches a single character which can't be part of a PDF name."""
 
-  PDF_NAME_LITERAL_RE = re.compile(r'/([^\[\]{}()<>/%\0\t\n\r\f ]+)')
+  PDF_NAME_LITERAL_RE = re.compile(r'/([^\[\]{}()<>/%\x00\t\n\r\f ]+)')
   """Matches a PDF /name literal."""
 
   PDF_INT_RE = re.compile(r'([-+]?\d+)')
@@ -1262,7 +1247,7 @@ class PdfObj(object):
   PDF_COMMENT_RE = re.compile(r'%[^\r\n]*')
   """Matches a single comment line without a terminator."""
 
-  PDF_SIMPLE2_REF_RE = re.compile(r'(\d+)[\0\t\n\r\f ]+(\d+)[\0\t\n\r\f ]+R\b')
+  PDF_SIMPLE2_REF_RE = re.compile(r'(\d+)[\x00\t\n\r\f ]+(\d+)[\x00\t\n\r\f ]+R\b')
   """Matches `<obj> <gen> R', not allowing comments.
 
   TODO(pts): Remove this, in favor of PDF_SIMPLE_REF_RE.
@@ -1274,8 +1259,7 @@ class PdfObj(object):
   PDF_HEX_STRING_OR_DICT_RE = re.compile(r'<<|<(?!<)([^>]*)>')
   """Matches a hex string or <<."""
 
-  PDF_SIMPLE_TOKEN_RE = re.compile(
-      ' |(/?[^/{}\[\]()<>\0\t\n\r\f %]+)|<<|>>|[\[\]]|<([a-f0-9]*)>')
+  PDF_SIMPLE_TOKEN_RE = re.compile(' |(/?[^/{}\[\]()<>\0\t\n\r\f %]+)|<<|>>|[\[\]]|<([a-f0-9]*)>')
   """Matches a simple PDF token.
 
   PdfObj.CompressValue(data, do_emit_strings_as_hex=True emits) a string of
@@ -1347,7 +1331,7 @@ class PdfObj(object):
       Exception: Many others.
     """
     self._cache = None
-    if not isinstance(other, (str, buffer)):
+    if not isinstance(other, (str, bytes)):
       if isinstance(other, PdfObj):
         self._head = other.head
         self.stream = other.stream
@@ -1358,14 +1342,12 @@ class PdfObj(object):
         raise TypeError(type(other))
       return
 
-    # --- Parse the rest as a buffer (byte string).
+    # --- Parse the rest as a byte string.
 
     # Also matches and strips leading whitespace and comments after 'obj'.
     match = self.PDF_OBJ_DEF_RE.match(other, start)
     if not match:
-      raise PdfTokenParseError(
-          'X Y obj expected, got %r at ofs=%s' %
-          (other[start : start + 32], file_ofs))
+      raise PdfTokenParseError('X Y obj expected, got %r at ofs=%s' % (other[start : start + 32], file_ofs))
     obj_def_obj_num = int(match.group(1))
     head_idx = match.end()
     try:
@@ -1374,13 +1356,12 @@ class PdfObj(object):
         # PDF_PREFIXED_STREAM_OR_ENDOBJ_RE in ParseTokensToSafe would also
         # catch it by not matching.
         raise PdfTokenParseError('Empty obj head.')
-      head, stream_start_idx = self.ParseTokensToSafe(
-          other, head_idx, end_ofs_out, do_expect_endobj=True)
+      head, stream_start_idx = self.parse_tokens_to_safe(other, head_idx, end_ofs_out, do_expect_endobj=True)
       # !!! Don't call CheckSafePdfTokens here by default, for speed.
       # !!! This shouldn't be catching any problems, ParseTokensToSafe should
       #     have caught all already.
-      self.CheckSafePdfTokens(head)
-    except PdfTokenParseError, e:
+      self.check_safe_pdf_tokens(head)
+    except PdfTokenParseError as e:
       # !!! TODO(pts): Traceback in Python 2.4 and 2.7 wasn't retained. Why?
       raise (e.__class__('In obj data between ofs %d and %d: %s' %
              (file_ofs, file_ofs + len(other) - start, e)), None,
@@ -1391,16 +1372,15 @@ class PdfObj(object):
       self.stream = None
       if head.startswith('<<'):
         if '/Filter' in head:
-          self.Set('Filter', None)
+          self.set('Filter', None)
         if '/DecodeParms' in head:
-          self.Set('DecodeParms', None)
+          self.set('DecodeParms', None)
         if '/Length' in head:
-          self.Set('Length', None)
+          self.set('Length', None)
       return
 
     if not head.startswith('<<') and head.endswith('>>'):
-      raise PdfTokenParseError(
-          'stream must have a dict head at ofs=%s' % file_ofs)
+      raise PdfTokenParseError('stream must have a dict head at ofs=%s' % file_ofs)
     scanner = self.LENGTH_OF_STREAM_RE.scanner(head)
     match = scanner.search()
     if not match:
@@ -1409,15 +1389,13 @@ class PdfObj(object):
       # we don't implement a validating PDF parser.
       # !!! Do this with proper scanning, now that it's normalized.
       # !!! Do everything below in __init__ simpler.
-      raise PdfTokenParseError(
-          'stream /Length not found at ofs=%s' % file_ofs)
+      raise PdfTokenParseError('stream /Length not found at ofs=%s' % file_ofs)
     if scanner.search():
       # Duplicate /Length found. We need a full parsing to figure out
       # which one we need.
-      stream_length = self.Get('Length')
+      stream_length = self.get('Length')
       if stream_length is None:
-        raise PdfTokenParseError(
-            'proper stream /Length not found at ofs=%s' % file_ofs)
+        raise PdfTokenParseError('proper stream /Length not found at ofs=%s' % file_ofs)
       match = self.LENGTH_OF_STREAM_RE.match('/Length %s ' % stream_length)
       assert match
     if match.group(2) is None:
@@ -1431,42 +1409,34 @@ class PdfObj(object):
             'at ofs=%s' % (match.group(1), match.group(2), file_ofs))
       obj_num = int(match.group(1))
       if obj_num <= 0:
-        raise PdfTokenParseError(
-            'obj num %d >= 0 expected for indirect /Length at ofs=%s' %
-            (obj_num, file_ofs))
+        raise PdfTokenParseError('obj num %d >= 0 expected for indirect /Length at ofs=%s' % (obj_num, file_ofs))
       if not objs or obj_num not in objs:
         if is_ilstream_ok:
           raise PdfUnexpectedIlStreamError
-        exc = PdfIndirectLengthError(
-            'missing obj for indirect /Length %d 0 R at ofs=%s' %
-            (obj_num, file_ofs))
+        exc = PdfIndirectLengthError('missing obj for indirect /Length %d 0 R at ofs=%s' % (obj_num, file_ofs))
         exc.length_obj_num = obj_num
         raise exc
       try:
         stream_length = int(objs[obj_num].head)
       except ValueError:
-        raise PdfTokenParseError(
-            'indirect /Length not an integer at ofs=%s' % file_ofs)
+        raise PdfTokenParseError('indirect /Length not an integer at ofs=%s' % file_ofs)
       stream_end_idx = stream_start_idx + stream_length
       # Inline the reference to /Length
-      self._head = '%s/Length %d%s' % (
-          self._head[:match.start()], stream_length,
-          self._head[match.end():])
+      self._head = '%s/Length %d%s' % (self._head[:match.start()], stream_length, self._head[match.end():])
     endstream_str = other[stream_end_idx : stream_end_idx + 128]
     match = self.PDF_ENDSTREAM_ENDOBJ_RE.match(endstream_str)
     if not match:
       # TODO(pts): Find the last match.
-      for match in self.PDF_ENDSTREAM_ENDOBJ_RE.finditer(
-          buffer(other, stream_start_idx, len(other) - stream_start_idx)):
+      for match in self.PDF_ENDSTREAM_ENDOBJ_RE.finditer(buffer(other, stream_start_idx, len(other) - stream_start_idx)):
         pass
       if match is None:
         raise PdfTokenParseError(
             'expected endstream+endobj in obj %d at ofs=%s' %
             (obj_def_obj_num, file_ofs + stream_end_idx))
-      LogWarning(
+      log_warning(
           'incorrect /Length fixed for obj %d: %d to %d' %
           (obj_def_obj_num, stream_end_idx - stream_start_idx, match.end(1)))
-      self.Set('Length', match.end(1))  # Trailing whitespace included.
+      self.set('Length', match.end(1))  # Trailing whitespace included.
       stream_end_idx = match.end(1) + stream_start_idx
       if end_ofs_out is not None:
         end_ofs_out.append(match.end() + stream_start_idx)
@@ -1474,13 +1444,13 @@ class PdfObj(object):
       if end_ofs_out is not None:
         end_ofs_out.append(stream_end_idx + match.end())
     self.stream = other[stream_start_idx : stream_end_idx]
-    if isinstance(self.Get('Filter'), str):
-      self.Set('Filter', self.ExpandAbbreviations(self.Get('Filter')))
+    if isinstance(self.get('Filter'), str):
+      self.set('Filter', self.expand_abbreviations(self.get('Filter')))
 
   @classmethod
-  def ParseTokensToSafe(cls, data, start=0, end_ofs_out=None,
-                        do_expect_endobj=False, do_expect_startxref=False,
-                        is_simple_ok=True):
+  def parse_tokens_to_safe(cls, data, start=0, end_ofs_out=None,
+                           do_expect_endobj=False, do_expect_startxref=False,
+                           is_simple_ok=True):
     """Parses a PDF token sequence to a safe PDF token sequence.
 
     Args:
@@ -1536,14 +1506,14 @@ class PdfObj(object):
 
     _whitespace_re = cls.PDF_WHITESPACE_RE
     _unsafe_string_char_re = cls.PDF_STRING_UNSAFE_CHAR_RE
-    _escape_hex = cls._EscapePdfNamesInHexTokensSafe
+    _escape_hex = cls._escape_pdf_names_in_hex_tokens_safe
     if (not is_simple_ok or
         cls.PDF_TOKENS_NONSIMPLE_CHAR_RE.search(data, start, end_for_simple)):
       # Our simple parsing approach has failed, maybe because we've
       # found the wrong (early) 'endobj' in e.g. '(endobj rest) endobj'.
       output, i = [], start
       _interesting_re = cls.PDF_TOKENS_INTERESTING_RE
-      _parse_pdf_string = cls._ParseNonSimplePdfString
+      _parse_pdf_string = cls._parse_non_simple_pdf_string
 
       while 1:
         match = _interesting_re.search(data, i, end)
@@ -1652,14 +1622,14 @@ class PdfObj(object):
         else:
           end_ofs_out.append(end_for_simple)
 
-      def ReplacementWhiteSpace(match):
+      def replacement_white_space(match):
         # It's OK that match.group(2) is empty.
         a, b = match.group(1), match.group(2)
         if a in '<>[]/' or b in '<>[]/':
           return a
         return a + ' '
 
-      def ReplacementAngle(match):
+      def replacement_angle(match):
         data = match.group()
         if data == '<<':
           return data
@@ -1685,7 +1655,7 @@ class PdfObj(object):
       if cls.PDF_EMPTY_NAME_TOKEN_RE.search(data):
         raise PdfTokenParseError('Found empty name token.')
       end = len(data)
-      # We check for syntax errors before ReplacementWhiteSpace changes '< <'
+      # We check for syntax errors before replacement_white_space changes '< <'
       # to '<<' etc.
       for match in cls.PDF_ANGLE_BRACKET_FOR_SIMPLE_RE.finditer(data):
         a = match.group()
@@ -1699,7 +1669,7 @@ class PdfObj(object):
       # to fix, because we want '<< <5c>' changed to '<<<5c>' and '<5c> >>'
       # changed to '<5c>>>'.
       # This changes '< <' to '<<' and '> >' to '>>'. It's OK here.
-      data = cls.PDF_WHITESPACE_IN_SIMPLE_RE.sub(ReplacementWhiteSpace, data)
+      data = cls.PDF_WHITESPACE_IN_SIMPLE_RE.sub(replacement_white_space, data)
       if '#' in data:
         data = _escape_hex(data)
       else:
@@ -1709,7 +1679,7 @@ class PdfObj(object):
               data.find('<') < 0):  # The `if' is just a shortcut for speed.
         end = len(data)  # Recompute it, len(data) has changed.
         data = cls.PDF_HEX_STRING_LITERAL_OR_DICT_RE.sub(
-            ReplacementAngle, data)
+            replacement_angle, data)
 
     # !!! Add everything what RewriteToParsable supports, e.g. integer normalization.
     # !!! Remove RewriteToParsable. Not so easy, RewriteToParsable also checks balancing of << and [.
@@ -1718,7 +1688,7 @@ class PdfObj(object):
     return data, stream_start_idx
 
   @classmethod
-  def CheckSafePdfTokens(cls, data):
+  def check_safe_pdf_tokens(cls, data):
     """Checks that the string privided is a safe PDF token sequence.
 
     !!! add test: the output of PdfObj.CompressValue(data) and
@@ -1742,7 +1712,7 @@ class PdfObj(object):
       i = (match and match.end()) or 0
       raise PdfTokenParseError('Unsafe chars: %r' % data[i : i + 16])
 
-  def AppendTo(self, output, obj_num, do_emit_short_unsafe=False):
+  def append_to(self, output, obj_num, do_emit_short_unsafe=False):
     """Append serialized self to output list, using obj_num."""
     # TODO(pts): Test this method.
     output.append('%s 0 obj\n' % int(obj_num))
@@ -1750,7 +1720,7 @@ class PdfObj(object):
     if do_emit_short_unsafe:
       # Also converts strings and names to short but unsafe.
       # !!! TODO(pts): Do this conversion faster. Does it matter?
-      head = self.CompressValue(
+      head = self.compress_value(
           head, do_emit_safe_names=False, do_emit_safe_strings=False)
     output.append(head)  # Implicit whitespace later.
     space = ' ' * int(head[-1] not in '>])}')
@@ -1759,7 +1729,7 @@ class PdfObj(object):
     #sys.stdout.write('%sendobj\n' % space)
     if self.stream is not None:
       if self._cache:
-        assert self.Get('Length') == len(self.stream)
+        assert self.get('Length') == len(self.stream)
       else:
         # Don't waste time on the proper check.
         assert '/Length' in head
@@ -1771,17 +1741,17 @@ class PdfObj(object):
     else:
       output.append('%sendobj\n' % space)
 
-  def __GetHead(self):
+  def __get_head(self):
     if self._head is None and self._cache is not None:
-      self._head = self.SerializeDict(self._cache)
+      self._head = self.serialize_dict(self._cache)
     return self._head
 
-  def __SetHead(self, head):
+  def __set_head(self, head):
     if head != self._head:  # Works for None as well.
       self._head = head
       self._cache = None
 
-  head = property(__GetHead, __SetHead)
+  head = property(__get_head, __set_head)
 
   @property
   def size(self):  # GetSize().
@@ -1792,7 +1762,7 @@ class PdfObj(object):
       return len(self.head) + len(self.stream) + 52
 
   @classmethod
-  def GetBadNumbersFixed(cls, data):
+  def get_bad_numbers_fixed(cls, data):
     # !!! Remove this once PdfObj.__init__ does it.
     if data == '.':
       return '0'
@@ -1802,7 +1772,7 @@ class PdfObj(object):
         lambda match: match.group(1) + '0', data)
 
   @classmethod
-  def IsSpaceNeeded(cls, data1, data2):
+  def is_space_needed(cls, data1, data2):
     """Return a bool indicating a space is needed between these PDF values."""
     assert data1
     assert data2
@@ -1812,9 +1782,9 @@ class PdfObj(object):
     return not (a in ')>]' or b in '(<[/')
 
   @classmethod
-  def GetNumber(cls, data):
+  def get_number(cls, data):
     """Return an int, log, float or None."""
-    if isinstance(data, int) or isinstance(data, long):
+    if isinstance(data, int):
       return int(data)
     elif isinstance(data, float):
       pass
@@ -1838,7 +1808,7 @@ class PdfObj(object):
       return data
 
   @classmethod
-  def _CheckDictHead(self, head):
+  def _check_dict_head(self, head):
     """Check syntax of a head of a dict or stream obj."""
     if not head.startswith('<<'):
       raise PdfTokenParseError(
@@ -1852,7 +1822,7 @@ class PdfObj(object):
       else:
         raise PdfTokenParseError('dict obj must end with >>')
 
-  def Get(self, key, default=None):
+  def get(self, key, default=None):
     """Get value for key if self.head is a PDF dict.
 
     Use self.ResolveReferences(obj.Get(...)) to resolve indirect refs.
@@ -1861,22 +1831,22 @@ class PdfObj(object):
       key: A PDF name literal without a slash, e.g. 'ColorSpace'
       default: The value to return if key was not found. None by default.
     Returns:
-      An str, bool, int, long or None value, as returned by
+      An str, bool, int, or None value, as returned by
       self.ParseSimpleValue, default, if key was not found.
     """
     if key.startswith('/'):
       raise TypeError('slash in the key= argument')
     if self._cache is None:
       assert self._head is not None
-      self._CheckDictHead(self.head)
+      self._check_dict_head(self.head)
       if ('/' + key) not in self._head:
         # Quick return False, without having to parse.
         # TODO(pts): Special casing for /Length, we don't want to parse that.
         return None
-      self._cache = self.ParseDict(self._head)
+      self._cache = self.parse_dict(self._head)
     return self._cache.get(key, default)
 
-  def Set(self, key, value, do_keep_null=False):
+  def set(self, key, value, do_keep_null=False):
     """Set value to key or remove key if value is None.
 
     To set key to 'null', specify value='null' or value=None,
@@ -1892,13 +1862,13 @@ class PdfObj(object):
     elif value == 'null':
       pass
     elif isinstance(value, str):
-      value = self.ParseSimpleValue(value)
+      value = self.parse_simple_value(value)
     else:
-      self.SerializeSimpleValue(value)  # just for the TypeError
+      self.serialize_simple_value(value)  # just for the TypeError
     if self._cache is None:
       assert self._head is not None
-      self._CheckDictHead(self.head)
-      self._cache = self.ParseDict(self._head)
+      self._check_dict_head(self.head)
+      self._cache = self.parse_dict(self._head)
     if value is None:
       if key in self._cache:
         del self._cache[key]
@@ -1910,8 +1880,8 @@ class PdfObj(object):
         self._cache[key] = value
         self._head = None  # self.__GetHead will regenerate it.
 
-  def SetStreamAndCompress(self, data, may_keep_old=False, is_flate_ok=True,
-                           predictor_width=None, pdf=None):
+  def set_stream_and_compress(self, data, may_keep_old=False, is_flate_ok=True,
+                              predictor_width=None, pdf=None):
     """Set self.stream, compress it and set /Length, /Filter and /DecodeParms.
 
     If the uncompressed version is the shortest, then clear /Filter and
@@ -1927,18 +1897,18 @@ class PdfObj(object):
 
     items = [[None, 'uncompressed', PdfObj(self)]]
     items[-1][2].stream = data
-    items[-1][2].Set('Length', len(items[-1][2].stream))
-    items[-1][2].Set('Filter', None)
-    items[-1][2].Set('DecodeParms', None)
+    items[-1][2].set('Length', len(items[-1][2].stream))
+    items[-1][2].set('Filter', None)
+    items[-1][2].set('DecodeParms', None)
     items[-1][0] = items[-1][2].size
 
     if data:
       if is_flate_ok:
         items.append([None, 'zip', PdfObj(self)])
         items[-1][2].stream = zlib.compress(data, 9)
-        items[-1][2].Set('Length', len(items[-1][2].stream))
-        items[-1][2].Set('Filter', '/FlateDecode')
-        items[-1][2].Set('DecodeParms', None)
+        items[-1][2].set('Length', len(items[-1][2].stream))
+        items[-1][2].set('Filter', '/FlateDecode')
+        items[-1][2].set('DecodeParms', None)
         items[-1][0] = items[-1][2].size
 
       if predictor_width is not None and is_flate_ok:
@@ -1953,19 +1923,19 @@ class PdfObj(object):
           output.append('\x02')  # y-predictor mark
           b = bytearray(data[i : i + predictor_width])
           k = i - predictor_width
-          for j in xrange(predictor_width):  # Implement the y predictor.
+          for j in range(predictor_width):  # Implement the y predictor.
             b[j] = (b[j] - ord(data[k + j])) & 255
           output.append(bytearray_tostring(b))
           i += predictor_width
         items.append([None, 'zip-pred10', PdfObj(self)])
         items[-1][2].stream = zlib.compress(''.join(output), 9)
-        items[-1][2].Set('Length', len(items[-1][2].stream))
-        items[-1][2].Set('Filter', '/FlateDecode')
+        items[-1][2].set('Length', len(items[-1][2].stream))
+        items[-1][2].set('Filter', '/FlateDecode')
         # Oddly enough, Multivalent fails if /Predictor 10 or /Predictor 11
         # is specified for the /Type /XRef obj; but it succeeds with
         # /Predictor 12. See https://github.com/pts/pdfsizeopt/issues/56
         # for example PDF 1206.3686v1.pdf .
-        items[-1][2].Set('DecodeParms',
+        items[-1][2].set('DecodeParms',
                          '<</Predictor 12/Columns %d>>' % predictor_width)
         items[-1][0] = items[-1][2].size
 
@@ -1975,15 +1945,15 @@ class PdfObj(object):
         while i < len(data):
           b = bytearray(data[i : i + predictor_width])
           k = i - predictor_width
-          for j in xrange(predictor_width):  # Implement the y predictor.
+          for j in range(predictor_width):  # Implement the y predictor.
             b[j] = (b[j] - ord(data[k + j])) & 255
           output.append(bytearray_tostring(b))
           i += predictor_width
         items.append([None, 'zip-pred2', PdfObj(self)])
         items[-1][2].stream = zlib.compress(''.join(output), 9)
-        items[-1][2].Set('Length', len(items[-1][2].stream))
-        items[-1][2].Set('Filter', '/FlateDecode')
-        items[-1][2].Set('DecodeParms',
+        items[-1][2].set('Length', len(items[-1][2].stream))
+        items[-1][2].set('Filter', '/FlateDecode')
+        items[-1][2].set('DecodeParms',
                          '<</Predictor 2/Colors %d/Columns %d>>' %
                          (predictor_width, len(data) / predictor_width))
         items[-1][0] = items[-1][2].size
@@ -1991,25 +1961,25 @@ class PdfObj(object):
       if may_keep_old:
         items.append([self.size, '0old', self])
 
-    def CompareStr(a, b):
+    def compare_str(a, b):
       return (a < b and -1) or (a > b and 1) or 0
 
-    def CompareSize(a, b):
+    def compare_size(a, b):
       # Compare first by byte size, then by command name.
-      return a[0].__cmp__(b[0]) or CompareStr(a[1], b[1])
+      return a[0].__cmp__(b[0]) or compare_str(a[1], b[1])
 
-    items.sort(CompareSize)
+    items.sort(compare_size)
     if items[0][2] is not self:
       self.stream = items[0][2].stream
-      self.Set('Length', len(self.stream))
-      self.Set('Filter', items[0][2].Get('Filter'))
-      self.Set('DecodeParms', items[0][2].Get('DecodeParms'))
+      self.set('Length', len(self.stream))
+      self.set('Filter', items[0][2].get('Filter'))
+      self.set('DecodeParms', items[0][2].get('DecodeParms'))
       if (pdf and items[0][1] == 'zip-pred2' and predictor_width > 4 and
           pdf.version < '1.3'):
         pdf.version = '1.3'
 
   @classmethod
-  def ParseTrailer(cls, data, start=0, end_ofs_out=None):
+  def parse_trailer(cls, data, start=0, end_ofs_out=None):
     """Parse PDF trailer at offset start."""
     match = PdfObj.PDF_TRAILER_RE.match(data, start)
     if not match:
@@ -2020,13 +1990,13 @@ class PdfObj(object):
     start = match.start(1)  # Start of '<<'.
 
     trailer_obj = PdfObj(None)
-    trailer_obj.head, _ = cls.ParseTokensToSafe(
+    trailer_obj.head, _ = cls.parse_tokens_to_safe(
         data, start=start, end_ofs_out=end_ofs_out, do_expect_startxref=True)
     # We don't remove 'Prev' here, the caller might be interested.
     return trailer_obj
 
   @classmethod
-  def _ParseNonSimplePdfString(
+  def _parse_non_simple_pdf_string(
       cls, data, start, end,
       _escapes = dict(('n\n', 'r\r', 't\t', 'b\b', 'f\f', '4\4', '5\5',
                        '6\6', '7\7'))):
@@ -2092,7 +2062,7 @@ class PdfObj(object):
     return ''.join(output), i
 
   @classmethod
-  def ParsePdfString(cls, data, start=0, end=None, is_partial_ok=False):
+  def parse_pdf_string(cls, data, start=0, end=None, is_partial_ok=False):
     """Parses a PDF string literal (hex or non-hex).
 
     Args:
@@ -2125,7 +2095,7 @@ class PdfObj(object):
     #   a literal string without a preceding backslash, the result is
     #   equivalent to \n (regardless of whether the end-of-line marker
     #   was a carriage return, a line feed, or both).''
-    if not isinstance(data, (buffer, str)):
+    if not isinstance(data, (bytes, str)):
       raise TypeError
     if end is None:
       end = len(data)
@@ -2150,7 +2120,7 @@ class PdfObj(object):
       if match:
         data, i = match.group(1), match.end()
       else:  # A non-simple string. Parse it the hard way, counting parens.
-        data, i = cls._ParseNonSimplePdfString(data, start, end)
+        data, i = cls._parse_non_simple_pdf_string(data, start, end)
     else:
       raise PdfTokenNotString
     if not is_partial_ok and i != end:
@@ -2158,13 +2128,13 @@ class PdfObj(object):
     return data, i
 
   @classmethod
-  def ParseSimpleValue(cls, data):
+  def parse_simple_value(cls, data):
     """Parse a simple (non-composite) PDF value (or keep it as a string).
 
     Args:
       data: String containing a PDF token to parse (no whitespace around it).
     Returns:
-      Parsed value: True, False, None, an int (or long) or an str (for
+      Parsed value: True, False, None, an int or a str (for
       anything else). Returns PDF literals as <hex>. If the return value is
       an str, then it's normalized.
     Raises:
@@ -2181,7 +2151,7 @@ class PdfObj(object):
     elif cls.PDF_INT_AT_EOS_RE.match(data):
       return int(data)
     elif data.startswith('('):
-      return '<%s>' % cls.ParsePdfString(data)[0].encode('hex')
+      return '<%s>' % cls.parse_pdf_string(data)[0].encode('hex')
     elif data.startswith('<<'):
       if not data.endswith('>>'):
         raise PdfTokenParseError('Unclosed dict in %r' % data)
@@ -2208,7 +2178,7 @@ class PdfObj(object):
       if len(data) == 1 or cls.PDF_NONNAME_CHAR_RE.search(data, 1):
         raise PdfTokenParseError('Bad PDF name token %r' % str(data))
       # Like NormalizePdfName, but we don't need the extra check.
-      return cls._EscapePdfNamesInHexTokensSafe(data)
+      return cls._escape_pdf_names_in_hex_tokens_safe(data)
     elif data.endswith('R'):
       match = cls.PDF_REF_AT_EOS_RE.match(data)
       if not match:
@@ -2220,11 +2190,11 @@ class PdfObj(object):
         # Integer was already parsed above.
         # Don't parse float, we usually don't need them parsed. Thus we also
         # won't verify float.
-        return cls._NormalizeNumber(number_match)
+        return cls._normalize_number(number_match)
       raise PdfTokenParseError('Syntax error in %r' % data)
 
   @classmethod
-  def ParseSimplestDict(cls, data):
+  def parse_simplest_dict(cls, data):
     """Parse simplest PDF token sequence to a dict mapping strings to values.
 
     This method returns a PDF token sequence without comments (%).
@@ -2262,14 +2232,14 @@ class PdfObj(object):
       if not match:
         break
       start = match.end()
-      dict_obj[match.group(1)] = cls.ParseSimpleValue(match.group(2))
+      dict_obj[match.group(1)] = cls.parse_simple_value(match.group(2))
     if not cls.PDF_WHITESPACE_AT_EOS_RE.match(data, start, end):
       raise PdfTokenNotSimplest(
           'not simplest at %d, got %r' % (start, data[start : start + 16]))
     return dict_obj
 
   @classmethod
-  def ParseDict(cls, data):
+  def parse_dict(cls, data):
     """Parse any PDF token sequence to a dict mapping strings to values.
 
     This method returns values without comments (%).
@@ -2293,7 +2263,7 @@ class PdfObj(object):
         There must be no leading or trailing whitespace.
     Returns:
       A dict mapping strings to values (usually strings). The values are the
-      result of ParseSimpleValue, so they can be None, int, long, bool or str.
+      result of ParseSimpleValue, so they can be None, int, bool or str.
     Raises:
       PdfTokenParseError:
     """
@@ -2312,16 +2282,16 @@ class PdfObj(object):
       if not match:
         break  # Match the rest with PDF_SIMPLE_VALUE_RE.
       start = match.end()
-      dict_obj[match.group(1)] = cls.ParseSimpleValue(match.group(2))
+      dict_obj[match.group(1)] = cls.parse_simple_value(match.group(2))
 
     # Continue with non-simplest keys.
     if not cls.PDF_WHITESPACE_AT_EOS_RE.match(data, start, end):
-      list_obj = cls._ParseTokens(
+      list_obj = cls._parse_tokens(
           data=data, start=start, end=end,
           count_limit=end)
       if 0 != (len(list_obj) & 1):
         raise PdfTokenParseError('odd item count in dict')
-      for i in xrange(0, len(list_obj), 2):
+      for i in range(0, len(list_obj), 2):
         key = list_obj[i]
         if not isinstance(key, str) or not key.startswith('/'):
           # TODO(pts): Report the offset as well.
@@ -2333,7 +2303,7 @@ class PdfObj(object):
     return dict_obj
 
   @classmethod
-  def ParseArray(cls, data):
+  def parse_array(cls, data):
     """Parse any PDF array token sequence to a Python list.
 
     This method returns values without comments (%).
@@ -2364,11 +2334,10 @@ class PdfObj(object):
     assert data.endswith(']')
     start = 1
     end = len(data) - 1
-    return cls._ParseTokens(data, start, end, end)
+    return cls._parse_tokens(data, start, end, end)
 
   @classmethod
-  def ParseTokenList(cls, data, count_limit=None, start=0, end=None,
-                     end_ofs_out=None):
+  def parse_token_list(cls, data, count_limit=None, start=0, end=None, end_ofs_out=None):
     """Return an array of parsed PDF values.
 
     Limitation: If the object end with `x y R', then count_limit is enforced
@@ -2390,31 +2359,25 @@ class PdfObj(object):
       end = len(data)
     if count_limit is None:
       count_limit = end
-    return cls._ParseTokens(data, start, end, count_limit,
-                            end_ofs_out=end_ofs_out)
+    return cls._parse_tokens(data, start, end, count_limit, end_ofs_out=end_ofs_out)
 
   @classmethod
-  def NormalizePdfName(cls, name):  # !!! Add unit tests.
+  def normalize_pdf_name(cls, name):  # !!! Add unit tests.
     """Normalize hex-escaping (#) in a PDF name."""
-    if (len(name) < 2 or name[:1] != '/' or
-        cls.PDF_NONNAME_CHAR_RE.search(name, 1)):
+    if len(name) < 2 or name[:1] != '/' or cls.PDF_NONNAME_CHAR_RE.search(name, 1):
       raise PdfTokenParseError('Bad PDF name token %r.' % str(name))
-    return cls._EscapePdfNamesInHexTokensSafe(name)
+    return cls._escape_pdf_names_in_hex_tokens_safe(name)
 
   @classmethod
-  def _EscapePdfNamesInHexTokensSafe(
-      cls, data,
-      _cache = [PDF_SAFE_KEEP_HEX_ESCAPED_RE.sub(
-          lambda match: '#%02X' % ord(match.group()),
-          chr(i)) for i in xrange(256)],
-      ):  # !!! Add unit tests.
+  def _escape_pdf_names_in_hex_tokens_safe(cls, data, _cache = None):  # !!! Add unit tests.
+    if _cache is None:
+      _cache = [cls.PDF_SAFE_KEEP_HEX_ESCAPED_RE.sub(lambda match: '#%02X' % ord(match.group()), chr(i)) for i in range(256)]
     """Data is a PDF token sequence containing all strings as <hex>."""
     if '#' in data:  # Works for both strings and buffers.
       # This unescapes e.g. #41 to A, and keeps e.g. #20 escaped. It doesn't
       # touch unescaped chars (e.g. * or A).
       try:
-        data = cls.PDF_NAME_HEX_OR_HASHMARK_RE.sub(
-            lambda match: _cache[int(match.group(1), 16)], data)
+        data = cls.PDF_NAME_HEX_OR_HASHMARK_RE.sub(lambda match: _cache[int(match.group(1), 16)], data)
       except TypeError:  # In int(...) if match.group(1) is None.
         # It's OK to report an error here (rather than including a literal
         # #), because pdf_reference_1-7.pdf says that # must also be escaped.
@@ -2423,12 +2386,9 @@ class PdfObj(object):
         lambda match: '#%02X' % ord(match.group()), data)
 
   @classmethod
-  def _EscapePdfNamesInHexTokensOptimized(
-      cls, data, idx=None,
-      _cache = [PDF_OPTIMIZED_KEEP_HEX_ESCAPED_RE.sub(
-          lambda match: '#%02X' % ord(match.group()),
-          chr(i)) for i in xrange(256)],
-      ):  # !!! Add unit tests.
+  def _escape_pdf_names_in_hex_tokens_optimized(cls, data, idx=None, _cache = None):  # !!! Add unit tests.
+    if _cache is None:
+      _cache = [cls.PDF_OPTIMIZED_KEEP_HEX_ESCAPED_RE.sub(lambda match: '#%02X' % ord(match.group()), chr(i)) for i in range(256)]
     """Data is a PDF token sequence containing all strings as <hex>."""
     if '#' not in data:  # Works for both strings and buffers.
       return str(data)
@@ -2440,12 +2400,10 @@ class PdfObj(object):
     except TypeError:  # In int(...) if match.group(1) is None.
       # It's OK to report an error here (rather than including a literal
       # #), because pdf_reference_1-7.pdf says that # must also be escaped.
-      raise PdfTokenParseError(
-          'Hex error in name %r at ofs=%s' % (data, idx))
+      raise PdfTokenParseError('Hex error in name %r at ofs=%s' % (data, idx))
 
   @classmethod
-  def _ParseTokens(cls, data, start, end, count_limit,
-                   end_ofs_out=None):
+  def _parse_tokens(cls, data, start, end, count_limit, end_ofs_out=None):
     """Helper method to scan tokens and build values in data[start : end].
 
     Limitation: If the object end with `x y R', then count_limit is enforced
@@ -2472,8 +2430,7 @@ class PdfObj(object):
       kind = value[0]
       if kind == '%':
         if start >= end:
-          raise PdfTokenParseError(
-              'unterminated comment %r at %d' % (value, start))
+          raise PdfTokenParseError('unterminated comment %r at %d' % (value, start))
         match = scanner.match()
         continue
       if kind == '/':
@@ -2481,21 +2438,20 @@ class PdfObj(object):
         # [/?Foo] etc.
         #
         # Like NormalizePdfName, but we don't need the extra check.
-        value = cls._EscapePdfNamesInHexTokensSafe(value)
+        value = cls._escape_pdf_names_in_hex_tokens_safe(value)
       elif kind == '(':
         # !!! get rid of this string parsing.
-        if cls.PDF_STRING_NONSIMPLE_CHAR_RE.scanner(
-            value, 1, len(value) - 1).search():
+        if cls.PDF_STRING_NONSIMPLE_CHAR_RE.scanner(value, 1, len(value) - 1).search():
           # Parse the string in a slow way.
           end_ofs_out = []
           value1 = data[match.start(1):]  # Add more chars if needed.
           try:
-            value2 = cls.RewriteToParsable(value1, end_ofs_out=end_ofs_out)
-          except PdfTokenTruncated, exc:
+            value2 = cls.rewrite_to_parsable(value1, end_ofs_out=end_ofs_out)
+          except PdfTokenTruncated as exc:
             raise PdfTokenParseError(
                 'truncated string literal at %d, got %r...: %s' %
                 (match.start(1), value1[0 : 16], exc))
-          except PdfTokenParseError, exc:
+          except PdfTokenParseError as exc:
             raise PdfTokenParseError(
                 'bad string literal at %d, got %r...: %s' %
                 (match.start(1), value1[0 : 16], exc))
@@ -2505,7 +2461,7 @@ class PdfObj(object):
           scanner = cls.PDF_SIMPLE_VALUE_RE.scanner(data, start, end)
           match = None
         else:
-          value = cls.ParseSimpleValue(value)
+          value = cls.parse_simple_value(value)
       elif kind == '[':
         value1 = value[1 : -1]
         if '%' in value1 or '[' in value1 or '(' in value1:
@@ -2513,12 +2469,12 @@ class PdfObj(object):
           end_ofs_out = []
           value1 = data[match.start(1):]  # Add more chars if needed.
           try:
-            value2 = cls.RewriteToParsable(value1, end_ofs_out=end_ofs_out)
-          except PdfTokenTruncated, exc:
+            value2 = cls.rewrite_to_parsable(value1, end_ofs_out=end_ofs_out)
+          except PdfTokenTruncated as exc:
             raise PdfTokenParseError(
                 'truncated array at %d, got %r...: %s' %
                 (match.start(1), value1[0 : 16], exc))
-          except PdfTokenParseError, exc:
+          except PdfTokenParseError as exc:
             raise PdfTokenParseError(
                 'bad array at %d, got %r...: %s' %
                 (match.start(1), value1[0 : 16], exc))
@@ -2529,7 +2485,7 @@ class PdfObj(object):
           # But we don't want that because that would be inconsistent with
           # the ('[' in value) above.
           if '%' in value:
-            value = cls.CompressValue(value2[1:])
+            value = cls.compress_value(value2[1:])
           else:
             value = data[match.start(1) : start]
           scanner = cls.PDF_SIMPLE_VALUE_RE.scanner(data, start, end)
@@ -2541,41 +2497,33 @@ class PdfObj(object):
           end_ofs_out = []
           value1 = data[match.start(1):]  # Add more chars if needed.
           try:
-            value2 = cls.RewriteToParsable(value1, end_ofs_out=end_ofs_out)
-          except PdfTokenTruncated, exc:
-            raise PdfTokenParseError(
-                'truncated array at %d, got %r...: %s' %
-                (match.start(1), value1[0 : 16], exc))
-          except PdfTokenParseError, exc:
-            raise PdfTokenParseError(
-                'bad array at %d, got %r...: %s' %
-                (match.start(1), value1[0 : 16], exc))
+            value2 = cls.rewrite_to_parsable(value1, end_ofs_out=end_ofs_out)
+          except PdfTokenTruncated as exc:
+            raise PdfTokenParseError('truncated array at %d, got %r...: %s' % (match.start(1), value1[0 : 16], exc))
+          except PdfTokenParseError as exc:
+            raise PdfTokenParseError('bad array at %d, got %r...: %s' % (match.start(1), value1[0 : 16], exc))
           assert value2.startswith(' <<') and value2.endswith('>>')
           start = match.start(1) + end_ofs_out[0]
           if '%' in value:
-            value = cls.CompressValue(value2[1:])
+            value = cls.compress_value(value2[1:])
           else:
             value = data[match.start(1) : start]
           scanner = cls.PDF_SIMPLE_VALUE_RE.scanner(data, start, end)
           match = None
       elif kind == '<':  # '<<' is handled above
-        value = cls.ParseSimpleValue(value)
+        value = cls.parse_simple_value(value)
       else:
         if match.group(2):
           value = '%d %d R' % (int(match.group(2)), int(match.group(3)))
         elif not cls.PDF_KEYWORD_OR_NUMBER_AT_EOS_RE.match(value):
-          raise PdfTokenParseError(
-              'syntax error in PDF keyword or number %r at %d' %
-              (value, match.start(1)))
+          raise PdfTokenParseError('syntax error in PDF keyword or number %r at %d' % (value, match.start(1)))
         else:
-          value = cls.ParseSimpleValue(value)  # Convert '42' to 42 etc.
+          value = cls.parse_simple_value(value)  # Convert '42' to 42 etc.
       if value == 'R':
         if (len(list_obj) < 2 or
             not isinstance(list_obj[-1], int) or list_obj[-1] < 0 or
             not isinstance(list_obj[-2], int) or list_obj[-2] <= 0):
-          raise PdfTokenParseError(
-              'bad indirect ref at %d, got %r after %r' %
-              (start, data[start : start + 16], list_obj))
+          raise PdfTokenParseError('bad indirect ref at %d, got %r after %r' % (start, data[start : start + 16], list_obj))
         list_obj[-2] = '%d %d R' % (list_obj[-2], list_obj[-1])
         list_obj.pop()
       else:
@@ -2588,15 +2536,13 @@ class PdfObj(object):
     if not cls.PDF_WHITESPACE_AT_EOS_RE.scanner(data, start, end).match():
       # TODO(pts): Be more specific, e.g. if we get this in a truncated
       # string literal `(foo'.
-      raise PdfTokenParseError(
-          'token sequence parse error at %d, got %r' %
-          (start, data[start : start + 16]))
+      raise PdfTokenParseError('token sequence parse error at %d, got %r' % (start, data[start : start + 16]))
     if end_ofs_out is not None:
       end_ofs_out.append(start)
     return list_obj
 
   @classmethod
-  def ParseXrefStreamWidths(cls, w_value):
+  def parse_xref_stream_widths(cls, w_value):
     """Parse the /W key of a PDF cross-reference stream.
 
     Args:
@@ -2610,7 +2556,7 @@ class PdfObj(object):
       raise PdfTokenParseError('missing /W in xref object')
     if not isinstance(w_value, str) or not w_value.startswith('['):
       raise PdfTokenParseError('item /W in xref object is not an array')
-    widths = PdfObj.ParseArray(w_value)
+    widths = PdfObj.parse_array(w_value)
     if (len(widths) != 3 or
         [1 for item in widths if not isinstance(item, int) or
          item < 0 or item > 10] or
@@ -2618,7 +2564,7 @@ class PdfObj(object):
       raise PdfTokenParseError('bad /W array: %r' % widths)
     return tuple(widths)
 
-  def GetXrefStream(self, xref_ofs=None, xref_obj_num=None):
+  def get_xref_stream(self, xref_ofs=None, xref_obj_num=None):
     """Parse and return the xref stream data and its parameters.
 
     Args:
@@ -2634,27 +2580,27 @@ class PdfObj(object):
     Raises:
       PdfXrefStreamError:
     """
-    if self.Get('Type') != '/XRef':
+    if self.get('Type') != '/XRef':
       raise PdfXrefStreamError('expected /Type/XRef for xref stream')
-    widths = list(self.ParseXrefStreamWidths(self.Get('W')))
-    index_value = self.Get('Index')
+    widths = list(self.parse_xref_stream_widths(self.get('W')))
+    index_value = self.get('Index')
     if index_value is None:
-      size = self.Get('Size')
+      size = self.get('Size')
       if not isinstance(size, int) or size < 0:
         raise PdfXrefStreamError('bad or missing /Size for xref stream')
       index = [0, size]
     else:
       if not isinstance(index_value, str) or not index_value.startswith('['):
         raise PdfTokenParseError('item /Index in xref object is not an array')
-      index = tuple(PdfObj.ParseArray(index_value))
+      index = tuple(PdfObj.parse_array(index_value))
       if (not index or len(index) % 2 != 0 or
           [1 for item in index if not isinstance(item, int) or item < 0] or
-          [1 for i in xrange(1, len(index), 2) if index[i] <= 0]):
+          [1 for i in range(1, len(index), 2) if index[i] <= 0]):
         raise PdfTokenParseError('bad /Index array: %r' % (index,))
-    xref_data = self.GetUncompressedStream()
+    xref_data = self.get_uncompressed_stream()
     if len(xref_data) % sum(widths) != 0:
       raise PdfXrefStreamError('data length does not match /W: %r' % widths)
-    index_item_count = sum(index[i] for i in xrange(1, len(index), 2))
+    index_item_count = sum(index[i] for i in range(1, len(index), 2))
     xref_item_count = len(xref_data) / sum(widths)
     if index_item_count != xref_item_count:
       msg = ('data length does not match /Index: '
@@ -2668,40 +2614,39 @@ class PdfObj(object):
         w0, w1, w2 = widths
         i = len(xref_data) - sum(widths)
         if w0:
-          f0 = PdfData.MSBFirstToInteger(xref_data[i : i + w0])
+          f0 = PdfData.msb_first_to_integer(xref_data[i: i + w0])
         else:
           f0 = 1
-        f1 = PdfData.MSBFirstToInteger(xref_data[i + w0 : i + w0 + w1])
+        f1 = PdfData.msb_first_to_integer(xref_data[i + w0: i + w0 + w1])
         if w2:
-          f2 = PdfData.MSBFirstToInteger(xref_data[
-              i + w0 + w1 : i + w0 + w1 + w2])
+          f2 = PdfData.msb_first_to_integer(xref_data[i + w0 + w1: i + w0 + w1 + w2])
         else:
           f2 = 0
         if (index and index[-2] + index[-1] == xref_obj_num and
             f0 == 1 and f1 == xref_ofs and f2 == 0):
           msg = None
       if msg:
-        LogWarning(msg)
+        log_warning(msg)
       xref_data = xref_data[:index_item_count * sum(widths)]
     widths.append(index)
     widths.append(xref_data)
     return tuple(widths)
 
-  def GetAndClearXrefStream(self, xref_ofs, xref_obj_num):
+  def get_and_clear_xref_stream(self, xref_ofs, xref_obj_num):
     """Like GetXrefStream, and removes xref stream entries from self.head."""
-    xref_tuple = self.GetXrefStream(
+    xref_tuple = self.get_xref_stream(
         xref_ofs=xref_ofs, xref_obj_num=xref_obj_num)
     self.stream = None
-    self.Set('Type', None)
-    self.Set('W', None)
-    self.Set('Index', None)
-    self.Set('Filter', None)
-    self.Set('Length', None)
-    self.Set('DecodeParms', None)
+    self.set('Type', None)
+    self.set('W', None)
+    self.set('Index', None)
+    self.set('Filter', None)
+    self.set('Length', None)
+    self.set('DecodeParms', None)
     return xref_tuple
 
   @classmethod
-  def GetReferenceTarget(cls, data):
+  def get_reference_target(cls, data):
     """Convert `5 0 R' to 5. Return None if data is not a reference."""
     # TODO(pts): Allow comments in `data'.
     match = cls.PDF_REF_AT_EOS_RE.match(data)
@@ -2711,11 +2656,11 @@ class PdfObj(object):
       return None
 
   @classmethod
-  def CompressValue(cls, data, obj_num_map=None, old_obj_nums_ret=None,
-                    do_emit_strings_as_hex=False,
-                    do_expect_postscript_name_input=False,
-                    do_emit_safe_names=True,
-                    do_emit_safe_strings=True):
+  def compress_value(cls, data, obj_num_map=None, old_obj_nums_ret=None,
+                     do_emit_strings_as_hex=False,
+                     do_expect_postscript_name_input=False,
+                     do_emit_safe_names=True,
+                     do_emit_safe_strings=True):
     """Return shorter representation of a PDF token sequence.
 
     This method doesn't optimize integer constants starting with 0.
@@ -2765,17 +2710,16 @@ class PdfObj(object):
           end_ofs_out = []
           try:
             # Ignore return value (the parsable string).
-            output.append(cls.RewriteToParsable(
+            output.append(cls.rewrite_to_parsable(
                 data=data, start=match.start(), end_ofs_out=end_ofs_out,
                 do_expect_postscript_name_input=
                     do_expect_postscript_name_input))
-          except PdfTokenTruncated, exc:
+          except PdfTokenTruncated as exc:
             raise PdfTokenParseError(
                 'could not find end of string in %r: %s' %
                 (data[match.start() : match.start() + 256], exc))
           i = end_ofs_out[0]
-          scanner = cls.PDF_COMMENT_OR_STRING_RE.scanner(
-              data, i, len(data))
+          scanner = cls.PDF_COMMENT_OR_STRING_RE.scanner(data, i, len(data))
         else:  # comment
           output.append(' ')
         match = scanner.search()
@@ -2793,18 +2737,18 @@ class PdfObj(object):
            lambda match: '#%02X' % ord(match.group()), data)
      else:
        # Like NormalizePdfName, but we don't need the extra check.
-       data = cls._EscapePdfNamesInHexTokensSafe(data)
+       data = cls._escape_pdf_names_in_hex_tokens_safe(data)
     else:
       if do_expect_postscript_name_input:
         data = data.replace('#', '#23')
       else:
-        data = cls._EscapePdfNamesInHexTokensOptimized(data)
+        data = cls._escape_pdf_names_in_hex_tokens_optimized(data)
 
     # TODO(pts): Optimize integer constants starting with 0.
 
     if obj_num_map:  # nonempty dict
 
-      def ReplacementRef(match):
+      def replacement_ref(match):
         obj_num = int(match.group(1))
         if old_obj_nums_ret is not None:
           old_obj_nums_ret.append(obj_num)
@@ -2818,12 +2762,12 @@ class PdfObj(object):
           # TODO(pts): Keep the original generation number (match.group(2))
           return '%s 0 R' % obj_num
 
-      data = cls.PDF_SIMPLE2_REF_RE.sub(ReplacementRef, data)
+      data = cls.PDF_SIMPLE2_REF_RE.sub(replacement_ref, data)
     elif old_obj_nums_ret is not None:
       for match in cls.PDF_SIMPLE2_REF_RE.finditer(data):
         old_obj_nums_ret.append(int(match.group(1)))
 
-    def ReplacementWhiteOrString(match):
+    def replacement_white_or_string(match):
       """Return replacement for whitespace or hex string `match'.
 
       This function assumes that match is in data.
@@ -2839,9 +2783,9 @@ class PdfObj(object):
         if do_emit_strings_as_hex:
           return '<%s>' % s.encode('hex')
         elif do_emit_safe_strings:
-          return cls.SerializePdfStringSafe(s)
+          return cls.serialize_pdf_string_safe(s)
         else:
-          return cls.SerializePdfStringUnsafe(s)
+          return cls.serialize_pdf_string_unsafe(s)
       elif match.group(1):  # '<<'
         return match.group(1)
       else:  # Remove whitespace unless needed.
@@ -2854,15 +2798,15 @@ class PdfObj(object):
 
     # This must be the last step, because it can emit unsafe strings.
     return cls.PDF_WHITESPACE_OR_HEX_STRING_RE.sub(
-        ReplacementWhiteOrString, data)
+        replacement_white_or_string, data)
 
   @classmethod
-  def SimpleValueToString(cls, value):
+  def simple_value_to_string(cls, value):
     if isinstance(value, str):
       return value
-    elif isinstance(value, bool):  # must be above int and long
+    elif isinstance(value, bool):  # must be above int
       return str(value).lower()
-    elif isinstance(value, int) or isinstance(value, long):
+    elif isinstance(value, int):
       return str(value)
     elif value is None:
       return 'null'
@@ -2872,16 +2816,16 @@ class PdfObj(object):
       raise TypeError
 
   @classmethod
-  def SerializeSimpleValue(cls, value):
+  def serialize_simple_value(cls, value):
     if isinstance(value, str):
       if (value.startswith('(') or
           (value.startswith('<') and not value.startswith('<<'))):
-        return cls.SerializePdfStringSafe(cls.ParsePdfString(value)[0])
+        return cls.serialize_pdf_string_safe(cls.parse_pdf_string(value)[0])
       else:
         return value
-    elif isinstance(value, bool):  # must be above int and long
+    elif isinstance(value, bool):  # must be above int
       return str(value).lower()
-    elif isinstance(value, int) or isinstance(value, long):
+    elif isinstance(value, int):
       return str(value)
     elif value is None:
       return 'null'
@@ -2891,7 +2835,7 @@ class PdfObj(object):
       raise TypeError
 
   @classmethod
-  def SerializeDict(cls, dict_obj):
+  def serialize_dict(cls, dict_obj):
     """Serialize a dict (such as in PdfObj.head) to a PDF dict string.
 
     Please note that this method doesn't normalize or optimize the dict values
@@ -2902,7 +2846,7 @@ class PdfObj(object):
     output = ['<<']
     for key in sorted(dict_obj):
       output.append('/' + key)
-      value = cls.SerializeSimpleValue(dict_obj[key])
+      value = cls.serialize_simple_value(dict_obj[key])
       if value[0] not in '<({[/\0\t\n\r\f %':
         output.append(' ')
       output.append(value)
@@ -2910,7 +2854,7 @@ class PdfObj(object):
     return ''.join(output)
 
   @classmethod
-  def SerializePdfStringSafe(cls, data):
+  def serialize_pdf_string_safe(cls, data):
     """Serializes a string as a PDF string: (...) if safe, otherwise <...>."""
     if cls.PDF_STRING_UNSAFE_CHAR_RE.search(data):
       return '<%s>' % data.encode('hex')
@@ -2918,7 +2862,7 @@ class PdfObj(object):
       return '(%s)' % data
 
   @classmethod
-  def SerializePdfStringUnsafe(cls, data):
+  def serialize_pdf_string_unsafe(cls, data):
     """Escape a string to the shortest possible PDF string literal.
 
     Args:
@@ -2973,7 +2917,7 @@ class PdfObj(object):
     return data.replace('\r', '\\r')
 
   @classmethod
-  def PdfToPsName(cls, data, is_nonname_char_ok=False):
+  def pdf_to_ps_name(cls, data, is_nonname_char_ok=False):
     """Converts a PDF name (in data) to a PostScript name.
 
     The most important conversion step is converting hex escapes (#AB) to
@@ -2998,8 +2942,7 @@ class PdfObj(object):
     if not data:
       raise ValueError('Empty name: %r' % data)
     try:
-      data = cls.PDF_NAME_HEX_OR_HASHMARK_RE.sub(
-          lambda match: chr(int(match.group(1), 16)), data)
+      data = cls.PDF_NAME_HEX_OR_HASHMARK_RE.sub(lambda match: chr(int(match.group(1), 16)), data)
     except TypeError:  # In int(...) if match.group(1) is None.
       raise PdfTokenParseError('Invalid hex escape in PDF name.')
     match = cls.PDF_NONNAME_CHAR_RE.search(data)
@@ -3010,12 +2953,11 @@ class PdfObj(object):
         # because /FontName gets overwritten to Obj000.... in
         # psproc.TYPE1C_GENERATOR.
         return '<%s>cvn' % data.encode('hex')
-      raise ValueError(
-          'Char not allowed in PostScript name: %r' % match.group())
+      raise ValueError('Char not allowed in PostScript name: %r' % match.group())
     return '/' * slash_count + data
 
   @classmethod
-  def ParseValueRecursive(cls, data, do_expect_postscript_name_input=False):
+  def parse_value_recursive(cls, data, do_expect_postscript_name_input=False):
     """Parse PDF token sequence data to a recursive Python structure.
 
     As a relaxation, numbers are allowed as dict keys.
@@ -3033,7 +2975,7 @@ class PdfObj(object):
     """
     # PdfObj.CompressValue converts some characters in names to hex,
     # thus e.g. /pedal.* becomes /pedal.#2A.
-    data = PdfObj.CompressValue(
+    data = PdfObj.compress_value(
         data, do_emit_strings_as_hex=True, do_emit_safe_names=True,
         do_expect_postscript_name_input=do_expect_postscript_name_input)
     scanner = PdfObj.PDF_SIMPLE_TOKEN_RE.scanner(data)
@@ -3091,8 +3033,7 @@ class PdfObj(object):
       match = scanner.match()
 
     if last_end != len(data):
-      raise PdfTokenParseError(
-          'syntax error at %r...' % data[last_end : last_end + 32])
+      raise PdfTokenParseError('syntax error at %r...' % data[last_end : last_end + 32])
     if len(stack) != 1:
       raise PdfTokenParseError('data structures not closed')
     token = stack.pop()
@@ -3102,37 +3043,35 @@ class PdfObj(object):
       raise PdfTokenParseError('multiple values received')
     return token[0]
 
-  def HasImageToHide(self):
+  def has_image_to_hide(self):
     """Return bool indicating if we contain /Image to hide from Multivalent."""
     head = self._head
     if head is not None:
-      if ('/Subtype' not in head or
-          '/Image' not in head or
-          '/Filter' not in head):
+      if '/Subtype' not in head or '/Image' not in head or '/Filter' not in head:
         return False
-    if self.Get('Subtype') != '/Image':
+    if self.get('Subtype') != '/Image':
       return False
-    filter_value = self.Get('Filter')
+    filter_value = self.get('Filter')
     return isinstance(filter_value, str) and filter_value[0] in '[/'
 
   @classmethod
-  def IsGrayColorSpace(cls, colorspace):
+  def is_gray_color_space(cls, colorspace):
     if not isinstance(colorspace, str):
       raise TypeError
     colorspace = colorspace.strip(cls.PDF_WHITESPACE_CHARS)
     if colorspace == '/DeviceGray':
       return True
     # !!! TODO(pts): Do proper PDF token sequence parsing (ParseTokensToSafe).
-    match = re.match(r'\[[\0\t\n\r\f ]*/Indexed[\0\t\n\r\f ]*'
+    match = re.match(r'\[[\x00\t\n\r\f ]*/Indexed[\x00\t\n\r\f ]*'
                      r'(/DeviceRGB|/DeviceGray)'
-                     r'[\0\t\n\r\f ]+\d+[\0\t\n\r\f ]*(?s)([<(].*)]\Z',
+                     r'[\x00\t\n\r\f ]+\d+[\x00\t\n\r\f ]*(?s)([<(].*)]\Z',
                      colorspace)
     if not match:
       return False
     if match.group(1) == '/DeviceGray':
       return True
-    palette = cls.ParsePdfString(match.group(2))[0]
-    palette_size = cls.GetRgbPaletteSize(palette)
+    palette = cls.parse_pdf_string(match.group(2))[0]
+    palette_size = cls.get_rgb_palette_size(palette)
     i = 0
     while i < palette_size:
       if palette[i] != palette[i + 1] or palette[i] != palette[i + 2]:
@@ -3141,7 +3080,7 @@ class PdfObj(object):
     return True
 
   @classmethod
-  def ClassifyImageDecode(cls, decode, indexed_bpc):
+  def classify_image_decode(cls, decode, indexed_bpc):
     """Classifies the /Decode value of an image.
 
     Args:
@@ -3164,7 +3103,7 @@ class PdfObj(object):
         return 'normal'
       if short_decode == [high_str, '0'] * s:
         return 'inverted'
-    parsed_decode = cls.ParseArray(decode)  # Slow.
+    parsed_decode = cls.parse_array(decode)  # Slow.
     if not parsed_decode:
       return 'empty'
     try:
@@ -3178,7 +3117,7 @@ class PdfObj(object):
     return 'strange'
 
   @classmethod
-  def GenerateImageDecode(cls, is_inverted, samples_per_pixel, indexed_bpc):
+  def generate_image_decode(cls, is_inverted, samples_per_pixel, indexed_bpc):
     """Returns an image /Decode string value."""
     if indexed_bpc:
       high = (1 << indexed_bpc) - 1
@@ -3191,7 +3130,7 @@ class PdfObj(object):
     return '[%s]' % ' '.join(items * samples_per_pixel)
 
   @classmethod
-  def GetRgbPaletteSize(cls, palette):
+  def get_rgb_palette_size(cls, palette):
     """Return len(palette) // 3 * 3, doing some checks."""
     palette_size = len(palette)
     palette_mod = len(palette) % 3
@@ -3203,36 +3142,36 @@ class PdfObj(object):
 
   # !!! Do proper PDF token sequence parsing (ParseTokensToSafe).
   PDFDATA_IS_INDEXED_RGB_OR_GRAY_RE = re.compile(
-      r'\[[\0\t\n\r\f ]*/Indexed[\0\t\n\r\f ]*/Device(?:RGB|Gray)'
-      r'[\0\t\n\r\f ]+\d')
+      r'\[[\x00\t\n\r\f ]*/Indexed[\x00\t\n\r\f ]*/Device(?:RGB|Gray)'
+      r'[\x00\t\n\r\f ]+\d')
 
   @classmethod
-  def IsIndexedRgbOrGrayColorSpace(cls, colorspace):
+  def is_indexed_rgb_or_gray_color_space(cls, colorspace):
     return colorspace and cls.PDFDATA_IS_INDEXED_RGB_OR_GRAY_RE.match(
         colorspace)
 
   # !!! Do proper PDF token sequence parsing (ParseTokensToSafe).
   PDFDATA_INDEXED_RGB_OR_GRAY_RE = re.compile(
-      r'\[[\0\t\n\r\f ]*/Indexed[\0\t\n\r\f ]*/Device(RGB|Gray)'
-      r'[\0\t\n\r\f ]+\d+[\0\t\n\r\f ]*([<(](?s).*)\]\Z')
+      r'\[[\x00\t\n\r\f ]*/Indexed[\x00\t\n\r\f ]*/Device(RGB|Gray)'
+      r'[\x00\t\n\r\f ]+\d+[\x00\t\n\r\f ]*([<(](.|\n)*)\]\Z')
 
   @classmethod
-  def ParseRgbOrGrayPalette(cls, colorspace):
+  def parse_rgb_or_gray_palette(cls, colorspace):
     match = cls.PDFDATA_INDEXED_RGB_OR_GRAY_RE.match(colorspace)
     assert match, 'syntax error in /ColorSpace %r' % colorspace
     base = match.group(1)
     if base == 'RGB':
-      palette = cls.ParsePdfString(match.group(2))[0]
-      palette_size = min(256 * 3, cls.GetRgbPaletteSize(palette))
+      palette = cls.parse_pdf_string(match.group(2))[0]
+      palette_size = min(256 * 3, cls.get_rgb_palette_size(palette))
     elif base == 'Gray':
       palette = ''.join(c + c + c for c in
-                        cls.ParsePdfString(match.group(2))[0])
+                        cls.parse_pdf_string(match.group(2))[0])
       palette_size = 256 * 3
     else:
       assert 0, base
     return palette[:palette_size]
 
-  def DetectInlineImage(self, objs=None):
+  def detect_inline_image(self, objs=None):
     """Detect whether self is a form XObject with an inline image.
 
     As an implementation limitation, this detects only inline
@@ -3251,18 +3190,18 @@ class PdfObj(object):
     """
     # !! TODO(pts): What about PDF comments between /Subtype and /Form?
     #               Also everywhere else.
-    if (not re.search(r'/Subtype[\0\t\n\r\f ]*/Form\b', self.head) or
+    if (not re.search(r'/Subtype[\x00\t\n\r\f ]*/Form\b', self.head) or
         not self.head.startswith('<<') or
         not self.stream is not None or
-        self.Get('Subtype') != '/Form' or
-        self.Get('FormType', 1) != 1 or
+        self.get('Subtype') != '/Form' or
+        self.get('FormType', 1) != 1 or
         # !! get rid of these checks once we can decompress anything
-        self.Get('Filter') not in (None, '/FlateDecode') or
-        self.Get('DecodeParms') is not None or
-        not str(self.Get('BBox')).startswith('[')):
+        self.get('Filter') not in (None, '/FlateDecode') or
+        self.get('DecodeParms') is not None or
+        not str(self.get('BBox')).startswith('[')):
       return None
 
-    bbox = map(PdfObj.GetNumber, PdfObj.ParseArray(self.Get('BBox')))
+    bbox = map(PdfObj.get_number, PdfObj.parse_array(self.get('BBox')))
     if (len(bbox) != 4 or bbox[0] != 0 or bbox[1] != 0 or
         bbox[2] is None or bbox[2] < 1 or bbox[2] != int(bbox[2]) or
         bbox[3] is None or bbox[3] < 1 or bbox[3] != int(bbox[3])):
@@ -3270,50 +3209,46 @@ class PdfObj(object):
     width = int(bbox[2])
     height = int(bbox[3])
 
-    stream = self.GetUncompressedStream(objs=objs)
+    stream = self.get_uncompressed_stream(objs=objs)
     # !! TODO(pts): Do proper PDF content stream token sequence parsing,
     #    matching comments etc.
     match = re.match(
-        r'q[\0\t\n\r\f ]+(\d+)[\0\t\n\r\f ]+0[\0\t\n\r\f ]+0[\0\t\n\r\f ]+'
-        r'(\d+)[\0\t\n\r\f ]+0[\0\t\n\r\f ]+0[\0\t\n\r\f ]+cm[\0\t\n\r\f ]+'
-        r'BI[\0\t\n\r\f ]*(/(?s).*?)ID(?:\r\n|[\0\t\n\r\f ])', stream)
+        r'q[\x00\t\n\r\f ]+(\d+)[\x00\t\n\r\f ]+0[\x00\t\n\r\f ]+0[\x00\t\n\r\f ]+'
+        r'(\d+)[\x00\t\n\r\f ]+0[\x00\t\n\r\f ]+0[\x00\t\n\r\f ]+cm[\x00\t\n\r\f ]+'
+        r'BI[\x00\t\n\r\f ]*(/(?s).*?)ID(?:\r\n|[\x00\t\n\r\f ])', stream)
     if not match:
       return None
     if int(match.group(1)) != width or int(match.group(2)) != height:
       return None
     # Run CompressValue so we get it normalized, and we can do easier
     # regexp matches and substring searches.
-    inline_dict = PdfObj.CompressValue(
+    inline_dict = PdfObj.compress_value(
         match.group(3), do_emit_strings_as_hex=True)
     stream_start = match.end()
 
     stream_tail = stream[-16:]
     # TODO(pts): What if \r\n in front of EI? We don't support that.
-    match = re.search(
-        r'[\0\t\n\r\f ]EI[\0\t\n\r\f ]+Q[\0\t\n\r\f ]*\Z', stream_tail)
+    match = re.search(r'[\x00\t\n\r\f ]EI[\x00\t\n\r\f ]+Q[\x00\t\n\r\f ]*\Z', stream_tail)
     if not match:
       return None
     stream_end = len(stream) - len(stream_tail) + match.start()
     stream = stream[stream_start : stream_end]
 
-    image_obj = PdfObj('0 0 obj<</Length 0 %s>>stream endstream endobj' %
-                       self.ExpandAbbreviations(inline_dict))
-    if (image_obj.Get('Width') != width or
-        image_obj.Get('Height') != height):
+    image_obj = PdfObj('0 0 obj<</Length 0 %s>>stream endstream endobj' % self.expand_abbreviations(inline_dict))
+    if (image_obj.get('Width') != width or image_obj.get('Height') != height):
       return None
-    image_obj.Set('Length', len(stream))
+    image_obj.set('Length', len(stream))
     image_obj.stream = stream
     return width, height, image_obj
 
   @classmethod
-  def ExpandAbbreviations(cls, data):
+  def expand_abbreviations(cls, data):
     """Expands /Fl to /FlateDecode, /IM to /ImageMask etc."""
     _abbrs = cls.PDF_NAME_ABBREVIATIONS
-    return cls.PDF_NAME_LITERAL_RE.sub(
-        lambda match: '/' + _abbrs.get(match.group(1), match.group(1)), data)
+    return cls.PDF_NAME_LITERAL_RE.sub(lambda match: '/' + _abbrs.get(match.group(1), match.group(1)), data)
 
   @classmethod
-  def _NormalizeNumber(cls, number_match):
+  def _normalize_number(cls, number_match):
     """Normalizes a number, returns the string representation."""
     # From the PDF reference: Note: PDF does not support the PostScript
     # syntax for numbers with nondecimal radices (such as 16#FFFE) or in
@@ -3353,7 +3288,7 @@ class PdfObj(object):
   PDF_CLASSIFY[ord('%')] = 19
 
   @classmethod
-  def RewriteToParsable(
+  def rewrite_to_parsable(
       cls, data, start=0,
       end_ofs_out=None, do_terminate_obj=False,
       do_expect_postscript_name_input=False):
@@ -3448,23 +3383,20 @@ class PdfObj(object):
             raise PdfTokenTruncated('Empty PDF name token.')
           if not do_expect_postscript_name_input:
             try:
-              token = cls.PDF_NAME_HEX_OR_HASHMARK_RE.sub(
-                  lambda match: chr(int(match.group(1), 16)), token)
+              token = cls.PDF_NAME_HEX_OR_HASHMARK_RE.sub(lambda match: chr(int(match.group(1), 16)), token)
             except TypeError:  # In int(...) if match.group(1) is None.
-              raise PdfTokenParseError(
-                  'Invalid hex escape in PDF name %r' % ('/' + token))
+              raise PdfTokenParseError('Invalid hex escape in PDF name %r' % ('/' + token))
           token = '/' + cls.PDF_SAFE_KEEP_HEX_ESCAPED_RE.sub(
               lambda match: '#%02X' % ord(match.group()), token)
         else:
           token = data[j : i]
           if token != 'R' and not cls.PDF_KEYWORD_OR_NUMBER_AT_EOS_RE.match(
               token):
-            raise PdfTokenParseError(
-                'Invalid character in keyword or number %r' % token)
+            raise PdfTokenParseError('Invalid character in keyword or number %r' % token)
 
         number_match = cls.PDF_NUMBER_AT_EOS_RE.match(token)
         if number_match:
-          output.append(' ' + cls._NormalizeNumber(number_match))
+          output.append(' ' + cls._normalize_number(number_match))
         else:
           output.append(' ' + token)
 
@@ -3474,8 +3406,7 @@ class PdfObj(object):
              len(output) < 3 or
              not re.match(r' -?\d+\Z', output[-2]) or
              not re.match(r' -?\d+\Z', output[-3])):
-            raise PdfTokenParseError(
-                'invalid R after %r' % output[-2:])
+            raise PdfTokenParseError('invalid R after %r' % output[-2:])
           if stack[-1] == '-':
             if re.match(' -?\d+\Z', output[-1]):
               # We have parsed `5' from `5 6 R', try to find the rest.
@@ -3484,16 +3415,14 @@ class PdfObj(object):
               if match:
                 num2 = int(match.group(1))
                 if int(output[-1]) <= 0 or num2 < 0:
-                  raise PdfTokenParseError(
-                      'invalid R: %s %s' % (output[-1], num2))
+                  raise PdfTokenParseError('invalid R: %s %s' % (output[-1], num2))
                 output.append(' %s R' % num2)
                 i = match.end()
             stack.pop()
         else:
           # TODO(pts): Support parsing PDF content stream operators.
           if stack[-1] != '.':
-            raise PdfTokenParseError(
-                'invalid operator %r with stack %r' % (token, stack))
+            raise PdfTokenParseError('invalid operator %r with stack %r' % (token, stack))
           stack.pop()
           if i == len(data):
             raise PdfTokenTruncated
@@ -3546,7 +3475,7 @@ class PdfObj(object):
           if stack[-1] == '-':
             stack.pop()
       elif o == 16:  # A (...) string literal.
-        s, i = cls.ParsePdfString(data, i, data_size, is_partial_ok=True)
+        s, i = cls.parse_pdf_string(data, i, data_size, is_partial_ok=True)
         output.append(' <%s>' % s.encode('hex'))
         del s  # Save memory.
         if stack[-1] == '-':
@@ -3557,8 +3486,7 @@ class PdfObj(object):
         if i < data_size:
           i += 1  # Don't increase it further.
       else:
-        raise PdfTokenParseError('syntax error, expecting PDF token, got %r' %
-                                 data[i])
+        raise PdfTokenParseError('syntax error, expecting PDF token, got %r' % data[i])
 
     assert i <= data_size
     output_data = ''.join(output)
@@ -3567,28 +3495,27 @@ class PdfObj(object):
       end_ofs_out.append(i)
     return output_data
 
-  def CopyStreamObj(self, objs=None):
+  def copy_stream_obj(self, objs=None):
     """Returns a new PdfObj containing just the stream of self."""
     if self.stream is None:
       raise ValueError('Missing stream in obj.')
     obj = type(self)('1 0 obj<<>>endobj')
-    if not self.HasUncompressedStream():
+    if not self.has_uncompressed_stream():
       if objs is None:
         objs = {}
       # Don't copy e.g. `/MetaData <n> 0 R', which Type1CParser won't be
       # able to resolve.
       for name in ('Filter', 'DecodeParms'):
-        obj.Set(name, self.ResolveReferences(self.Get(name), objs=objs))
+        obj.set(name, self.resolve_references(self.get(name), objs=objs))
     obj.stream = self.stream
-    obj.Set('Length', len(obj.stream))
+    obj.set('Length', len(obj.stream))
     return obj
 
-  def HasUncompressedStream(self):  # !!! Add unit tests.
+  def has_uncompressed_stream(self):  # !!! Add unit tests.
     """Returns a bool indicating whether this obj has an uncompressed stream."""
-    return (self.stream is not None and
-            ('/Filter' not in self.head or self.Get('Filter') in (None, '[]')))
+    return self.stream is not None and ('/Filter' not in self.head or self.get('Filter') in (None, '[]'))
 
-  def GetUncompressedStream(self, objs=None):
+  def get_uncompressed_stream(self, objs=None):
     """Returns the uncompressed stream data in this obj.
 
     Args:
@@ -3600,29 +3527,27 @@ class PdfObj(object):
       FilterNotImplementedError: .
       FilterError: .
     """
-    if self.HasUncompressedStream():
+    if self.has_uncompressed_stream():
       assert self.stream is not None
       return self.stream
-    filter_value = self.Get('Filter')
-    decodeparms = self.Get('DecodeParms') or ''
+    filter_value = self.get('Filter')
+    decodeparms = self.get('DecodeParms') or ''
     if objs is None:
       objs = {}
-    filter_value = self.ResolveReferences(filter_value, objs)
-    decodeparms = self.ResolveReferences(decodeparms, objs)
+    filter_value = self.resolve_references(filter_value, objs)
+    decodeparms = self.resolve_references(decodeparms, objs)
     if not isinstance(filter_value, str):
       raise FilterError('/Filter is not a str: %r' % (filter_value,))
     if not isinstance(decodeparms, str):
       raise FilterError('/DecodeParms is not a str.')
-    if (filter_value in ('/FlateDecode', '[/FlateDecode]') and
-        '/Predictor' not in decodeparms):
+    if filter_value in ('/FlateDecode', '[/FlateDecode]') and '/Predictor' not in decodeparms:
       try:
-        return PermissiveZlibDecompress(self.stream)
-      except zlib.error, e:
+        return permissive_zlib_decompress(self.stream)
+      except zlib.error as e:
         raise FilterError('Flate decompression error: %s' % e)
     is_gs_ok = True  # TODO(pts): Add command-line flag to disable.
     if not is_gs_ok:
-      raise FilterNotImplementedError(
-          'filter not implemented: ' + filter_value)
+      raise FilterNotImplementedError('filter not implemented: ' + filter_value)
     if '/JBIG2Decode' in filter_value and '/JBIG2Globals' in decodeparms:
       raise FilterNotImplementedError('/JBIG2Globals not supported.')
 
@@ -3662,14 +3587,14 @@ class PdfObj(object):
         f.close()
       gs_defilter_cmd = (
           '%s -dNODISPLAY -sINFN=%s -q -P- %s' %
-          (GetGsCommand(), ShellQuoteFileName(tmp_file_name, is_gs=True),
-           ShellQuoteFileName(ps_file_name, is_gs=True)))
+          (get_gs_command(), shell_quote_file_name(tmp_file_name, is_gs=True),
+           shell_quote_file_name(ps_file_name, is_gs=True)))
     else:
       gs_defilter_cmd = (
           '%s -dNODISPLAY -sINFN=%s -q -P- -c %s' %
-          (GetGsCommand(), ShellQuoteFileName(tmp_file_name, is_gs=True),
+          (get_gs_command(), shell_quote_file_name(tmp_file_name, is_gs=True),
            ShellQuote(gs_code)))
-    LogProportionalInfo(
+    log_proportional_info(
         'decompressing %d bytes with Ghostscript '
         '/Filter%s%s' % (len(self.stream), filter_value, decodeparms_pair))
     sys.stdout.flush()
@@ -3687,7 +3612,7 @@ class PdfObj(object):
     return data
 
   @classmethod
-  def ResolveReferences(cls, data, objs, do_strings=False):
+  def resolve_references(cls, data, objs, do_strings=False):
     """Resolve references (<x> <y> R) in a PDF token sequence.
 
     As a side effect, this function may remove comments and whitespace
@@ -3700,9 +3625,9 @@ class PdfObj(object):
       do_strings: bool indicating whether to embed the referred
         streams as strings.
     Returns:
-      new_data, which can be an int, a long, a float, a bool, None, or an str.
+      new_data, which can be an int, a float, a bool, None, or an str.
       ParseSimpleValue is used on new_data (to convert str to other types) if
-      data is an str containing a single reference (R).
+      data is a str containing a single reference (R).
     Raises:
       PdfTokenParseError:
       PdfReferenceTargetMissing:
@@ -3711,8 +3636,7 @@ class PdfObj(object):
     # !! always do a ResolveReferences to flatten /Filter and /DecodeParms.
     if not isinstance(objs, dict):
       raise TypeError
-    if (data is None or isinstance(data, int) or isinstance(data, long) or
-        isinstance(data, float) or isinstance(data, bool)):
+    if data is None or isinstance(data, int) or isinstance(data, float) or isinstance(data, bool):
       return data
     if not isinstance(data, str):
       raise TypeError
@@ -3723,7 +3647,7 @@ class PdfObj(object):
 
     current_obj_nums = []
 
-    def Replacement(match):
+    def replacement(match):
       obj_num = int(match.group(1))
       if obj_num < 1:
         raise PdfTokenParseError('invalid object number: %d' % obj_num)
@@ -3745,31 +3669,31 @@ class PdfObj(object):
                 'recursive reference chain: %r' % current_obj_nums)
           current_obj_nums.append(obj_num)
           if '%' in new_data or '(' in new_data:  # ')'
-            new_data = cls.CompressValue(new_data, do_emit_strings_as_hex=True)
-            new_data = cls.PDF_REF_RE.sub(Replacement, new_data)
-            new_data = cls.CompressValue(new_data)
+            new_data = cls.compress_value(new_data, do_emit_strings_as_hex=True)
+            new_data = cls.PDF_REF_RE.sub(replacement, new_data)
+            new_data = cls.compress_value(new_data)
           else:
-            new_data = cls.PDF_REF_RE.sub(Replacement, new_data)
+            new_data = cls.PDF_REF_RE.sub(replacement, new_data)
           current_obj_nums.pop()
         elif '%' in new_data:
           # Remove trailing comment.
-          new_data = cls.CompressValue(new_data)
+          new_data = cls.compress_value(new_data)
         return new_data
       else:
         if not do_strings:
           raise UnexpectedStreamError(
               'unexpected stream in: %d 0 obj' % obj_num)
-        return obj.SerializePdfStringSafe(obj.GetUncompressedStream(objs=objs))
+        return obj.serialize_pdf_string_safe(obj.get_uncompressed_stream(objs=objs))
 
 
     match = cls.PDF_REF_AT_EOS_RE.match(data)
     if match:  # Shortcut and type conversion.
-      return cls.ParseSimpleValue(Replacement(match))
+      return cls.parse_simple_value(replacement(match))
 
     data0 = data
     if '(' in data or '%' in data:  # ')'
       # !!! Is this necessary? Can `data' not be a safe PDF token sequence?
-      data = cls.CompressValue(data, do_emit_strings_as_hex=True)
+      data = cls.compress_value(data, do_emit_strings_as_hex=True)
       # Compress strings back to non-hex once the references are
       # resolved.
       do_compress = True
@@ -3778,13 +3702,13 @@ class PdfObj(object):
     # There is no need to add whitespace around the replacement, good.
     # TODO(pts): If the replacement for a reference is a `(string)' (or an
     # array etc.), then remove the whitespace around the `<x> <y> R'.
-    data = cls.PDF_REF_RE.sub(Replacement, data)
+    data = cls.PDF_REF_RE.sub(replacement, data)
     if do_compress:
-      data = cls.CompressValue(data)
+      data = cls.compress_value(data)
     return data
 
   @classmethod
-  def ResolveReferencesChanged(cls, data, objs, do_strings=False):
+  def resolve_references_changed(cls, data, objs, do_strings=False):
     """Resolve references (<x> <y> R) in a PDF token sequence.
 
     Like ResolveReferences, but returns has_changed as well.
@@ -3795,11 +3719,11 @@ class PdfObj(object):
     """
     if not isinstance(data, str):
       return data, False
-    data2 = cls.ResolveReferences(data, objs, do_strings)
+    data2 = cls.resolve_references(data, objs, do_strings)
     return data2, data2 != data
 
-  def FixFontNameInType1C(self, new_font_name='F', objs=None,
-                          len_deltas_out=None):
+  def fix_font_name_in_type1_c(self, new_font_name='F', objs=None,
+                               len_deltas_out=None):
     """Fix the FontName in a /Subtype/Type1C object (self).
 
     self will be modified in place.
@@ -3810,29 +3734,29 @@ class PdfObj(object):
         passed to ResolveReferences.
       len_deltas_out: Output list of len_delta values applied, or None.
     """
-    assert self.Get('Subtype') == '/Type1C'
-    data = self.GetUncompressedStream(objs=objs)
-    new_data = cff.FixFontNameInCff(data, new_font_name, len_deltas_out)
+    assert self.get('Subtype') == '/Type1C'
+    data = self.get_uncompressed_stream(objs=objs)
+    new_data = cff.fix_font_name_in_cff(data, new_font_name, len_deltas_out)
     # Since in Ghostscript 6.54 it is not possible to specify the ZIP
     # compression level in -sDEVICE=pdfwrite, we recompress with maximum
     # effort here.
     # TODO(pts): Add generic recompression of all /FlateDecode filters
     #            (because Ghostscript is suboptimal everywhere).
-    if self.Get('Filter') != '/FlateDecode' or new_data != data:
+    if self.get('Filter') != '/FlateDecode' or new_data != data:
       self.stream = zlib.compress(new_data, 9)
-      self.Set('Filter', '/FlateDecode')
-      self.Set('DecodeParms', None)
-      self.Set('Length', len(self.stream))
+      self.set('Filter', '/FlateDecode')
+      self.set('DecodeParms', None)
+      self.set('Length', len(self.stream))
 
   @classmethod
-  def PdfRstripBuffer(cls, data, start, end):
+  def pdf_rstrip_buffer(cls, data, start, end):
      """Return a buffer of data[start : end] with whitespace rstripped."""
      assert start >= 0
      while end > start and data[end - 1] in cls.PDF_WHITESPACE_CHARS:
        end -= 1
      return buffer(data, start, end - start)
 
-  def ParseObjStm(self, obj_num):
+  def parse_obj_stm(self, obj_num):
     """Parses a /Type/ObjStm trailer_obj.
 
     Args:
@@ -3845,15 +3769,14 @@ class PdfObj(object):
       PdfXrefStreamError:
       NotImplementedError:
     """
-    if self.Get('Type') != '/ObjStm':
-      raise PdfXrefStreamError(
-          'expected /Type/ObjStm for obj %d' % obj_num)
-    n = self.Get('N')  # Number of objects in self.
+    if self.get('Type') != '/ObjStm':
+      raise PdfXrefStreamError('expected /Type/ObjStm for obj %d' % obj_num)
+    n = self.get('N')  # Number of objects in self.
     if n is None:
       raise PdfXrefStreamError('missing /N in objstm obj %d' % obj_num)
     if not isinstance(n, int) or n < 1:
       raise PdfXrefStreamError('invalid /N in objstm obj %d %r' % obj_num)
-    first = self.Get('First')  # Offset of the first object.
+    first = self.get('First')  # Offset of the first object.
     if first is None:
       raise PdfXrefStreamError('missing /First in objstm obj %d' % obj_num)
     if not isinstance(first, int) or first <= 0:
@@ -3867,11 +3790,11 @@ class PdfObj(object):
 
     # TODO(pts): Handle the various exceptions raised by
     #            trailer_obj.GetUncompressedStream().
-    objstm_data = self.GetUncompressedStream()
-    rstrip_buffer = self.PdfRstripBuffer
+    objstm_data = self.get_uncompressed_stream()
+    rstrip_buffer = self.pdf_rstrip_buffer
     self = None  # Save memory.
     end_ofs_ary = []
-    numbers = PdfObj.ParseTokenList(
+    numbers = PdfObj.parse_token_list(
         objstm_data, 2 * n, end_ofs_out=end_ofs_ary)
     end_ofs = end_ofs_ary[0]
     match = PdfObj.PDF_COMMENTS_OR_WHITESPACE_RE.match(objstm_data, end_ofs)
@@ -3879,9 +3802,7 @@ class PdfObj(object):
       # TODO(pts): Maybe skip only one character of whitespace?
       end_ofs = match.end()
     if first < end_ofs:
-      LogWarning(
-          'first too early in objstm obj %d: first=%d end_ofs=%d' %
-          (obj_num, first, end_ofs))
+      log_warning('first too early in objstm obj %d: first=%d end_ofs=%d' % (obj_num, first, end_ofs))
     if len(numbers) != 2 * n:
       raise PdfXrefStreamError(
           'expected %d, but got %d values in token sequence objstm obj %d' %
@@ -3891,34 +3812,27 @@ class PdfObj(object):
     # string in the respective compressed_obj_nums item.
     compressed_obj_headbufs = []
     prev_offset = -1
-    for i in xrange(0, len(numbers), 2):
+    for i in range(0, len(numbers), 2):
       compressed_obj_num = numbers[i]
       compressed_obj_ofs = numbers[i + 1]
       if not isinstance(compressed_obj_num, int):
-        raise PdfXrefStreamError(
-            'expected int compressed_obj_num in objstm obj %d' % obj_num)
+        raise PdfXrefStreamError('expected int compressed_obj_num in objstm obj %d' % obj_num)
       if not isinstance(compressed_obj_ofs, int):
-        raise PdfXrefStreamError(
-            'expected int compressed_obj_ofs in objstm obj %d' % obj_num)
+        raise PdfXrefStreamError('expected int compressed_obj_ofs in objstm obj %d' % obj_num)
       if compressed_obj_num < 1:
-        raise PdfXrefStreamError(
-            'bad compressed_obj_num %d in objstm obj %d' % obj_num)
-      if (compressed_obj_ofs < 0 or
-          compressed_obj_ofs + first >= len(objstm_data)):
-        raise PdfXrefStreamError(
-            'bad compressed_obj_obs %d in objstm obj %d' % obj_num)
+        raise PdfXrefStreamError('bad compressed_obj_num %d in objstm obj %d' % obj_num)
+      if compressed_obj_ofs < 0 or compressed_obj_ofs + first >= len(objstm_data):
+        raise PdfXrefStreamError('bad compressed_obj_obs %d in objstm obj %d' % obj_num)
       compressed_obj_ofs += first
       compressed_obj_nums.append(compressed_obj_num)
       # Although the PDF spec doesn't say, we assume that compressed
       # objects don't overlap. This is reasonable, because
       # the PDF spec requires increasing offsets.
       if prev_offset > 0:
-        compressed_obj_headbufs.append(rstrip_buffer(
-            objstm_data, prev_offset, compressed_obj_ofs))
+        compressed_obj_headbufs.append(rstrip_buffer(objstm_data, prev_offset, compressed_obj_ofs))
       prev_offset = compressed_obj_ofs
     if prev_offset > 0:
-      compressed_obj_headbufs.append(rstrip_buffer(
-          objstm_data, prev_offset, len(objstm_data)))
+      compressed_obj_headbufs.append(rstrip_buffer(objstm_data, prev_offset, len(objstm_data)))
     assert len(compressed_obj_nums) == len(compressed_obj_headbufs)
     return compressed_obj_nums, compressed_obj_headbufs
 
@@ -3992,9 +3906,9 @@ class ImageData(object):
       self.file_name = other.file_name
       self.is_inverted = other.is_inverted
     else:
-      self.Clear()
+      self.clear()
 
-  def Clear(self):
+  def clear(self):
     self.width = self.height = self.bpc = self.color_type = None
     self.is_interlaced = self.idat = self.plte = self.compression = None
     self.file_name = self.is_inverted = None
@@ -4018,18 +3932,18 @@ class ImageData(object):
                 (not self.color_type.startswith('indexed-') or (
                  isinstance(self.plte, str) and len(self.plte) % 3 == 0)))
 
-  def ToDataTuple(self):
+  def to_data_tuple(self):
     """Return the data in self as __hash__{}able tuple."""
     return (self.width, self.height, self.bpc, self.color_type,
             self.is_interlaced, self.idat, self.plte, self.compression,
             self.is_inverted)
 
-  def CanBePdfImage(self):
+  def can_be_pdf_image(self):
     return bool(self and self.bpc in (1, 2, 4, 8) and
                 self.color_type in ('gray', 'rgb', 'indexed-rgb') and
                 not self.is_interlaced)
 
-  def CanBePngImage(self, do_ignore_compression=False):
+  def can_be_png_image(self, do_ignore_compression=False):
     # It's OK to have self.is_interlaced == True.
     return bool(self and self.bpc in (1, 2, 4, 8) and
                 self.color_type in ('gray', 'rgb', 'indexed-rgb') and
@@ -4046,7 +3960,7 @@ class ImageData(object):
     """Return the number of bytes per uncompressed, unpredicted row."""
     return (self.width * self.samples_per_pixel * self.bpc + 7) >> 3
 
-  def GetPdfColorSpace(self):
+  def get_pdf_color_space(self):
     assert self.color_type
     assert not self.color_type.startswith('indexed-') or self.plte
     if self.color_type == 'gray':
@@ -4057,26 +3971,26 @@ class ImageData(object):
       plte = self.plte
       assert plte
       assert len(plte) % 3 == 0
-      for i in xrange(0, len(plte), 3):
+      for i in range(0, len(plte), 3):
         if plte[i] != plte[i + 1] or plte[i] != plte[i + 2]:
           break
       else:
         return '[/Indexed/DeviceGray %d%s]' % (
-            len(plte) / 3 - 1, PdfObj.SerializePdfStringSafe(''.join(
-                plte[i] for i in xrange(0, len(plte), 3))))
+            len(plte) / 3 - 1, PdfObj.serialize_pdf_string_safe(''.join(
+                plte[i] for i in range(0, len(plte), 3))))
       return '[/Indexed/DeviceRGB %d%s]' % (
-          len(plte) / 3 - 1, PdfObj.SerializePdfStringSafe(plte))
+          len(plte) / 3 - 1, PdfObj.serialize_pdf_string_safe(plte))
     else:
       assert False, 'cannot convert to PDF color space'
 
-  def GetPdfImageData(self):
+  def get_pdf_image_data(self):
     """Return a dictionary useful as a PDF image."""
-    assert self.CanBePdfImage()  # asserts not interlaced
+    assert self.can_be_pdf_image()  # asserts not interlaced
     pdf_image_data = {
         'Width': self.width,
         'Height': self.height,
         'BitsPerComponent': self.bpc,
-        'ColorSpace': self.GetPdfColorSpace(),
+        'ColorSpace': self.get_pdf_color_space(),
         '.stream': self.idat,
     }
     if self.compression == 'none':
@@ -4112,7 +4026,7 @@ class ImageData(object):
 
     return pdf_image_data
 
-  def CanUpdateImageMask(self):
+  def can_update_image_mask(self):
     """Return bool saying whether self.UpdatePdfObj works on an /ImageMask."""
     if self.bpc != 1:
       return False
@@ -4123,7 +4037,7 @@ class ImageData(object):
       return True
     return self.color_type == 'gray'
 
-  def MaybeConvertToGray1(self):
+  def maybe_convert_to_gray1(self):
     """Tries to convert to color_type='gray', bpc=1. Returns self."""
     if self.color_type == 'indexed-rgb' and self.bpc == 1:
       plte = self.plte[:6]
@@ -4136,26 +4050,26 @@ class ImageData(object):
         self.plte = None
         self.is_inverted = not self.is_inverted
 
-  def UpdatePdfObj(self, pdf_obj, do_check_dimensions=True):
+  def update_pdf_obj(self, pdf_obj, do_check_dimensions=True):
     """Update the /Subtype/Image PDF XObject from self."""
     if not isinstance(pdf_obj, PdfObj):
       raise TypeError
-    pdf_image_data = self.GetPdfImageData()
+    pdf_image_data = self.get_pdf_image_data()
     is_inverted = self.is_inverted
     if do_check_dimensions:
-      assert pdf_obj.Get('Width') == pdf_image_data['Width'], (
+      assert pdf_obj.get('Width') == pdf_image_data['Width'], (
           'image Width mismatch: %r vs %r' % (pdf_obj.head, pdf_image_data))
-      assert pdf_obj.Get('Height') == pdf_image_data['Height'], (
+      assert pdf_obj.get('Height') == pdf_image_data['Height'], (
           'image Height mismatch: %r vs %r' % (pdf_obj.head, pdf_image_data))
     else:
-      pdf_obj.Set('Width', pdf_image_data['Width'])
-      pdf_obj.Set('Height', pdf_image_data['Height'])
+      pdf_obj.set('Width', pdf_image_data['Width'])
+      pdf_obj.set('Height', pdf_image_data['Height'])
 
-    if pdf_obj.Get('ImageMask'):
-      assert self.CanUpdateImageMask()
+    if pdf_obj.get('ImageMask'):
+      assert self.can_update_image_mask()
       assert pdf_image_data['BitsPerComponent'] == 1
       assert pdf_image_data['ColorSpace'] == '/DeviceGray'
-      pdf_obj.Set('ColorSpace', None)
+      pdf_obj.set('ColorSpace', None)
       image_decode = pdf_image_data.get('Decode')
       # pdf_reference_1-7.pdf says: for /ImageMask true, /Decode must be [0 1]
       # or [1 0]. No need to check for 1.0 etc., because GetPdfImageData
@@ -4168,25 +4082,25 @@ class ImageData(object):
       else:
         assert False, 'unknown decode value: %r' % image_decode
     else:
-      pdf_obj.Set('BitsPerComponent', pdf_image_data['BitsPerComponent'])
-      pdf_obj.Set('ColorSpace', pdf_image_data['ColorSpace'])
-    pdf_obj.Set('Filter', pdf_image_data['Filter'])
-    pdf_obj.Set('DecodeParms', pdf_image_data.get('DecodeParms'))
-    pdf_obj.Set('Length', len(pdf_image_data['.stream']))
+      pdf_obj.set('BitsPerComponent', pdf_image_data['BitsPerComponent'])
+      pdf_obj.set('ColorSpace', pdf_image_data['ColorSpace'])
+    pdf_obj.set('Filter', pdf_image_data['Filter'])
+    pdf_obj.set('DecodeParms', pdf_image_data.get('DecodeParms'))
+    pdf_obj.set('Length', len(pdf_image_data['.stream']))
     if is_inverted:
       indexed_bpc = int(self.color_type.startswith('indexed-') and self.bpc)
-      pdf_obj.Set('Decode', pdf_obj.GenerateImageDecode(
+      pdf_obj.set('Decode', pdf_obj.generate_image_decode(
           is_inverted, self.samples_per_pixel, indexed_bpc))
     else:
-      pdf_obj.Set('Decode', None)  # Use the default, it's shorter.
+      pdf_obj.set('Decode', None)  # Use the default, it's shorter.
     pdf_obj.stream = pdf_image_data['.stream']
 
-  def CanCompressToZipPng(self):
+  def can_compress_to_zip_png(self):
     return self.compression in ('zip-png', 'zip', 'none')
 
-  def CompressToZipPng(
+  def compress_to_zip_png(
       self, do_try_invert=False, effort=9,
-      _invert_table=''.join(chr(i) for i in xrange(255, -1, -1))):
+      _invert_table=''.join(chr(i) for i in range(255, -1, -1))):
     """Compress self.idat to self.compression == 'zip-png'."""
     assert self
     if self.compression == 'zip-png':
@@ -4194,14 +4108,13 @@ class ImageData(object):
       #   pts2ep.pdf
       return self
     elif self.compression == 'zip':
-      idat = PermissiveZlibDecompress(self.idat)  # raises zlib.error
+      idat = permissive_zlib_decompress(self.idat)  # raises zlib.error
     elif self.compression == 'none':
       idat = self.idat
     else:
       # 'zip-tiff' is too complicated now, especially for self.bpc != 8, where
       # we have fetch previous samples with bitwise operations.
-      raise FormatUnsupported(
-          'cannot compress %s to zip-png' % self.compression)
+      raise FormatUnsupported('cannot compress %s to zip-png' % self.compression)
 
     bytes_per_row = self.bytes_per_row
     useful_idat_size = bytes_per_row * self.height
@@ -4215,11 +4128,11 @@ class ImageData(object):
     # For testing: idat_size_mod == 1 in vrabimintest.pdf
     output = []
     if do_try_invert:
-      for i in xrange(0, useful_idat_size, bytes_per_row):
+      for i in range(0, useful_idat_size, bytes_per_row):
         output.append('\0')  # Select PNG None predictor for this row.
         output.append(idat[i : i + bytes_per_row].translate(_invert_table))
     else:
-      for i in xrange(0, useful_idat_size, bytes_per_row):
+      for i in range(0, useful_idat_size, bytes_per_row):
         # We don't want to optimize here (like how libpng does) by picking the
         # best predictor, i.e. the one which probably yields the smallest output.
         # PdfData.OptimizeImages has much better and faster algorithms for that.
@@ -4236,13 +4149,13 @@ class ImageData(object):
 
     return self
 
-  def SavePng(self, file_name, do_force_gray=False):
+  def save_png(self, file_name, do_force_gray=False):
     """Save in PNG format to specified file, update file_name."""
-    LogProportionalInfo('saving PNG to %s' % (file_name,))
-    assert self.CanBePngImage()
+    log_proportional_info('saving PNG to %s' % (file_name,))
+    assert self.can_be_png_image()
     output = ['\x89PNG\r\n\x1A\n']  # PNG signature.
 
-    def AppendChunk(chunk_type, chunk_data):
+    def append_chunk(chunk_type, chunk_data):
       output.append(struct.pack('>L', len(chunk_data)))
       # This wastes memory on the string concatenation.
       # TODO(pts): Optimize memory use.
@@ -4263,14 +4176,14 @@ class ImageData(object):
         color_type_found = color_type
     assert color_type_found is not None
 
-    AppendChunk(
+    append_chunk(
         'IHDR', struct.pack(
             '>LL5B', self.width, self.height, self.bpc, color_type_found,
             0, 0, int(self.is_interlaced)))
     if self.plte is not None and color_type_to_find.startswith('indexed-'):
-      AppendChunk('PLTE', self.plte)
-    AppendChunk('IDAT', self.idat)
-    AppendChunk('IEND', '')
+      append_chunk('PLTE', self.plte)
+    append_chunk('IDAT', self.idat)
+    append_chunk('IEND', '')
 
     output_data = ''.join(output)
     f = open(file_name, 'wb')
@@ -4278,11 +4191,11 @@ class ImageData(object):
       f.write(output_data)
     finally:
       f.close()
-    LogProportionalInfo('written %s bytes to PNG' % len(output_data))
+    log_proportional_info('written %s bytes to PNG' % len(output_data))
     self.file_name = file_name
     return self
 
-  def Load(self, file_name, is_inverted=False):
+  def load(self, file_name, is_inverted=False):
     """Load (parts of) a PNG or PDF image file to self, return self.
 
     Please note that this method discards possibly important PNG chunks.
@@ -4296,15 +4209,15 @@ class ImageData(object):
         On error, self is possibly left in an inconsistent state, use
         self.Clear() to clean up.
     """
-    LogProportionalInfo('loading image from: %s' % (file_name,))
+    log_proportional_info('loading image from: %s' % (file_name,))
     f = open(file_name, 'rb')
     try:
       signature = f.read(8)
       f.seek(0, 0)
       if signature.startswith('%PDF-1.'):
-        self.LoadPdf(f)
+        self.load_pdf(f)
       elif signature.startswith('\x89PNG\r\n\x1A\n'):
-        self.LoadPng(f)
+        self.load_png(f)
       else:
         assert False, 'bad PNG/PDF signature in file'
     finally:
@@ -4316,25 +4229,25 @@ class ImageData(object):
     assert not self.color_type.startswith('indexed-') or self.plte, (
         'missing PLTE data')
     if self.plte:
-      LogProportionalInfo(
+      log_proportional_info(
           'loaded PNG IDAT of %s bytes and PLTE of %s bytes' %
           (len(self.idat), len(self.plte)))
     else:
-      LogProportionalInfo('loaded PNG IDAT of %s bytes' % len(self.idat))
+      log_proportional_info('loaded PNG IDAT of %s bytes' % len(self.idat))
     assert self.idat, 'image data empty'
     return self
 
-  def LoadPdf(self, f):
+  def load_pdf(self, f):
     """Load image data from single ZIP-compressed image in PDF.
 
     The features of this method is rather limited: it can load the output of
     `sam2p -c zip' and alike, but not much more.
     """
-    pdf = PdfData().Load(f, is_parse_error_ok=False, is_proportional=True)
+    pdf = PdfData().load(f, is_parse_error_ok=False, is_proportional=True)
     # !!! TODO(pts): Do proper PDF token sequence parsing.
     image_obj_nums = [
         obj_num for obj_num in sorted(pdf.objs)
-        if re.search(r'/Subtype[\0\t\n\r\f ]*/Image\b',
+        if re.search(r'/Subtype[\x00\t\n\r\f ]*/Image\b',
                      pdf.objs[obj_num].head)]
     # !! support single-color image by sam2p
     # !! image_obj_nums is empty on empty page (by sam2p)
@@ -4342,26 +4255,26 @@ class ImageData(object):
         'no single image XObject in PDF, got %r' % image_obj_nums)
     obj = pdf.objs[image_obj_nums[0]]
     assert obj.head.startswith('<<'), [obj.head]
-    assert obj.Get('Subtype') == '/Image'
-    if obj.Get('ImageMask'):
+    assert obj.get('Subtype') == '/Image'
+    if obj.get('ImageMask'):
       colorspace = None
       # Convert imagemask generated by sam2p to indexed1
       page_objs = [pdf.objs[obj_num] for obj_num in sorted(pdf.objs) if
-                   re.search(r'/Type[\0\t\n\r\f ]*/Page\b',
+                   re.search(r'/Type[\x00\t\n\r\f ]*/Page\b',
                              pdf.objs[obj_num].head) and
                    pdf.objs[obj_num].head.startswith('<<') and
-                   pdf.objs[obj_num].Get('Type') == '/Page']
+                   pdf.objs[obj_num].get('Type') == '/Page']
       assert len(page_objs) == 1, 'Page object not found for sam2p ImageMask'
-      contents = page_objs[0].Get('Contents')
+      contents = page_objs[0].get('Contents')
       match = PdfObj.PDF_REF_AT_EOS_RE.match(contents)
       assert match, [contents]
       content_obj = pdf.objs[int(match.group(1))]
-      content_stream = content_obj.GetUncompressedStream(objs=pdf.objs)
+      content_stream = content_obj.get_uncompressed_stream(objs=pdf.objs)
       content_stream = ' '.join(
           content_stream.strip(PdfObj.PDF_WHITESPACE_CHARS).split())
       number_re = r'\d+(?:[.]\d*)?'  # TODO(pts): Exact PDF number regexp.
-      width = obj.Get('Width')
-      height = obj.Get('Height')
+      width = obj.get('Width')
+      height = obj.get('Height')
       # !! TODO(pts): Precompile content_re.
       # !! TODO(pts): Do proper PDF content stream token sequence parsing.
       # Example content_stream, as emitted by sam2p-0.46:
@@ -4384,48 +4297,48 @@ class ImageData(object):
                 chr(int(float(match.group(6)) * 255 + 0.5)))
       # For testing: ./pdfsizeopt.py --use-jbig2=false --use-pngout=false \
       #   pts3.pdf
-      if (obj.Get('Decode') or '[0 1]').startswith('[0'):
+      if (obj.get('Decode') or '[0 1]').startswith('[0'):
         palette = color2 + color1
       else:
         palette = color1 + color2
-      obj.Set('Decode', None)
+      obj.set('Decode', None)
       colorspace = '[/Indexed/DeviceRGB %d%s]' % (
-          len(palette) / 3 - 1, PdfObj.SerializePdfStringSafe(palette))
-      obj.Set('ColorSpace', colorspace)
-      obj.Set('ImageMask', None)
+          len(palette) / 3 - 1, PdfObj.serialize_pdf_string_safe(palette))
+      obj.set('ColorSpace', colorspace)
+      obj.set('ImageMask', None)
 
-    return self.LoadPdfImageObj(obj=obj, do_zip=True)
+    return self.load_pdf_image_obj(obj=obj, do_zip=True)
 
-  def LoadPdfImageObj(self, obj, do_zip, decode_kind=None):
+  def load_pdf_image_obj(self, obj, do_zip, decode_kind=None):
     """Load image from PDF obj to self. Doesn't modify `obj'."""
-    assert obj.Get('Subtype') == '/Image'
+    assert obj.get('Subtype') == '/Image'
     assert isinstance(obj.stream, str)
     idat = obj.stream
-    filter_value = obj.Get('Filter')
+    filter_value = obj.get('Filter')
     if filter_value not in ('/FlateDecode', None):
       raise FormatUnsupported('image in PDF is not ZIP-compressed')
-    width = int(obj.Get('Width'))
-    height = int(obj.Get('Height'))
+    width = int(obj.get('Width'))
+    height = int(obj.get('Height'))
     palette = None
-    if obj.Get('ImageMask'):
+    if obj.get('ImageMask'):
       raise FormatUnsupported('unsupported /ImageMask')
-    colorspace = obj.Get('ColorSpace')
+    colorspace = obj.get('ColorSpace')
     assert colorspace
     if colorspace in ('/DeviceRGB', '/DeviceGray'):
       pass
-    elif obj.IsIndexedRgbOrGrayColorSpace(colorspace):
+    elif obj.is_indexed_rgb_or_gray_color_space(colorspace):
       # Testing info: this code is run in `1591 0 obj' eurotex2006.final.pdf
-      palette = obj.ParseRgbOrGrayPalette(colorspace)
+      palette = obj.parse_rgb_or_gray_palette(colorspace)
     else:
       raise FormatUnsupported('unsupported /ColorSpace %r' % colorspace)
 
     decodeparms = PdfObj(None)
-    decodeparms.head = obj.Get('DecodeParms') or '<<\n>>'
+    decodeparms.head = obj.get('DecodeParms') or '<<\n>>'
     # Since we support only /FlateDecode, we don't have to support DecodeParms
     # being an array.
     assert not decodeparms.head.startswith('[')
 
-    predictor = decodeparms.Get('Predictor')
+    predictor = decodeparms.get('Predictor')
     assert predictor is None or isinstance(predictor, int), (
         'expected integer predictor, got %r' % predictor)
     if filter_value is None:
@@ -4445,31 +4358,31 @@ class ImageData(object):
     else:
       assert False, 'expected valid predictor, got %r' % predictor
     if compression in ('zip-tiff', 'zip-png'):
-      pr_bpc_ok = [obj.Get('BitsPerComponent')]
+      pr_bpc_ok = [obj.get('BitsPerComponent')]
       if pr_bpc_ok[-1] == 8:
         pr_bpc_ok.append(None)
-      if decodeparms.Get('BitsPerComponent') not in pr_bpc_ok:
+      if decodeparms.get('BitsPerComponent') not in pr_bpc_ok:
         raise FormatUnsupported('unsupported predictor /BitsPerComponent')
-      if decodeparms.Get('Columns') != obj.Get('Width'):
+      if decodeparms.get('Columns') != obj.get('Width'):
         raise FormatUnsupported('unsupported predictor /Columns')
       if colorspace == '/DeviceRGB':
         pr_colors_ok = [3]
       else:
         pr_colors_ok = [1, None]
-      if decodeparms.Get('Colors') not in pr_colors_ok:
+      if decodeparms.get('Colors') not in pr_colors_ok:
         raise FormatUnsupported('unsupported predictor /Colors')
-    bpc = int(obj.Get('BitsPerComponent'))
+    bpc = int(obj.get('BitsPerComponent'))
 
     if decode_kind is None:
-      decode_kind = PdfObj.ClassifyImageDecode(
-          obj.Get('Decode'),
+      decode_kind = PdfObj.classify_image_decode(
+          obj.get('Decode'),
           int(palette is not None and bpc))
       if decode_kind not in ('normal', 'inverted'):
         raise FormatUnsupported('unsupported /Decode')
     else:
       assert decode_kind in ('normal', 'inverted')
 
-    self.Clear()
+    self.clear()
     self.is_inverted = decode_kind == 'inverted'
     self.width = width
     self.height = height
@@ -4492,10 +4405,10 @@ class ImageData(object):
     assert self, 'could not load valid PDF image'
     return self
 
-  def LoadPng(self, f):
+  def load_png(self, f):
     signature = f.read(8)
     assert signature == '\x89PNG\r\n\x1A\n', 'bad PNG/PDF signature in file'
-    self.Clear()
+    self.clear()
     idats = []
     need_plte = False
     compression = 'zip-png'
@@ -4590,26 +4503,19 @@ class PdfData(object):
     self.file_name = None
     self.file_size = None
 
-  def Load(self, file_data, is_no_objs_ok=False, is_parse_error_ok=True,
-           is_proportional=False):
+  def load(self, file_data: str, is_no_objs_ok=False, is_parse_error_ok=True, is_proportional=False):
     """Load PDF from file_name to self, return self."""
-    if isinstance(file_data, str):
-      # Treat file_data as file name.
-      LogInfo('loading PDF from: %s' % (file_data,), is_proportional)
-      try:
-        f = open(file_data, 'rb')
-      except IOError, e:
-        LogFatal('error opening PDF (%s): %s' % (e, file_data))
-      try:
+
+    log_info('loading PDF from: %s' % (file_data,), is_proportional)
+    data: bytes = bytes()
+
+    try:
+      with open(file_data, 'rb') as f:
         data = f.read()
-      finally:
-        f.close()
-    elif isinstance(file_data, file):
-      f = file_data
-      LogInfo('loading PDF from: %s' % (f.name,), is_proportional)
-      f.seek(0, 0)
-      data = f.read()  # Don't close.
-    LogInfo('loaded PDF of %s bytes' % len(data), is_proportional)
+    except IOError as e:
+      log_fatal('error opening PDF (%s): %s' % (e, file_data))
+
+    log_info('loaded PDF of %s bytes' % len(data), is_proportional)
     self.has_generational_objs = False
     self.file_name = f.name
     self.file_size = len(data)
@@ -4618,7 +4524,7 @@ class PdfData(object):
     # and we assume that offset 0 of the PDF file is where %PDF- starts.
     #
     # Example: https://github.com/pts/pdfsizeopt/issues/76
-    match = PdfObj.PDF_VERSION_HEADER_RE.search(buffer(data, 0, 256))
+    match = PdfObj.PDF_VERSION_HEADER_RE.search(data[:256])
     if not match:
       raise PdfTokenParseError('unrecognized PDF signature %r' % data[: 16])
     data = data[match.start():]
@@ -4628,16 +4534,16 @@ class PdfData(object):
 
     try:
       try:
-        obj_starts, self.has_generational_objs = self.ParseUsingXref(
+        obj_starts, self.has_generational_objs = self.parse_using_xref(
             data,
             do_ignore_generation_numbers=self.do_ignore_generation_numbers)
-      except PdfXrefStreamError, exc:
+      except PdfXrefStreamError as exc:
         raise
-      except PdfXrefError, exc:
-        LogWarning('problem with xref table: %s' % exc)
-        LogWarning(
+      except PdfXrefError as exc:
+        log_warning('problem with xref table: %s' % exc)
+        log_warning(
             'trying to load objs without the xref table')
-        obj_starts, self.has_generational_objs = self.ParseWithoutXref(
+        obj_starts, self.has_generational_objs = self.parse_without_xref(
             data,
             do_ignore_generation_numbers=self.do_ignore_generation_numbers)
 
@@ -4651,8 +4557,8 @@ class PdfData(object):
       if 'trailer' in obj_starts:
         obj_count_extra += ' + trailer'
         obj_count -= 1
-      LogInfo('separated to %s objs%s' % (obj_count, obj_count_extra),
-              is_proportional)
+      log_info('separated to %s objs%s' % (obj_count, obj_count_extra),
+               is_proportional)
       last_ofs = trailer_ofs = obj_starts.pop('trailer')
       if isinstance(trailer_ofs, PdfObj):
         self.trailer = trailer_ofs
@@ -4660,25 +4566,25 @@ class PdfData(object):
         last_ofs = len(data)
         obj_starts.pop('xref', None)
       else:
-        self.trailer = PdfObj.ParseTrailer(data, start=trailer_ofs)
-        self.trailer.Set('XRefStm', None)
-        self.trailer.Set('Prev', None)
+        self.trailer = PdfObj.parse_trailer(data, start=trailer_ofs)
+        self.trailer.set('XRefStm', None)
+        self.trailer.set('Prev', None)
         if 'xref' in obj_starts:
           last_ofs = min(trailer_ofs, obj_starts.pop('xref'))
-      self.CheckNotEncrypted(trailer_obj=self.trailer)  # Also raised earlier.
+      self.check_not_encrypted(trailer_obj=self.trailer)  # Also raised earlier.
     except PdfFileEncryptedError:
       # TODO(pts): Add decrypted input support.
       raise NotImplementedError(
           'encrypted PDF input not supported, use this command to '
           'decrypt first: qpdf --decrypt %s %s' %
-          (ShellQuoteFileName(self.file_name),
-           ShellQuoteFileName(os.path.splitext(self.file_name)[0] +
+          (shell_quote_file_name(self.file_name),
+           shell_quote_file_name(os.path.splitext(self.file_name)[0] +
            '.decrypted.pdf')))
 
-    if not (self.trailer.Get('Root') or '').endswith('R'):
+    if not (self.trailer.get('Root') or '').endswith('R'):
       raise PdfMissingRootError('/Root reference not found in trailer.')
 
-    def ComparePair(a, b):
+    def compare_pair(a, b):
       return a[0].__cmp__(b[0]) or a[1].__cmp__(b[1])
 
     obj_items = []
@@ -4688,7 +4594,7 @@ class PdfData(object):
         objs[obj_num] = obj_ofs  # Updates self.objs.
       else:
         obj_items.append((obj_ofs, obj_num))
-    obj_items.sort(ComparePair)
+    obj_items.sort(compare_pair)
 
     if last_ofs <= obj_items[-1][0]:
       last_ofs = len(data)
@@ -4699,14 +4605,14 @@ class PdfData(object):
     # For testing: irbookonlinereading.pdf
     _pdf_obj_def_re = PdfObj.PDF_OBJ_DEF_RE
     obj_items2 = []
-    for i in xrange(1, len(obj_items)):
+    for i in range(1, len(obj_items)):
       start_ofs, obj_num = obj_items[i - 1]
       obj_data = buffer(data, start_ofs, obj_items[i][0] - start_ofs)
       assert obj_data, 'duplicate object start offset'
       if _pdf_obj_def_re.match(obj_data):
         obj_items2.append((start_ofs, obj_num))
       else:
-        LogWarning(
+        log_warning(
             'cannot parse obj %d: obj header (X Y obj) expected, '
             'got %r at ofs=%s' %
             (obj_num, obj_data[:32], start_ofs))
@@ -4718,7 +4624,7 @@ class PdfData(object):
     objs_to_parse = sorted(  # Sorted by obj_num.
         (obj_items[i - 1][1], buffer(
             data, obj_items[i - 1][0], obj_items[i][0] - obj_items[i - 1][0]))
-        for i in xrange(1, len(obj_items2)))
+        for i in range(1, len(obj_items2)))
     obj_items = None  # Save memory.
 
     objs_with_ilstream = []
@@ -4734,19 +4640,19 @@ class PdfData(object):
           # Defer parsing this obj later, after we have the length objects
           # parsed.
           objs_with_ilstream.append((obj_num, obj_data))
-        except PdfTokenParseError, e:
+        except PdfTokenParseError as e:
           if not is_parse_error_ok:
             raise
           # We just skip unparsable objects (so we don't add them to
           # obj_starts).
-          LogWarning(
+          log_warning(
               'cannot parse obj %d: %s.%s: %s' %
               (obj_num, e.__class__.__module__, e.__class__.__name__, e))
       if not objs_with_ilstream:
         break
       objs_to_parse, objs_with_ilstream = objs_with_ilstream, None
 
-    LogInfo('parsed %d objs' % len(self.objs), is_proportional)
+    log_info('parsed %d objs' % len(self.objs), is_proportional)
     if not objs and not is_no_objs_ok:
       # Happens e.g. when no objs can be parsed.
       raise PdfNoObjsError('No objs found in PDF.')
@@ -4754,19 +4660,19 @@ class PdfData(object):
     return self
 
   @classmethod
-  def CheckNotEncrypted(cls, trailer_obj):
+  def check_not_encrypted(cls, trailer_obj):
     """Raises an exception if the PDF file is encrypted."""
-    if trailer_obj.Get('Encrypt') is not None:
+    if trailer_obj.get('Encrypt') is not None:
       raise PdfFileEncryptedError
 
   @classmethod
-  def YieldXrefStreamEntries(cls, w0, w1, w2, index, xref_data):
+  def yield_xref_stream_entries(cls, w0, w1, w2, index, xref_data):
     w01 = w0 + w1
     w012 = w01 + w2
     ii = 0
     obj_num = None
     ii_remaining = 0
-    for i in xrange(0, len(xref_data), w012):
+    for i in range(0, len(xref_data), w012):
       if not ii_remaining:
         # PdfObj.GetAndClearXrefStream() guarantees that we get a positive
         # ii_remaining and we don't exhaust the index array below.
@@ -4787,12 +4693,12 @@ class PdfData(object):
         obj_num += 1
         ii_remaining -= 1
       if w0:
-        f0 = cls.MSBFirstToInteger(xref_data[i : i + w0])
+        f0 = cls.msb_first_to_integer(xref_data[i: i + w0])
       else:
         f0 = 1
-      f1 = cls.MSBFirstToInteger(xref_data[i + w0 : i + w01])
+      f1 = cls.msb_first_to_integer(xref_data[i + w0: i + w01])
       if w2:
-        f2 = cls.MSBFirstToInteger(xref_data[i + w01 : i + w012])
+        f2 = cls.msb_first_to_integer(xref_data[i + w01: i + w012])
       else:
         f2 = 0
       if not f0:  # A free object, ignore it.
@@ -4800,8 +4706,8 @@ class PdfData(object):
       yield obj_num, f0, f1, f2
 
   @classmethod
-  def ParseUsingXrefStream(cls, data, do_ignore_generation_numbers,
-                           xref_ofs, xref_obj_num, xref_generation, obj_starts=None, do_allow_duplicate_obj=False):
+  def parse_using_xref_stream(cls, data, do_ignore_generation_numbers,
+                              xref_ofs, xref_obj_num, xref_generation, obj_starts=None, do_allow_duplicate_obj=False):
     """Determine obj offsets in a PDF file using the cross-reference stream.
 
     Args:
@@ -4844,17 +4750,17 @@ class PdfData(object):
       xref_obj_nums.add(xref_obj_num)
       try:
         xref_obj = PdfObj(data, start=xref_ofs, file_ofs=xref_ofs)
-      except PdfTokenParseError, e:
+      except PdfTokenParseError as e:
         raise PdfXrefStreamError('parse xref obj %d: %s' % (xref_obj_num, e))
-      cls.CheckNotEncrypted(trailer_obj=xref_obj)
+      cls.check_not_encrypted(trailer_obj=xref_obj)
 
       # Parse the xref stream data.
       #
       # TODO(pts): Handle the various exceptions raised by
       #            xref_obj.GetUncompressedStream().
-      w0, w1, w2, index, xref_data = xref_obj.GetAndClearXrefStream(
+      w0, w1, w2, index, xref_data = xref_obj.get_and_clear_xref_stream(
           xref_ofs=xref_ofs, xref_obj_num=xref_obj_num)
-      for obj_num, f0, f1, f2 in cls.YieldXrefStreamEntries(w0, w1, w2, index, xref_data):
+      for obj_num, f0, f1, f2 in cls.yield_xref_stream_entries(w0, w1, w2, index, xref_data):
         if obj_num in obj_starts:
           if obj_num in keep_obj_starts:
             if f0 == 2:
@@ -4897,10 +4803,10 @@ class PdfData(object):
         # main trailer has to be used. This behavior is consistent with
         # self.ParseUsingXref.
 
-      prev = xref_obj.Get('Prev')
+      prev = xref_obj.get('Prev')
       if prev is None:
         break
-      trailer_obj.Set('Prev', None)
+      trailer_obj.set('Prev', None)
       # TODO(pts): For testing: issue58.pdf.
       if not isinstance(prev, int) or prev < 9:
         raise PdfXrefStreamError('invalid /Prev at %d: %r' % (xref_ofs, prev))
@@ -4918,7 +4824,7 @@ class PdfData(object):
 
     del xref_obj  # Save complexity (and a little bit of memory).
     assert trailer_obj
-    LogProportionalInfo(
+    log_proportional_info(
         'found %d obj offsets and %d obj streams in xref stream' %
         (len(obj_starts) - ('xref' in obj_starts) - ('trailer' in obj_starts),
          len(obj_streams)))
@@ -4932,11 +4838,11 @@ class PdfData(object):
         if xref_obj_num != max_obj_num + 1:
           # pgfmanual.pdf in
           # https://code.google.com/p/pdfsizeopt/issues/detail?id=75
-          LogWarning(
+          log_warning(
               'missing offset for xref stream obj %d' % xref_obj_num)
       else:
         if not isinstance(obj_start, int):
-          LogWarning(
+          log_warning(
               'in-object-stream xref stream obj %d' % xref_obj_num)
         del obj_starts[xref_obj_num]
 
@@ -4951,7 +4857,7 @@ class PdfData(object):
                                  objstm_obj_num)
       try:
         objstm_obj = PdfObj(data, start=obj_start, file_ofs=obj_start)
-      except PdfIndirectLengthError, e:
+      except PdfIndirectLengthError as e:
         # Example: objstm_obj_num == 16 in functional-programming-python.pdf
         if e.length_obj_num not in obj_starts:
           raise PdfXrefStreamError('Parse objstm obj %d: %s' %
@@ -4962,13 +4868,13 @@ class PdfData(object):
         try:
           objstm_obj = PdfObj(data, start=obj_start, file_ofs=obj_start,
                               objs={e.length_obj_num: length_obj})
-        except PdfTokenParseError, e:
+        except PdfTokenParseError as e:
           raise PdfXrefStreamError('Parse objstm obj %d: %s' %
                                    (objstm_obj_num, e))
-      except PdfTokenParseError, e:
+      except PdfTokenParseError as e:
         raise PdfXrefStreamError('Parse objstm obj %d: %s' %
                                  (objstm_obj_num, e))
-      obj_streams[objstm_obj_num] = objstm_obj.ParseObjStm(objstm_obj_num)
+      obj_streams[objstm_obj_num] = objstm_obj.parse_obj_stm(objstm_obj_num)
 
     # Parse used compressed objs (in objstm objs), and add them to
     # obj_starts with the PdfObj (instead of the offset) as a value.
@@ -5005,7 +4911,7 @@ class PdfData(object):
         unused_obj_items.append((objstm_obj_num, unused_obj_count))
         all_unused_obj_count += unused_obj_count
     if all_unused_obj_count:
-      LogProportionalInfo(
+      log_proportional_info(
           'ignoring %d unused compressed objs: %s' %
           (all_unused_obj_count,
            ', '.join('%d in objstm obj %d' % (b, a)
@@ -5014,7 +4920,7 @@ class PdfData(object):
     return obj_starts, has_generational_objs
 
   @classmethod
-  def ParseUsingXref(cls, data, do_ignore_generation_numbers):
+  def parse_using_xref(cls, data, do_ignore_generation_numbers):
     """Determine obj offsets in a  PDF file using the cross-reference table.
 
     If this method detects a cross-reference stream, it calls
@@ -5051,8 +4957,8 @@ class PdfData(object):
     if match:
       xref_obj_num = int(match.group(1))
       xref_generation = int(match.group(2))
-      return cls.ParseUsingXrefStream(data, do_ignore_generation_numbers,
-                                      xref_ofs, xref_obj_num, xref_generation)
+      return cls.parse_using_xref_stream(data, do_ignore_generation_numbers,
+                                         xref_ofs, xref_obj_num, xref_generation)
 
     has_generational_objs = False
     obj_starts = {'xref': xref_ofs}  # 'xref' is just informational.
@@ -5128,12 +5034,12 @@ class PdfData(object):
 
       # TODO(pts): How to test this?
       try:
-        trailer_obj = PdfObj.ParseTrailer(data, start=xref_ofs)
-      except PdfTokenParseError, exc:
+        trailer_obj = PdfObj.parse_trailer(data, start=xref_ofs)
+      except PdfTokenParseError as exc:
         raise PdfXrefError(str(exc))
-      xrefstm_ofs = trailer_obj.Get('XRefStm')
+      xrefstm_ofs = trailer_obj.get('XRefStm')
       if xrefstm_ofs is not None:  # Hybrid.
-        if type(xrefstm_ofs) not in (int, long):
+        if not isinstance(xrefstm_ofs, int):
           raise PdfXrefError('/XRefStm offset not an int: %r' % (xrefstm_ofs,))
         match = PdfObj.PDF_OBJ_DEF_RE.match(data, xrefstm_ofs)
         if not match:
@@ -5141,11 +5047,11 @@ class PdfData(object):
         xrefstm_obj_num = int(match.group(1))
         xrefstm_obj_generation = int(match.group(2))
         xrefstm_objs.append((xrefstm_ofs, xrefstm_obj_num, xrefstm_obj_generation))
-      xref_ofs = trailer_obj.Get('Prev')
+      xref_ofs = trailer_obj.get('Prev')
       del trailer_obj  # Save memory.
       if xref_ofs is None:
         break
-      if type(xref_ofs) not in (int, long):
+      if not isinstance(xref_ofs, int):
         raise PdfXrefError('/Prev xref offset not an int: %r' % (xref_ofs,))
       # Subsequent /Prev xref tables are not allowed to modify objects
       # we've already created.
@@ -5158,14 +5064,14 @@ class PdfData(object):
       for xrefstm_ofs, xrefstm_obj_num, xrefstm_obj_generation in xrefstm_objs:
         obj_starts_copy = dict(obj_starts)
         # Updates obj_starts, changes obj_starts['trailer'] to a PdfObj.
-        cls.ParseUsingXrefStream(data, do_ignore_generation_numbers, xrefstm_ofs, xrefstm_obj_num, xrefstm_obj_generation, obj_starts_copy, do_allow_duplicate_obj=True)
-        for obj_num, obj_ofs in obj_starts_copy.iteritems():
+        cls.parse_using_xref_stream(data, do_ignore_generation_numbers, xrefstm_ofs, xrefstm_obj_num, xrefstm_obj_generation, obj_starts_copy, do_allow_duplicate_obj=True)
+        for obj_num, obj_ofs in obj_starts_copy.items():
           if obj_num not in obj_start_nums:
             obj_starts[obj_num] = obj_ofs
     return obj_starts, has_generational_objs
 
   @classmethod
-  def ParseWithoutXref(cls, data, do_ignore_generation_numbers=False):
+  def parse_without_xref(cls, data, do_ignore_generation_numbers=False):
     """Parse a PDF file without having a look at the cross-reference table.
 
     This method doesn't consult the cross-reference table (`xref'): it just
@@ -5216,9 +5122,9 @@ class PdfData(object):
     return obj_starts, has_generational_objs
 
   @classmethod
-  def GenerateXrefStream(cls, obj_numbers, obj_ofs, xref_ofs, trailer_obj,
-                         trailer_obj_num, objstm_obj_num, objstm_obj_numbers,
-                         is_flate_ok=True):
+  def generate_xref_stream(cls, obj_numbers, obj_ofs, xref_ofs, trailer_obj,
+                           trailer_obj_num, objstm_obj_num, objstm_obj_numbers,
+                           is_flate_ok=True):
     """Generate the xref stream for the specified trailer object.
 
     Add the appropriate, size-optimized trailer_obj.stream, add the
@@ -5288,8 +5194,8 @@ class PdfData(object):
     ofs_list.append(xref_ofs)
     max_obj_num = max(max_obj_num, trailer_obj_num)
 
-    trailer_obj.Set('Size', max_obj_num + 1)
-    trailer_obj.Set('Type', '/XRef')
+    trailer_obj.set('Size', max_obj_num + 1)
+    trailer_obj.set('Type', '/XRef')
     max_ofs = xref_ofs
     if obj_numbers[0] != 0:  # /Index [0 Size] is the default.
       # Usually obj_numbers[0] == 1, and we'll take care of emitting a
@@ -5297,14 +5203,14 @@ class PdfData(object):
       # default).
       index_data = '[%d %d]' % (
           obj_numbers[0], max_obj_num - obj_numbers[0] + 1)
-      trailer_obj.Set('Index', index_data)
+      trailer_obj.set('Index', index_data)
       index_size = len(index_data) + 7  # 7 == len('/Index ').
       del index_data
     else:
-      trailer_obj.Set('Index', None)
+      trailer_obj.set('Index', None)
       index_size = 0
 
-    for i in xrange(1, len(obj_numbers)):
+    for i in range(1, len(obj_numbers)):
       if obj_numbers[i] - 1 != obj_numbers[i - 1]:
         if not (obj_numbers[i] - 2 == obj_numbers[i - 1] and
                 obj_numbers[i] - 1 == trailer_obj_num):
@@ -5334,7 +5240,7 @@ class PdfData(object):
         max_w2_size = 0
       w2_zero_str = '\0' * max_w2_size
       ofs_output = []
-      trailer_obj.Set('W', '[1 %d %d]' % (max_ofs_size, max_w2_size))
+      trailer_obj.set('W', '[1 %d %d]' % (max_ofs_size, max_w2_size))
       free_entry = '\x00' * (1 + max_ofs_size + max_w2_size)
       done_obj_num = 0
       if index_size:
@@ -5344,7 +5250,7 @@ class PdfData(object):
           # --do-generate-object-stream=yes /mnt/mandel/warez/tmp/issue57.pdf
           done_obj_num = obj_numbers[0]
           ofs_output.append(free_entry * done_obj_num)
-          trailer_obj.Set('Index', None)
+          trailer_obj.set('Index', None)
       i = 0
       for ofs in ofs_list:
         if i < len(obj_numbers):
@@ -5391,9 +5297,9 @@ class PdfData(object):
           # For testing: --use-multivalent=no --do-generate-xref-stream=yes
           # --do-generate-object-stream=no issue57.pdf
           data = '\0' * (obj_numbers[0] * max_ofs_size)
-          trailer_obj.Set('Index', None)
+          trailer_obj.set('Index', None)
       assert max_w2 == -1
-      trailer_obj.Set('W', '[0 %d 0]' % max_ofs_size)
+      trailer_obj.set('W', '[0 %d 0]' % max_ofs_size)
       if max_ofs_size == 1:
         data += struct.pack('>%dB' % len(ofs_list), *ofs_list)
       elif max_ofs_size == 2:
@@ -5407,22 +5313,22 @@ class PdfData(object):
         data += ''.join(struct.pack('>Q', ofs)[i:] for ofs in ofs_list)
       extra_width = 0
       #assert False, (len(data), max_ofs_size, extra_width)
-    trailer_obj.SetStreamAndCompress(
+    trailer_obj.set_stream_and_compress(
         data, predictor_width=(max_ofs_size + extra_width),
         is_flate_ok=is_flate_ok)
 
-  def _AssertBeforeWrite(self):
+  def _assert_before_write(self):
     """Do some assertions before saving or serializing the PDF."""
     assert self.objs
     assert self.trailer.head.startswith('<<')
     assert self.trailer.head.endswith('>>')
 
-  def AppendSerializedPdf(self, output,
-                          do_hide_images=False,
-                          do_generate_xref_stream=True,
-                          do_generate_object_stream=True,
-                          do_emit_short_unsafe=True,
-                          is_flate_ok=True):
+  def append_serialized_pdf(self, output,
+                            do_hide_images=False,
+                            do_generate_xref_stream=True,
+                            do_generate_object_stream=True,
+                            do_emit_short_unsafe=True,
+                            is_flate_ok=True):
     """Appends a serialized PDF file to the list output.
 
     Args:
@@ -5455,9 +5361,9 @@ class PdfData(object):
     output_size = [0]
     output_size_idx = [0]
 
-    def GetOutputSize():
+    def get_output_size():
       if output_size_idx[0] < len(output):
-        for i in xrange(output_size_idx[0], len(output)):
+        for i in range(output_size_idx[0], len(output)):
           output_size[0] += len(output[i])
         output_size_idx[0] = len(output)
       return output_size[0]
@@ -5508,10 +5414,10 @@ class PdfData(object):
               # To call this in the final objstm_output instead, we'd have to
               # fix the offsets (objstm_numbers). See also
               # https://github.com/pts/pdfsizeopt/issues/69 .
-              head = PdfObj.CompressValue(
+              head = PdfObj.compress_value(
                   head,
                   do_emit_safe_names=False, do_emit_safe_strings=False)
-            if PdfObj.IsSpaceNeeded(objstm_output[-1], head[0]):
+            if PdfObj.is_space_needed(objstm_output[-1], head[0]):
               objstm_output.append(' ')
               objstm_size += 1
             objstm_numbers.append(obj_num)
@@ -5535,7 +5441,7 @@ class PdfData(object):
         objstm_output[0] = ' '.join(str(i) for i in objstm_numbers)
         objstm_output[1] = ' ' * (
             len(objstm_output) > 2 and
-            PdfObj.IsSpaceNeeded(objstm_output[0], objstm_output[2]))
+            PdfObj.is_space_needed(objstm_output[0], objstm_output[2]))
         objstm_first = len(objstm_output[0]) + len(objstm_output[1])
         objstm_output = ''.join(objstm_output)
         objstm_obj = PdfObj(None)
@@ -5544,15 +5450,15 @@ class PdfData(object):
         objstm_obj.head = '<<>>'
         # For the statistics below.
         objstm_size = len(objstm_output) + objstm_overhead_size
-        objstm_obj.SetStreamAndCompress(objstm_output, is_flate_ok=is_flate_ok)
+        objstm_obj.set_stream_and_compress(objstm_output, is_flate_ok=is_flate_ok)
         del objstm_output  # Save memory.
-        objstm_obj.Set('Type', '/ObjStm')
-        objstm_obj.Set('N', objstm_objcount)
-        objstm_obj.Set('First', objstm_first)
-        LogInfo(
+        objstm_obj.set('Type', '/ObjStm')
+        objstm_obj.set('N', objstm_objcount)
+        objstm_obj.set('First', objstm_first)
+        log_info(
             'generated object stream of %d bytes in %d objects (%s)' %
             (len(objstm_obj.stream), objstm_objcount,
-             FormatPercent(len(objstm_obj.stream), objstm_size)))
+             format_percent(len(objstm_obj.stream), objstm_size)))
         i = j = 0
         objstm_obj_numbers_set = set(objstm_obj_numbers)
         while i < len(obj_numbers):
@@ -5568,39 +5474,39 @@ class PdfData(object):
     # Emit objs outside the object stream.
     # Number of objects including missing ones.
     for obj_num in obj_numbers:
-      obj_ofs[obj_num] = GetOutputSize()
+      obj_ofs[obj_num] = get_output_size()
       pdf_obj = self.objs[obj_num]
-      if do_hide_images and pdf_obj.HasImageToHide():
+      if do_hide_images and pdf_obj.has_image_to_hide():
         pdf_obj = PdfObj(pdf_obj)
         # We convert /Subtype/Image to /Subtype/ImagE and /Filter
         # to /FilteR and /DecodeParms to /DecodeParmS. This way we force
         # Multivalent not to treat the obj as image, i.e. not to recompress
         # it (suboptimally).
-        assert pdf_obj.Get('FilteR') is None
-        assert pdf_obj.Get('DecodeParmS') is None
-        pdf_obj.Set('Subtype', '/ImagE')
-        filter_value = pdf_obj.Get('Filter')
+        assert pdf_obj.get('FilteR') is None
+        assert pdf_obj.get('DecodeParmS') is None
+        pdf_obj.set('Subtype', '/ImagE')
+        filter_value = pdf_obj.get('Filter')
         if filter_value is not None:
-          pdf_obj.Set('FilteR', filter_value)
-          pdf_obj.Set('Filter', None)
-        decodeparms = pdf_obj.Get('DecodeParms')
+          pdf_obj.set('FilteR', filter_value)
+          pdf_obj.set('Filter', None)
+        decodeparms = pdf_obj.get('DecodeParms')
         if decodeparms is not None:
-          pdf_obj.Set('DecodeParmS', decodeparms)
-          pdf_obj.Set('DecodeParms', None)
+          pdf_obj.set('DecodeParmS', decodeparms)
+          pdf_obj.set('DecodeParms', None)
 
         # Trick to force Multivalent not to uncompress + compress the
         # object.
         # For testing: multivalent_filter_test.pdf
-        pdf_obj.Set('Filter', '/JPXDecode')
-      pdf_obj.AppendTo(output, obj_num,
-                       do_emit_short_unsafe=do_emit_short_unsafe)
+        pdf_obj.set('Filter', '/JPXDecode')
+      pdf_obj.append_to(output, obj_num,
+                        do_emit_short_unsafe=do_emit_short_unsafe)
 
     if objstm_obj:
       objstm_obj_num = next_obj_num  # The largest.
       next_obj_num += 1
-      obj_ofs[objstm_obj_num] = GetOutputSize()
-      objstm_obj.AppendTo(output, objstm_obj_num,
-                          do_emit_short_unsafe=do_emit_short_unsafe)
+      obj_ofs[objstm_obj_num] = get_output_size()
+      objstm_obj.append_to(output, objstm_obj_num,
+                           do_emit_short_unsafe=do_emit_short_unsafe)
     else:
       objstm_obj_num = None
     del objstm_obj  # Save memory.
@@ -5608,29 +5514,29 @@ class PdfData(object):
     trailer_obj_num = next_obj_num
     next_obj_num += 1
     trailer_obj = PdfObj(self.trailer)
-    trailer_obj.Set('Prev', None)
-    trailer_obj.Set('XRefStm', None)
-    trailer_obj.Set('Compress', None)  # emitted by Multivalent.jar
+    trailer_obj.set('Prev', None)
+    trailer_obj.set('XRefStm', None)
+    trailer_obj.set('Compress', None)  # emitted by Multivalent.jar
     # Emitted by Multivalent.jar etc., see section 10.3 in
     # pdf_reference_1-7.pdf .
-    trailer_obj.Set('ID', None)
+    trailer_obj.set('ID', None)
     assert trailer_obj.head.startswith('<<')
     assert trailer_obj.head.endswith('>>')
     assert trailer_obj.stream is None
 
-    xref_ofs = GetOutputSize()
+    xref_ofs = get_output_size()
     if do_generate_xref_stream:  # Emit xref stream containing trailer.
       # Also modifies trailer_obj, setting .stream, /Size etc.
-      self.GenerateXrefStream(obj_numbers=obj_numbers, obj_ofs=obj_ofs,
-                              xref_ofs=xref_ofs, trailer_obj=trailer_obj,
-                              trailer_obj_num=trailer_obj_num,
-                              objstm_obj_num=objstm_obj_num,
-                              objstm_obj_numbers=objstm_obj_numbers,
-                              is_flate_ok=is_flate_ok)
-      trailer_obj.AppendTo(output, trailer_obj_num,
-                           do_emit_short_unsafe=do_emit_short_unsafe)
+      self.generate_xref_stream(obj_numbers=obj_numbers, obj_ofs=obj_ofs,
+                                xref_ofs=xref_ofs, trailer_obj=trailer_obj,
+                                trailer_obj_num=trailer_obj_num,
+                                objstm_obj_num=objstm_obj_num,
+                                objstm_obj_numbers=objstm_obj_numbers,
+                                is_flate_ok=is_flate_ok)
+      trailer_obj.append_to(output, trailer_obj_num,
+                            do_emit_short_unsafe=do_emit_short_unsafe)
     else:  # Emit xref and trailer.
-      trailer_obj.Set('Size', obj_numbers[-1] + 1)  # max_obj_num + 1.
+      trailer_obj.set('Size', obj_numbers[-1] + 1)  # max_obj_num + 1.
       if obj_numbers[0] == 1:
         i = 0
         j = i + 1
@@ -5658,11 +5564,10 @@ class PdfData(object):
 
     output.append('startxref\n%d\n' % xref_ofs)
     output.append('%%EOF\n')  # Avoid doubling % in printf().
-    return GetOutputSize()
+    return get_output_size()
 
 
-  def GetFonts(self, font_type=None,
-               do_obj_num_from_font_name=False, where='loaded'):
+  def get_fonts(self, font_type=None, do_obj_num_from_font_name=False, where='loaded'):
     """Return dictionary containing Type1 /FontFile* objs.
 
     Args:
@@ -5690,7 +5595,7 @@ class PdfData(object):
       if (
           # (nonstandard behavior) eurotex2006.final.pdf has
           # /Type/FontDescriptor missing, so we don't match on that.
-          re.search(r'/FontName[\0\t\n\r\f ]*/', obj.head) and
+          re.search(r'/FontName[\x00\t\n\r\f ]*/', obj.head) and
           '/FontFile' in obj.head and  # /FontFile, /FontFile2 or /FontFile3
           '/Flags' in obj.head and
           obj.head.startswith('<<')):
@@ -5698,9 +5603,9 @@ class PdfData(object):
         # TODO(pts): Do only Type1 fonts have /FontFile ?
         # What about Type3 fonts?
         font_file_dict = {
-            'FontFile': obj.Get('FontFile'),
-            'FontFile2': obj.Get('FontFile2'),
-            'FontFile3': obj.Get('FontFile3'),
+            'FontFile': obj.get('FontFile'),
+            'FontFile2': obj.get('FontFile2'),
+            'FontFile3': obj.get('FontFile3'),
         }
         font_file_count = sum(
             1 for v in font_file_dict.itervalues() if v is not None)
@@ -5710,7 +5615,7 @@ class PdfData(object):
             font_file_dict.get(good_font_file_tag) is None):
           continue
         font_file_tag, font_file_value = (  # Get the only non-None value.
-            (k, v) for k, v in font_file_dict.iteritems() if v is not None
+            (k, v) for k, v in font_file_dict.items() if v is not None
             ).next()
         match = PdfObj.PDF_REF_AT_EOS_RE.match(str(font_file_value))
         if not match:
@@ -5718,7 +5623,7 @@ class PdfData(object):
         font_obj_num = int(match.group(1))
         font_obj = self.objs[font_obj_num]
         # Known values: /Type1, /Type1C, /CIDFontType0C.
-        subtype = font_obj.Get('Subtype')
+        subtype = font_obj.get('Subtype')
         if subtype is not None:
           pass
         elif font_file_tag == 'FontFile':
@@ -5731,14 +5636,14 @@ class PdfData(object):
         if font_type is not None and font_type != subtype[1:]:
           pass
         elif do_obj_num_from_font_name:
-          font_name = obj.Get('FontName')
+          font_name = obj.get('FontName')
           assert font_name is not None
           match = re.match(r'/(?:[A-Z]{6}[+])?Obj(\d+)\Z', font_name)
           assert match, 'GS generated non-Obj FontName: %s' % font_name
           name_obj_num = int(match.group(1))
           if name_obj_num in objs:
             # TODO(pts): old=37 instead of 11
-            LogWarning(
+            log_warning(
                 'duplicate font %s obj old=%d new=%d' %
                 (font_name, name_obj_num, font_obj_num))
             duplicate_count += 1
@@ -5747,16 +5652,16 @@ class PdfData(object):
           objs[obj_num] = font_obj
         font_count += 1
     if font_type is None:
-      LogInfo('found %s fonts %s' % (font_count, where))
+      log_info('found %s fonts %s' % (font_count, where))
     else:
-      LogInfo('found %s %s fonts %s' % (font_count, font_type, where))
+      log_info('found %s %s fonts %s' % (font_count, font_type, where))
     assert not duplicate_count, (
         'found %d duplicate font objs %s' % (duplicate_count, where))
     return objs
 
   @classmethod
-  def GenerateType1CFontsFromType1(cls, objs, ref_objs, ps_tmp_file_name,
-                                   pdf_tmp_file_name):
+  def generate_type_1c_fonts_from_type1(cls, objs, ref_objs, ps_tmp_file_name,
+                                        pdf_tmp_file_name):
     """Converts objs with Type1 font programs to Type1C font programs.
 
     Uses Ghostscript to do the conversion.
@@ -5802,23 +5707,23 @@ class PdfData(object):
       # /Length1, /Length2 or /Length3 for parsing Type1 fonts, but they are
       # required by the PDF spec.
       for key in ('Length1', 'Length2', 'Length3', 'Subtype'):
-        data, has_changed = obj.ResolveReferencesChanged(obj.Get(key), ref_objs)
+        data, has_changed = obj.resolve_references_changed(obj.get(key), ref_objs)
         if data is not None and has_changed:
           if not new_obj:
             new_obj = obj = PdfObj(obj)
-          obj.Set(key, data)
+          obj.set(key, data)
 
       # We don't need it, and if we kept it, it may do harm if it
       # contains indirect references.
-      if obj.Get('Metadata') is not None:
+      if obj.get('Metadata') is not None:
         if not new_obj:
           new_obj = obj = PdfObj(obj)
-        obj.Set('Metadata', None)
+        obj.set('Metadata', None)
 
-      obj.AppendTo(output, obj_num)
+      obj.append_to(output, obj_num)
     output.append('(Type1CConverter: all OK\\n) print flush\n%%EOF\n')
     output_str = ''.join(output)
-    LogInfo(
+    log_info(
         'writing Type1CConverter (%s font bytes) to: %s' %
         (len(output_str) - output_prefix_len, ps_tmp_file_name))
     f = open(ps_tmp_file_name, 'wb')
@@ -5827,14 +5732,14 @@ class PdfData(object):
     finally:
       f.close()
 
-    EnsureRemoved(pdf_tmp_file_name)
+    ensure_removed(pdf_tmp_file_name)
     gs_cmd = (
         '%s -q -P- -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -dPDFSETTINGS=/printer '
         '-dColorConversionStrategy=/LeaveColorUnchanged '  # suppress warning
         '-sOutputFile=%s -f %s'
-        % (GetGsCommand(), ShellQuoteFileName(pdf_tmp_file_name, is_gs=True),
-           ShellQuoteFileName(ps_tmp_file_name, is_gs=True)))
-    LogInfo(
+        % (get_gs_command(), shell_quote_file_name(pdf_tmp_file_name, is_gs=True),
+           shell_quote_file_name(ps_tmp_file_name, is_gs=True)))
+    log_info(
         'executing Type1CConverter with Ghostscript: %s' % gs_cmd)
     sys.stdout.flush()
     p = os.popen(RedirectOutput(gs_cmd, mode=True), 'rb')
@@ -5842,7 +5747,7 @@ class PdfData(object):
     skip_prefix = 'skipping big-CharStrings font obj '
     big_charstrings_obj_nums = set()
     encodings = {}
-    write_func = (lambda m: 0, sys.stderr.write)[NeedToolLogOutput()]
+    write_func = (lambda m: 0, sys.stderr.write)[need_tool_log_output()]
     try:
       for line in iter(p.readline, ''):
         if line.startswith(skip_prefix):
@@ -5855,8 +5760,8 @@ class PdfData(object):
           ## This escapes eg. * to #2A.
           data = PdfObj.PDF_HEXTOKENS_SAFE_HEX_ESCAPE_RE.sub(
               lambda match: '#%02X' % ord(match.group()), data)
-          encoding = PdfObj.ParseArray(data)
-          for i in xrange(len(encoding)):
+          encoding = PdfObj.parse_array(data)
+          for i in range(len(encoding)):
             char_name = encoding[i]
             if char_name is None:
               encoding[i] = '/.notdef'
@@ -5864,7 +5769,7 @@ class PdfData(object):
               char_name = str(char_name)
               assert char_name.startswith('/'), [char_name]
               encoding[i] = str(char_name)
-          encoding.extend('/.notdef' for i in xrange(len(encoding), 256))
+          encoding.extend('/.notdef' for i in range(len(encoding), 256))
           if len(encoding) > 256:
             raise ValueError('Encoding for obj %d too long.' % obj_num)
           encodings[obj_num] = encoding
@@ -5878,15 +5783,15 @@ class PdfData(object):
       status = p.close()
     sys.stderr.flush()
     if status:
-      LogFatal('Type1CConverter failed, status=0x%x' % status)
+      log_fatal('Type1CConverter failed, status=0x%x' % status)
     if not os.path.isfile(pdf_tmp_file_name):
-      LogFatal(
+      log_fatal(
           'Type1CConverter has not created output: %s' %
           pdf_tmp_file_name)
-    pdf = PdfData().Load(
+    pdf = PdfData().load(
         pdf_tmp_file_name, is_no_objs_ok=True, is_parse_error_ok=False)
     # TODO(pts): Better error reporting if the font name is wrong.
-    type1c_objs = pdf.GetFonts(
+    type1c_objs = pdf.get_fonts(
         do_obj_num_from_font_name=True, where='in GS output')
     # Remove only if pdf.GetFonts has not found any duplicate fonts.
     os.remove(ps_tmp_file_name)
@@ -5896,7 +5801,7 @@ class PdfData(object):
     if big_charstrings_obj_nums:
       # Example: lme2006_logomany.pdf
       # TODO(pts): Implement proper workaround for this in Type1CConverter.
-      LogInfo(
+      log_info(
           'skipped conversion of %d Type1 fonts to Type1C because their '
           '/CharStrings were longer than 256, obj nums are: %s' %
           (len(big_charstrings_obj_nums), sorted(big_charstrings_obj_nums)))
@@ -5905,7 +5810,7 @@ class PdfData(object):
     type1c_size = 0
     for obj_num in type1c_objs:
       # TODO(pts): Also cross-check /FontFile3 with pdf.GetFonts.
-      if type1c_objs[obj_num].Get('Subtype') != '/Type1C':
+      if type1c_objs[obj_num].get('Subtype') != '/Type1C':
         raise ValueError('Could not convert font obj %d to Type1C.' % obj_num)
       type1c_size += type1c_objs[obj_num].size
       if obj_num not in encodings:
@@ -5913,15 +5818,15 @@ class PdfData(object):
     # TODO(pts): Don't remove if command-line flag.
     os.remove(pdf_tmp_file_name)
     # TODO(pts): Undo if no reduction in size.
-    LogInfo(
+    log_info(
         'optimized total Type1 font size %s to Type1C font size %s (%s)' %
-        (type1_size, type1c_size, FormatPercent(type1c_size, type1_size)))
+        (type1_size, type1c_size, format_percent(type1c_size, type1_size)))
     return type1c_objs, encodings
 
 
   @classmethod
-  def ParseType1CFonts(cls, objs, ps_tmp_file_name, data_tmp_file_name,
-                       is_permissive=False):
+  def parse_type_1c_fonts(cls, objs, ps_tmp_file_name, data_tmp_file_name,
+                          is_permissive=False):
     """Converts /Subtype/Type1C objs to data structure representation.
 
     Modifies objs in place, removes unparsable and strange fonts.
@@ -5940,10 +5845,10 @@ class PdfData(object):
       obj = objs[obj_num]
       if obj.stream is None:
         raise ValueError('Missing stream in Type1C obj %d' % obj_num)
-      obj.CopyStreamObj().AppendTo(output, obj_num)
+      obj.copy_stream_obj().append_to(output, obj_num)
     output.append('(Type1CParser: all OK\\n) print flush\n%%EOF\n')
     output_str = ''.join(output)
-    LogInfo(
+    log_info(
         'writing Type1CParser (%s font bytes) to: %s' %
         (len(output_str) - output_prefix_len, ps_tmp_file_name))
     f = open(ps_tmp_file_name, 'wb')
@@ -5952,21 +5857,21 @@ class PdfData(object):
     finally:
       f.close()
 
-    EnsureRemoved(data_tmp_file_name)
+    ensure_removed(data_tmp_file_name)
     gs_cmd = (
         '%s -q -P- -dNOPAUSE -dBATCH -sDEVICE=nullpage '
         '-sDataFile=%s -f %s'
-        % (GetGsCommand(), ShellQuoteFileName(data_tmp_file_name, is_gs=True),
-           ShellQuoteFileName(ps_tmp_file_name, is_gs=True)))
-    LogInfo(
+        % (get_gs_command(), shell_quote_file_name(data_tmp_file_name, is_gs=True),
+           shell_quote_file_name(ps_tmp_file_name, is_gs=True)))
+    log_info(
         'executing Type1CParser with Ghostscript: %s' % gs_cmd)
     sys.stdout.flush()
-    romode = (None, False)[NeedToolLogOutput()]
+    romode = (None, False)[need_tool_log_output()]
     status = os.system(RedirectOutput(gs_cmd, mode=romode))
     if status:
-      LogFatal('Type1CParser failed, status=0x%x' % status)
+      log_fatal('Type1CParser failed, status=0x%x' % status)
     if not os.path.isfile(data_tmp_file_name):
-      LogFatal('Type1CParser has not created output: %s' % data_tmp_file_name)
+      log_fatal('Type1CParser has not created output: %s' % data_tmp_file_name)
     # ps_tmp_file_name is usually about 5 times as large as the input of
     # Type1CParse (pdf_tmp_file_name)
     os.remove(ps_tmp_file_name)
@@ -5984,14 +5889,14 @@ class PdfData(object):
     # Dict keys are numbers, which is not valid PDF, but ParseValueRecursive
     # accepts it.
     # TODO(pts): This ParseValueRecursive call is a bit slow, speed it up.
-    parsed_fonts = PdfObj.ParseValueRecursive(
+    parsed_fonts = PdfObj.parse_value_recursive(
         '<<%s>>' % data, do_expect_postscript_name_input=True)
     assert isinstance(parsed_fonts, dict)
-    LogInfo('parsed %s Type1C fonts' % len(parsed_fonts))
+    log_info('parsed %s Type1C fonts' % len(parsed_fonts))
     assert sorted(parsed_fonts) == sorted(objs), (
         'Data object number list mismatch.')
 
-    def MoveToPrivate(parsed_font, key):
+    def move_to_private(parsed_font, key):
       if key not in parsed_font:
         return
       if 'Private' not in parsed_font:
@@ -6025,7 +5930,7 @@ class PdfData(object):
           'PaintType' not in parsed_font):
         del parsed_fonts[obj_num]
         del objs[obj_num]
-        LogWarning(
+        log_warning(
             'ignoring strange Type1C font obj %d '
             'CharStrings:%s FontType=%r FontMatrix=%r PaintType=%r' %
             (obj_num, type(parsed_font.get('CharStrings')),
@@ -6041,15 +5946,15 @@ class PdfData(object):
         continue
       # These moves shouldn't be needed, Ghostscript 9.10 generates
       # /Subrs and /GlobalSubrs in /Private already.
-      MoveToPrivate(parsed_font, 'Subrs')
-      MoveToPrivate(parsed_font, 'GlobalSubrs')
+      move_to_private(parsed_font, 'Subrs')
+      move_to_private(parsed_font, 'GlobalSubrs')
     if unparsable_obj_nums:
-      LogWarning(
+      log_warning(
           'found unparsable Type1C fonts, obj nums are: %s' %
           unparsable_obj_nums)
     if big_charstrings_obj_nums:
       # Example: functional-programming-python.pdf
-      LogWarning(
+      log_warning(
           'ignoring %d Type1C fonts with /CharStrings longer than '
           '256, obj nums are: %s' %
           (len(big_charstrings_obj_nums), big_charstrings_obj_nums))
@@ -6058,36 +5963,36 @@ class PdfData(object):
     os.remove(data_tmp_file_name)
     return parsed_fonts
 
-  def ConvertType1FontsToType1C(self):
+  def convert_type_1_fonts_to_type_1c(self):
     """Convert all Type1 fonts to Type1C in self, returns self."""
     # GenerateType1CFontsFromType1 removes the tmp files it creates.
-    type1c_objs, encodings = self.GenerateType1CFontsFromType1(
-        self.GetFonts('Type1'), self.objs,
+    type1c_objs, encodings = self.generate_type_1c_fonts_from_type1(
+        self.get_fonts('Type1'), self.objs,
         TMP_PREFIX + 'conv.tmp.ps', TMP_PREFIX + 'conv.tmp.pdf')
     for obj_num in type1c_objs:
       obj = self.objs[obj_num]  # obj.get('Type') == 'FontDescriptor'.
-      assert str(obj.Get('FontName')).startswith('/')
+      assert str(obj.get('FontName')).startswith('/')
       type1c_obj = type1c_objs[obj_num]
-      type1c_obj.FixFontNameInType1C(objs=self.objs)
-      match = PdfObj.PDF_REF_AT_EOS_RE.match(str(obj.Get('FontFile')))
-      assert match, obj.Get('FontFile')
+      type1c_obj.fix_font_name_in_type1_c(objs=self.objs)
+      match = PdfObj.PDF_REF_AT_EOS_RE.match(str(obj.get('FontFile')))
+      assert match, obj.get('FontFile')
       font_file_obj_num = int(match.group(1))
       new_obj = PdfObj(obj)
-      new_obj.Set('FontFile', None)
-      new_obj.Set('FontFile3', '%d 0 R' % font_file_obj_num)
+      new_obj.set('FontFile', None)
+      new_obj.set('FontFile3', '%d 0 R' % font_file_obj_num)
       old_size = self.objs[font_file_obj_num].size + obj.size
       new_size = type1c_obj.size + new_obj.size
       if new_size < old_size:
         obj.head = new_obj.head
         self.objs[font_file_obj_num] = type1c_obj
-        LogProportionalInfo(
+        log_proportional_info(
             'optimized Type1 font XObject %s,%s: new size=%s (%s)' %
             (obj_num, font_file_obj_num, new_size,
-             FormatPercent(new_size, old_size)))
+             format_percent(new_size, old_size)))
       else:
         # TODO(pts): How to optimize/unify these?
         # TODO(pts): Don't keep, prevents further optimizations.
-        LogProportionalInfo(
+        log_proportional_info(
             'keeping original Type1 font XObject %s,%s, '
             'replacement too large: old size=%s, new size=%s' %
             (obj_num, font_file_obj_num, old_size, new_size))
@@ -6102,19 +6007,19 @@ class PdfData(object):
             '/Font' in head and '/Type' in head and
             '/Type1' in head and '/Subtype' in head and
             '/FontDescriptor' in head and
-            obj.Get('Type') == '/Font' and
-            obj.Get('Subtype') == '/Type1'):
-          match = obj.PDF_REF_AT_EOS_RE.match(str(obj.Get('FontDescriptor')))
+            obj.get('Type') == '/Font' and
+            obj.get('Subtype') == '/Type1'):
+          match = obj.PDF_REF_AT_EOS_RE.match(str(obj.get('FontDescriptor')))
           if match:
             fd_obj_num = int(match.group(1))  # /Type/FontDescriptor.
             if fd_obj_num in encodings:
-              self._MergeBaseEncodingToFontObj(
+              self._merge_base_encoding_to_font_obj(
                   obj, encodings[fd_obj_num], self.objs)
 
     return self
 
   @classmethod
-  def MergeTwoType1CFontDescriptors(cls, target_fd, source_fd):
+  def merge_two_type_1c_font_descriptors(cls, target_fd, source_fd):
     """Merge two /FontDescriptor objs.
 
     The entry for /CharSet and some other optional or unimportant entries
@@ -6128,19 +6033,19 @@ class PdfData(object):
         modified.
     """
     for key in ('Flags', 'StemH'):
-      target_value = target_fd.Get(key)
-      source_value = source_fd.Get(key)
+      target_value = target_fd.get(key)
+      source_value = source_fd.get(key)
       if target_value != source_value:
         # TODO(pts): Show the object numbers in the exception.
         raise FontsNotMergeable(
             'different /%s values: target=%s source=%s' %
             (key, target_value, source_value))
 
-    source_bbox_str = PdfObj.ParseArray(source_fd.Get('FontBBox'))
-    target_bbox_str = PdfObj.ParseArray(target_fd.Get('FontBBox'))
+    source_bbox_str = PdfObj.parse_array(source_fd.get('FontBBox'))
+    target_bbox_str = PdfObj.parse_array(target_fd.get('FontBBox'))
     if source_bbox_str != target_bbox_str:
-      source_bbox = map(PdfObj.GetNumber, source_bbox_str)
-      target_bbox = map(PdfObj.GetNumber, target_bbox_str)
+      source_bbox = map(PdfObj.get_number, source_bbox_str)
+      target_bbox = map(PdfObj.get_number, target_bbox_str)
       if source_bbox != target_bbox:
         # For testing: font GaramondNo8Reg in eurotex2006.final.pdf
         target_bbox[0] = min(target_bbox[0], source_bbox[0])  # llx
@@ -6151,14 +6056,14 @@ class PdfData(object):
     for key in ('ItalicAngle', 'Ascent', 'Descent', 'MissingWidth'):
       # It is not important for these required entries to match, so we just
       # copy from source if the value is missing from destination.
-      target_value = target_fd.Get(key)
+      target_value = target_fd.get(key)
       if target_value is None:
-        source_value = source_fd.Get(key)
+        source_value = source_fd.get(key)
         if source_value is not None:
-          target_fd.Set(key, source_value)
+          target_fd.set(key, source_value)
 
   @classmethod
-  def GetStrippedPrivate(cls, private_dict):
+  def get_stripped_private(cls, private_dict):
     if private_dict is None:
       return None
     private_dict = dict(private_dict)
@@ -6180,7 +6085,7 @@ class PdfData(object):
     return private_dict
 
   @classmethod
-  def MergeTwoType1CFonts(cls, target_font, source_font):
+  def merge_two_type_1c_fonts(cls, target_font, source_font):
     """Merge source_font to target_font, modifying the latter in place.
 
     Example parsed Type1C font dictionary:
@@ -6243,8 +6148,8 @@ class PdfData(object):
             'mismatch in key %s: target=%r source=%r' %
             (key, target_value, source_value))
     # This works even if target_font or source_font doesn't contain 'Private'.
-    target_value = cls.GetStrippedPrivate(target_font.get('Private'))
-    source_value = cls.GetStrippedPrivate(source_font.get('Private'))
+    target_value = cls.get_stripped_private(target_font.get('Private'))
+    source_value = cls.get_stripped_private(source_font.get('Private'))
     if target_value != source_value:
       # TODO(pts): Sometimes /BlueValues doesn't match, everything else matches.
       # Should we merge anyway? How to merge /BlueValues?
@@ -6261,7 +6166,7 @@ class PdfData(object):
     target_cs.update(source_cs)
 
   @classmethod
-  def CheckEncoding(cls, encoding):
+  def check_encoding(cls, encoding):
     if not isinstance(encoding, (list, tuple)):
       raise TypeError
     if [name for name in encoding if not isinstance(name, str) or
@@ -6272,15 +6177,15 @@ class PdfData(object):
     return encoding
 
   @classmethod
-  def MergeEncodings(cls, encodings):
+  def merge_encodings(cls, encodings):
     if len(encodings) < 2:
       return None
     for encoding in encodings:
-      cls.CheckEncoding(encoding)
+      cls.check_encoding(encoding)
     output_encoding = []
-    for i in xrange(len(encodings[0])):
+    for i in range(len(encodings[0])):
       name = '/.notdef'
-      for j in xrange(len(encodings)):
+      for j in range(len(encodings)):
         ename = encodings[j][i]
         if ename != '/.notdef' and ename != name:
           if name != '/.notdef':
@@ -6290,11 +6195,11 @@ class PdfData(object):
     return output_encoding
 
   @classmethod
-  def FormatEncoding(cls, encoding):
-    cls.CheckEncoding(encoding)
+  def format_encoding(cls, encoding):
+    cls.check_encoding(encoding)
     lene = len(encoding)
 
-    def FormatWithBaseEncoding(base_encoding_name, base_encoding):
+    def format_with_base_encoding(base_encoding_name, base_encoding):
       assert base_encoding is None or lene == len(base_encoding)
       output = []
       i = 0
@@ -6325,17 +6230,17 @@ class PdfData(object):
         output.append(']>>')
       return ''.join(output)
 
-    outputs = [FormatWithBaseEncoding(None, NONE_ENCODING)]
+    outputs = [format_with_base_encoding(None, NONE_ENCODING)]
     if outputs[0] == '<<>>':  # All /.notdef.
       return None
-    outputs.extend(FormatWithBaseEncoding(*item) for item in
-                   sorted(PDF_FONT_ENCODINGS.iteritems()))
+    outputs.extend(format_with_base_encoding(*item) for item in
+                   sorted(PDF_FONT_ENCODINGS.items()))
     outputs = [(len(s), s) for s in outputs]
     outputs.sort()
     return outputs[0][1]  # Pick the shortest string.
 
   @classmethod
-  def IsFontBuiltInEncodingUsed(cls, encoding_value):
+  def is_font_built_in_encoding_used(cls, encoding_value):
     # pdf_reference_1-7.pdf says that the /Encoding built in to the
     # font program will be used if: /Encoding is missing from the
     # /Type/Font object; or with an encoding dict without
@@ -6350,22 +6255,22 @@ class PdfData(object):
       return False
     if not encoding_value.startswith('<<'):
       return None  # Unsupported.
-    encoding_dict = PdfObj.ParseDict(encoding_value)
+    encoding_dict = PdfObj.parse_dict(encoding_value)
     return encoding_dict.get('BaseEncoding') is None
 
   @classmethod
-  def _MergeBaseEncodingToFontObj(cls, font_obj, base_encoding, objs):
+  def _merge_base_encoding_to_font_obj(cls, font_obj, base_encoding, objs):
     """Merges base_encoding from the font program to the /Type/Font obj."""
     # font_obj: /Type/Font /Subtype/Type1 /Encoding
     #     <</Type/Encoding/Differences[40/parenleft/parenright 44/comma/]>>
-    encoding_value = font_obj.ResolveReferences(
-        font_obj.Get('Encoding'), objs=objs)
-    if cls.IsFontBuiltInEncodingUsed(encoding_value):
+    encoding_value = font_obj.resolve_references(
+        font_obj.get('Encoding'), objs=objs)
+    if cls.is_font_built_in_encoding_used(encoding_value):
       if isinstance(encoding_value, str) and encoding_value.startswith('<<'):
-        encoding_dict = PdfObj.ParseDict(encoding_value)
+        encoding_dict = PdfObj.parse_dict(encoding_value)
         differences = encoding_dict.get('Differences')
         if isinstance(differences, str) and differences.startswith('['):
-          differences = PdfObj.ParseArray(differences)
+          differences = PdfObj.parse_array(differences)
           if differences:
             i = differences[0]
             if not (isinstance(i, int) and 0 <= i < 256):
@@ -6381,23 +6286,23 @@ class PdfData(object):
                   raise ValueError('Expected glyph name, got: %r' % x)
                 base_encoding[i] = x
                 i += 1
-      font_obj.Set('Encoding', cls.FormatEncoding(base_encoding))
+      font_obj.set('Encoding', cls.format_encoding(base_encoding))
 
   @classmethod
-  def SerializeType1CFonts(cls, parsed_fonts, target_objs, objs,
-                           do_double_check_type1c_output):
+  def serialize_type_1c_fonts(cls, parsed_fonts, target_objs, objs,
+                              do_double_check_type1c_output):
     """Generates PdfObj with Type1C font data.
 
     Runs Type1CGenerator (via Ghostscript) in a batch with each object in
     parsed_fonts, saves the result to target_objs.
     """
 
-    def AppendSerializedPs(value, output, pdf_to_ps_name=PdfObj.PdfToPsName):
+    def append_serialized_ps(value, output, pdf_to_ps_name=PdfObj.pdf_to_ps_name):
       # TODO(pts): Reimplement this using a stack.
       if isinstance(value, list):
         output.append('[')
         for item in value:
-          AppendSerializedPs(item, output)
+          append_serialized_ps(item, output)
           output.append(' ')
         output.append(']')
       elif isinstance(value, dict):
@@ -6406,9 +6311,9 @@ class PdfData(object):
           if isinstance(item, str):
             output.append(pdf_to_ps_name('/' + item))
           else:
-            AppendSerializedPs(item, output)
+            append_serialized_ps(item, output)
           output.append(' ')
-          AppendSerializedPs(value[item], output)
+          append_serialized_ps(value[item], output)
           output.append(' ')
         output.append('>>')
       elif value is None:
@@ -6433,13 +6338,13 @@ class PdfData(object):
     output_prefix_len = sum(map(len, output))
     for obj_num in sorted(parsed_fonts):
       output.append('%s 0 obj' % obj_num)
-      AppendSerializedPs(parsed_fonts[obj_num], output)
+      append_serialized_ps(parsed_fonts[obj_num], output)
       output.append('endobj\n')
     output.append('(Type1CGenerator: all OK\\n) print flush\n%%EOF\n')
     ps_tmp_file_name = TMP_PREFIX + 'conv.gen.tmp.ps'
     pdf_tmp_file_name = TMP_PREFIX + 'conv.gen.tmp.pdf'
     output_str = ''.join(output)
-    LogInfo(
+    log_info(
         'writing Type1CGenerator (%d bytes in %d fonts) to: %s' %
         (len(output_str) - output_prefix_len, len(parsed_fonts),
          ps_tmp_file_name))
@@ -6449,34 +6354,34 @@ class PdfData(object):
     finally:
       f.close()
 
-    EnsureRemoved(pdf_tmp_file_name)
+    ensure_removed(pdf_tmp_file_name)
     gs_cmd = (
         '%s -q -P- -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -dPDFSETTINGS=/printer '
         '-dColorConversionStrategy=/LeaveColorUnchanged '  # suppress warning
         '-sOutputFile=%s -f %s'
-        % (GetGsCommand(), ShellQuoteFileName(pdf_tmp_file_name, is_gs=True),
-           ShellQuoteFileName(ps_tmp_file_name, is_gs=True)))
-    LogInfo('executing Type1CGenerator with Ghostscript: %s' % gs_cmd)
+        % (get_gs_command(), shell_quote_file_name(pdf_tmp_file_name, is_gs=True),
+           shell_quote_file_name(ps_tmp_file_name, is_gs=True)))
+    log_info('executing Type1CGenerator with Ghostscript: %s' % gs_cmd)
     sys.stdout.flush()
-    romode = (None, False)[NeedToolLogOutput()]
+    romode = (None, False)[need_tool_log_output()]
     status = os.system(RedirectOutput(gs_cmd, mode=romode))
     if status:
-      LogFatal('Type1CGenerator failed, status=0x%x' % status)
+      log_fatal('Type1CGenerator failed, status=0x%x' % status)
     if not os.path.isfile(pdf_tmp_file_name):
-      LogFatal(
+      log_fatal(
           'Type1CGenerator has not created output: %s' %
           pdf_tmp_file_name)
-    pdf = PdfData().Load(
+    pdf = PdfData().load(
         pdf_tmp_file_name, is_no_objs_ok=True, is_parse_error_ok=False)
     # TODO(pts): Better error reporting if the font name is wrong.
-    loaded_objs = pdf.GetFonts(do_obj_num_from_font_name=True)
+    loaded_objs = pdf.get_fonts(do_obj_num_from_font_name=True)
     assert sorted(loaded_objs) == sorted(parsed_fonts), (
         'Font object number list mismatch: loaded=%r parsed=%r' %
         (sorted(loaded_objs), sorted(parsed_fonts)))
     for obj_num in sorted(parsed_fonts):
       loaded_obj = loaded_objs[obj_num]
       # TODO(pts): Cross-check /FontFile3 with pdf.GetFonts.
-      assert loaded_obj.Get('Subtype') == '/Type1C', (
+      assert loaded_obj.get('Subtype') == '/Type1C', (
           'Cannot serialize font %s to Type1C' % obj_num)
       target_obj = target_objs.get(obj_num)
       if target_obj is None:
@@ -6486,7 +6391,7 @@ class PdfData(object):
         target_obj.stream = loaded_obj.stream
 
     if do_double_check_type1c_output:
-      parsed2_fonts = cls.ParseType1CFonts(
+      parsed2_fonts = cls.parse_type_1c_fonts(
           objs=loaded_objs, ps_tmp_file_name=TMP_PREFIX + 'conv.parse2.tmp.ps',
           data_tmp_file_name=TMP_PREFIX + 'conv.parse2data.tmp.ps')
       assert sorted(parsed_fonts) == sorted(parsed2_fonts), (
@@ -6508,7 +6413,7 @@ class PdfData(object):
         assert not set(cs2).difference(cs)
         assert cs == cs2, (
             'missing glyphs from font %s: %r --> %r' %
-            (objs[obj_num].Get('FontName'), cs, cs2))
+            (objs[obj_num].get('FontName'), cs, cs2))
 
     # TODO(pts): Don't remove if command-line flag.
     os.remove(ps_tmp_file_name)
@@ -6520,7 +6425,7 @@ class PdfData(object):
                           do_keep_font_optionals):
     # ParseType1CFonts removes the tmp files it creates.
     # ParseType1CFonts removes unparsable fonts from type1c_objs.
-    parsed_fonts = self.ParseType1CFonts(
+    parsed_fonts = self.parse_type_1c_fonts(
         objs=type1c_objs, ps_tmp_file_name=TMP_PREFIX + 'conv.parse.tmp.ps',
         data_tmp_file_name=TMP_PREFIX + 'conv.parsedata.tmp.ps',
         is_permissive=True)
@@ -6535,11 +6440,11 @@ class PdfData(object):
           '/Font' in head and '/Type' in head and
           '/Type1' in head and '/Subtype' in head and
           '/FontDescriptor' in head and
-          obj.Get('Type') == '/Font' and
-          obj.Get('Subtype') == '/Type1' and
-          self.IsFontBuiltInEncodingUsed(
-              obj.ResolveReferences(obj.Get('Encoding'), objs=self.objs))):
-        match = obj.PDF_REF_AT_EOS_RE.match(str(obj.Get('FontDescriptor')))
+          obj.get('Type') == '/Font' and
+          obj.get('Subtype') == '/Type1' and
+          self.is_font_built_in_encoding_used(
+              obj.resolve_references(obj.get('Encoding'), objs=self.objs))):
+        match = obj.PDF_REF_AT_EOS_RE.match(str(obj.get('FontDescriptor')))
         if match:
           fd_obj_num = int(match.group(1))  # /Type/FontDescriptor.
           if fd_obj_num in type1c_objs:
@@ -6583,9 +6488,9 @@ class PdfData(object):
       # encoding also contains /pedal.#2A (and not /pedal.*) because it's
       # also coming from ParseType1CFonts.
       if encoding is not None and obj_num in copy_encoding_dict:
-        copy_encoding_dict[obj_num][0] = self.CheckEncoding(encoding)
+        copy_encoding_dict[obj_num][0] = self.check_encoding(encoding)
       encoding = None
-      parsed_font['FontName'] = obj.Get('FontName')
+      parsed_font['FontName'] = obj.get('FontName')
       # Extra, not checked: 'UniqueID'
       if 'FontBBox' in parsed_font:
         # This is part of the /FontDescriptor, we don't need it in the Type1C
@@ -6601,14 +6506,14 @@ class PdfData(object):
         # strings: # ['<abc42>', ...]).
         # See also self.MergeTwoType1CFonts why we can't merge fonts with
         # /Subrs.
-        LogProportionalInfo(
+        log_proportional_info(
             'not merging Type1C font obj %d because it has /Subrs' %
             obj_num)
         continue
       if ('GlobalSubrs' in parsed_font.get('Private', ())):
         # See also self.MergeTwoType1CFonts why we can't merge fonts with
         # /Subrs.
-        LogProportionalInfo(
+        log_proportional_info(
             'not merging Type1C font obj %d '
             'because it has /GlobalSubrs' % obj_num)
         continue
@@ -6635,7 +6540,7 @@ class PdfData(object):
         all_glyphs.update(parsed_fonts[obj_num]['CharStrings'])
       if len(all_glyphs) > 256:
         # Untested, tested with `> 2' in lme_v6.pdf.
-        LogProportionalInfo(
+        log_proportional_info(
             'merged /CharStrings size %d is larger than 256, '
             'not merging objs: %s' %
             (len(all_glyphs), group_obj_nums))
@@ -6655,23 +6560,23 @@ class PdfData(object):
         parsed_font = parsed_fonts[group_obj_nums[i]]
         new_fontdesc_obj = PdfObj(merged_fontdesc_obj)
         try:
-          self.MergeTwoType1CFontDescriptors(new_fontdesc_obj, obj)
-        except FontsNotMergeable, exc:
+          self.merge_two_type_1c_font_descriptors(new_fontdesc_obj, obj)
+        except FontsNotMergeable as exc:
           # TODO(pts): Allow approximate match on /FontMatrix
           # info: could not merge fonts from mismatch in key FontMatrix:
           # target=['0.000999999', 0, 0, '0.000999999', 0, 0]
           # source=['0.001', 0, 0, '0.001', 0, 0] to
           # /HFFJCI+Syntax-Roman: /DEOKBN+Syntax-Roman
-          LogProportionalInfo(
+          log_proportional_info(
               'could not merge descs from %s to %s: %s' %
               (exc, parsed_font['FontName'], merged_font['FontName']))
           # !! don't just throw away this font, merge with others
           group_obj_nums.pop(i)
           continue
         try:
-          self.MergeTwoType1CFonts(merged_font, parsed_font)
-        except FontsNotMergeable, exc:
-          LogProportionalInfo(
+          self.merge_two_type_1c_fonts(merged_font, parsed_font)
+        except FontsNotMergeable as exc:
+          log_proportional_info(
               'could not merge fonts from %s to %s: %s' %
               (exc, parsed_font['FontName'], merged_font['FontName']))
           # !! don't just throw away this font, merge with others
@@ -6687,18 +6592,18 @@ class PdfData(object):
 
       # pdf_reference_1-7.pdf says /Type/FontDescriptor is required (even if
       # some software omits it).
-      merged_fontdesc_obj.Set('Type' , '/FontDescriptor')
+      merged_fontdesc_obj.set('Type', '/FontDescriptor')
       if do_keep_font_optionals:
         # !! remove more optionals
         # New Ghostscript doesn't generate /CharSet. We don't generate it
         # either, unless the user asks for it.
-        merged_fontdesc_obj.Set(
-            'CharSet', PdfObj.SerializePdfStringSafe(''.join(
+        merged_fontdesc_obj.set(
+            'CharSet', PdfObj.serialize_pdf_string_safe(''.join(
                 ['/' + name for name in sorted(merged_font['CharStrings'])])))
 
       self.objs[group_obj_nums[0]].head = merged_fontdesc_obj.head
       font_group_names[font_group] = [merged_font['FontName']]
-      for i in xrange(1, len(group_obj_nums)):
+      for i in range(1, len(group_obj_nums)):
         group_obj_num = group_obj_nums[i]
         obj = self.objs[group_obj_num]  # /Type/FontDescriptor
         # !! merge /Type/Font objects (including /FirstChar, /LastChar and
@@ -6723,25 +6628,25 @@ class PdfData(object):
       # TODO(pts): Merge only some of the encodings if all of them can't
       # be merged.
       encoding_obj_nums = [obj_num for obj_num in group_obj_nums
-           if obj_num in copy_encoding_dict and
-           not [1 for font_obj_num in copy_encoding_dict[obj_num][1]
-                if self.objs[font_obj_num].Get('Encoding') is not None]]
-      encoding = self.MergeEncodings(
+                           if obj_num in copy_encoding_dict and
+                           not [1 for font_obj_num in copy_encoding_dict[obj_num][1]
+                                if self.objs[font_obj_num].get('Encoding') is not None]]
+      encoding = self.merge_encodings(
           [copy_encoding_dict[obj_num][0] for obj_num in encoding_obj_nums])
       if encoding is not None:  # Some encodings could be merged.
         # TODO(pts): Test this.
-        encoding = self.FormatEncoding(encoding)
+        encoding = self.format_encoding(encoding)
         for obj_num in encoding_obj_nums:
           if obj_num in copy_encoding_dict:
             font_obj_nums = copy_encoding_dict.pop(obj_num)[1]
             for font_obj_num in font_obj_nums:
-              self.objs[font_obj_num].Set('Encoding', encoding)
+              self.objs[font_obj_num].set('Encoding', encoding)
       # Merge the remaining encodings in the group.
       for obj_num in group_obj_nums:
         if obj_num in copy_encoding_dict:
           encoding, font_obj_nums = copy_encoding_dict.pop(obj_num)
           for font_obj_num in font_obj_nums:
-            self._MergeBaseEncodingToFontObj(
+            self._merge_base_encoding_to_font_obj(
                 self.objs[font_obj_num], encoding, objs=self.objs)
       encoding = None
 
@@ -6751,10 +6656,10 @@ class PdfData(object):
       # take /BaseFont from the first /Type/Font, and merge the /Type/Font
       # objects.
 
-      LogProportionalInfo(
+      log_proportional_info(
           'merged fonts %r, reduced char count from %d to %d (%s)' %
           (font_group_names[font_group], orig_char_count, new_char_count,
-           FormatPercent(new_char_count, orig_char_count)))
+           format_percent(new_char_count, orig_char_count)))
 
     assert sorted(parsed_fonts) == sorted(type1c_objs), (
         (sorted(parsed_fonts), sorted(type1c_objs)))
@@ -6769,7 +6674,7 @@ class PdfData(object):
         # Doesn't matter much, TYPE1C_GENERATOR_CHARSET overwrites /FontName
         # with /Obj000... anyway.
         parsed_fonts[obj_num]['FontName'] = '/X'
-      self.SerializeType1CFonts(
+      self.serialize_type_1c_fonts(
           parsed_fonts=parsed_fonts,
           target_objs=type1c_objs,
           objs=self.objs,
@@ -6788,24 +6693,24 @@ class PdfData(object):
           # properly due to a Ghostscript bug.
           encoding, font_obj_nums = copy_encoding_dict.pop(obj_num)
           for font_obj_num in font_obj_nums:
-            self._MergeBaseEncodingToFontObj(
+            self._merge_base_encoding_to_font_obj(
                 self.objs[font_obj_num], encoding, objs=self.objs)
       encoding = None  # Save memory.
     else:
-      LogInfo('no Type1C fonts to serialize')
+      log_info('no Type1C fonts to serialize')
       # TODO(pts): Don't recompress if already recompressed (e.g. when
       # converted from Type1).
 
-  def OptimizeType1CFonts(self, do_keep_font_optionals,
-                          do_double_check_type1c_output,
-                          do_unify_fonts,
-                          do_regenerate_all_fonts):
+  def optimize_type_1c_fonts(self, do_keep_font_optionals,
+                             do_double_check_type1c_output,
+                             do_unify_fonts,
+                             do_regenerate_all_fonts):
     """Regenerate or unify different subsets of the same Type1C font.
 
     Returns:
       self.
     """
-    type1c_objs = self.GetFonts(font_type='Type1C')
+    type1c_objs = self.get_fonts(font_type='Type1C')
     if not type1c_objs:
       return self
 
@@ -6813,35 +6718,35 @@ class PdfData(object):
     for obj_num in sorted(type1c_objs):
       obj = self.objs[obj_num]  # /Type/FontDescriptor
       assert obj.stream is None
-      assert obj.Get('Flags') is not None
-      if obj.Get('StemV') is None:
+      assert obj.get('Flags') is not None
+      if obj.get('StemV') is None:
         # According to pdf_reference_1-7.pdf, /StemV is required.
         # Counterexample: W16-36.pdf in https://github.com/pts/pdfsizeopt/issues/78
-        LogWarning('missing /StemV in Type1C font obj %d' % obj_num)
-      assert str(obj.Get('FontName')).startswith('/')
+        log_warning('missing /StemV in Type1C font obj %d' % obj_num)
+      assert str(obj.get('FontName')).startswith('/')
       # For testing when ResolveReferences is needed:
       # combinatorics-of-compositions-and-words.pdf
       #
       # TODO(pts): Find and fix more mossing-reference-resolving bugs.
-      fontbbox, fontbbox_has_changed = PdfObj.ResolveReferencesChanged(
-          obj.Get('FontBBox'), objs=self.objs)
+      fontbbox, fontbbox_has_changed = PdfObj.resolve_references_changed(
+          obj.get('FontBBox'), objs=self.objs)
       assert str(fontbbox).startswith('['), fontbbox
       if fontbbox_has_changed:
-        obj.Set('FontBBox', fontbbox)  # Resolve the reference.
+        obj.set('FontBBox', fontbbox)  # Resolve the reference.
       # These entries are important only for finding substitute fonts, so
       # we can get rid of them.
       #
       # TODO(pts): Why not remove StemV?
-      obj.Set('FontFamily', None)
-      obj.Set('FontStretch', None)
-      obj.Set('FontWeight', None)
-      obj.Set('Leading', None)
-      obj.Set('XHeight', None)
-      obj.Set('StemH', None)
-      obj.Set('AvgWidth', None)
-      obj.Set('MaxWidth', None)
+      obj.set('FontFamily', None)
+      obj.set('FontStretch', None)
+      obj.set('FontWeight', None)
+      obj.set('Leading', None)
+      obj.set('XHeight', None)
+      obj.set('StemH', None)
+      obj.set('AvgWidth', None)
+      obj.set('MaxWidth', None)
       # Optional.
-      obj.Set('CharSet', None)
+      obj.set('CharSet', None)
       orig_type1c_size += type1c_objs[obj_num].size + obj.size
 
     # Merge byte-by-byte identical fonts.
@@ -6849,17 +6754,17 @@ class PdfData(object):
     h = {}
     for obj_num in sorted(type1c_objs):
       type1c_obj = type1c_objs[obj_num]
-      head_dict = PdfObj.ParseDict(type1c_obj.head)
+      head_dict = PdfObj.parse_dict(type1c_obj.head)
       assert head_dict['Subtype'] == '/Type1C'
       try:
-        stream = type1c_obj.GetUncompressedStream(self.objs)
+        stream = type1c_obj.get_uncompressed_stream(self.objs)
         head_dict.clear()
       except (FilterNotImplementedError, FilterError):
         stream = type1c_obj.stream
         for key in sorted(head_dict):
           if key != 'Filter' and key != 'DecodeParms':
             del head_dict[key]
-      key = (PdfObj.SerializeDict(head_dict), stream)
+      key = (PdfObj.serialize_dict(head_dict), stream)
       data_len = len(key[0]) + len(key[1])
       if key in h:
         h[key].append((data_len, obj_num))
@@ -6876,7 +6781,7 @@ class PdfData(object):
       master_obj_num = None
       for data_len, obj_num in same_type1c_objs:
         obj = self.objs[obj_num]
-        target_obj_num = PdfObj.GetReferenceTarget(obj.Get('FontFile3'))
+        target_obj_num = PdfObj.get_reference_target(obj.get('FontFile3'))
         assert (
             target_obj_num is not None and
             self.objs[target_obj_num] is type1c_objs[obj_num]), (
@@ -6884,14 +6789,14 @@ class PdfData(object):
         if master_obj_num is None:
           master_obj_num = target_obj_num
         elif master_obj_num != target_obj_num:
-          obj.Set('FontFile3', '%s 0 R' % master_obj_num)
+          obj.set('FontFile3', '%s 0 R' % master_obj_num)
           # TODO(pts): What if self.objs has another reference to
           # target_obj_num, which is not coming from /FontDescriptor{}s?
           del self.objs[target_obj_num]
           duplicate_count += 1
     h.clear()
     if duplicate_count:
-      LogInfo('eliminated %s duplicate /Type1C font data' % duplicate_count)
+      log_info('eliminated %s duplicate /Type1C font data' % duplicate_count)
     if do_unify_fonts or do_regenerate_all_fonts:
       # _ProcessType1CFonts removes unparsable fonts from type1c_objs.
       # TODO(pts): Keep unparsable fonts for the new_type1c_size statistics
@@ -6904,23 +6809,23 @@ class PdfData(object):
           do_double_check_type1c_output=do_double_check_type1c_output,
           do_keep_font_optionals=do_keep_font_optionals)
     for obj_num in sorted(type1c_objs):
-      type1c_objs[obj_num].FixFontNameInType1C(objs=self.objs)
+      type1c_objs[obj_num].fix_font_name_in_type1_c(objs=self.objs)
     new_type1c_size = 0
     for obj_num in sorted(type1c_objs):
       new_type1c_size += type1c_objs[obj_num].size + self.objs[obj_num].size
     # TODO(pts): Undo if no reduction in size.
     # TODO(pts): Decompress fonts with /LZWDecode, to be recompressed.
-    LogInfo(
+    log_info(
         'optimized Type1C fonts to form %s bytes to %s bytes (%s)' % (
         (orig_type1c_size, new_type1c_size,
-         FormatPercent(new_type1c_size, orig_type1c_size))))
+         format_percent(new_type1c_size, orig_type1c_size))))
     return self
 
   @classmethod
-  def ConvertImage(cls, sourcefn, targetfn, cmd_pattern, cmd_name,
-                   do_just_read=False, return_none_if_status=None,
-                   do_remove_targetfn_on_success=True, is_inverted=False,
-                   need_gray=False):
+  def convert_image(cls, sourcefn, targetfn, cmd_pattern, cmd_name,
+                    do_just_read=False, return_none_if_status=None,
+                    do_remove_targetfn_on_success=True, is_inverted=False,
+                    need_gray=False):
     """Converts sourcefn to targetfn using cmd_pattern, returns
     (cmd_name, image_data) pair."""
     if not isinstance(sourcefn, str):
@@ -6932,8 +6837,8 @@ class PdfData(object):
     if not isinstance(cmd_name, str):
       raise TypeError
     cmd_values_dict = {
-        'sourcefnq': ShellQuoteFileName(sourcefn),
-        'targetfnq': ShellQuoteFileName(targetfn),
+        'sourcefnq': shell_quote_file_name(sourcefn),
+        'targetfnq': shell_quote_file_name(targetfn),
         'pngout_gray_flags': '',
         'optipng_gray_flags': '',
         'sam2p_np_gray_flags': '',
@@ -6969,19 +6874,19 @@ class PdfData(object):
         f.close()
       del data  # Save memory.
     else:
-      EnsureRemoved(targetfn)
+      ensure_removed(targetfn)
 
-    LogProportionalInfo(
+    log_proportional_info(
         'executing image converter %s: %s' % (cmd_name, cmd))
     sys.stdout.flush()
-    romode = (None, False)[NeedToolLogOutput()]
+    romode = (None, False)[need_tool_log_output()]
     status = os.system(RedirectOutput(cmd, mode=romode))
     if (return_none_if_status is not None and
         status == return_none_if_status):
-      EnsureRemoved(targetfn)
+      ensure_removed(targetfn)
       return None
     if status:
-      LogFatal(
+      log_fatal(
           'image converter %s failed (status=0x%x)' % (cmd_name, status))
     assert os.path.exists(targetfn), (
         '%s has not created the output image %r' % (cmd_name, targetfn))
@@ -6995,20 +6900,20 @@ class PdfData(object):
         os.remove(targetfn)
       return result
     else:
-      image = ImageData().Load(targetfn, is_inverted=is_inverted)
+      image = ImageData().load(targetfn, is_inverted=is_inverted)
       if do_remove_targetfn_on_success:
         os.remove(targetfn)
       if need_gray and image.color_type != 'gray':
         # TODO(pts): Add relevant command-line flags (like pngout, optipng)
         #            for other converters to produce gray.
-        LogProportionalInfo(
+        log_proportional_info(
             'image converter %s produced non-gray output (%s), ignoring' %
             (cmd_name, image.color_type))
         return None
       return cmd_name, image
 
 
-  def AddObj(self, obj):
+  def add_obj(self, obj):
     """Add PdfObj to self.objs, return its object number."""
     if not isinstance(obj, PdfObj):
       raise TypeError
@@ -7018,7 +6923,7 @@ class PdfData(object):
     self.objs[obj_num] = obj
     return obj_num
 
-  def ConvertInlineImagesToXObjects(self):
+  def convert_inline_images_to_x_objects(self):
     """Convert embedded inline images to Image XObject{}s.
 
     This method finds only Form XObject{}s which contain a single inline
@@ -7042,16 +6947,16 @@ class PdfData(object):
     uninline_bytes_saved = 0
     for obj_num in sorted(self.objs):
       obj = self.objs[obj_num]
-      detect_ret = obj.DetectInlineImage(objs=self.objs)
+      detect_ret = obj.detect_inline_image(objs=self.objs)
       if not detect_ret:
         continue
       width, height, image_obj = detect_ret
       # For testing: test_pts2e.pdf
       uninline_count += 1
-      colorspace = image_obj.Get('ColorSpace')
+      colorspace = image_obj.get('ColorSpace')
       assert colorspace is not None
-      assert (image_obj.Get('BitsPerComponent') is not None or
-              image_obj.Get('ImageMask', False) is True)
+      assert (image_obj.get('BitsPerComponent') is not None or
+              image_obj.get('ImageMask', False) is True)
       #if image_obj.Get('Filter') == '/FlateDecode':
       # If we do a zlib.decompress(stream) now, it will succeed even if stream
       # has trailing garbage. But zlib.decompress(stream[:-1]) would fail. In
@@ -7062,21 +6967,21 @@ class PdfData(object):
       if colorspace.startswith('[/Interpolate/'):
         # Fix bad decoding in PDF_NAME_ABBREVIATIONS.
         colorspace = '[/Indexed' + colorspace[13:]
-        image_obj.Set('ColorSpace', colorspace)
+        image_obj.set('ColorSpace', colorspace)
       # TODO(pts): Get rid of /Type/XObject etc. from other objects as well
-      image_obj.Set('Type', None)  # /XObject, but optimized
-      image_obj.Set('Subtype', '/Image')
-      image_obj.head = PdfObj.CompressValue(image_obj.head)
+      image_obj.set('Type', None)  # /XObject, but optimized
+      image_obj.set('Subtype', '/Image')
+      image_obj.head = PdfObj.compress_value(image_obj.head)
       # We cannot just replace obj by image_obj here, because we have to scale
       # (with the `cm' operator).
-      image_obj_num = self.AddObj(image_obj)
+      image_obj_num = self.add_obj(image_obj)
       resources_obj = PdfObj(
-          '0 0 obj %s endobj' % obj.Get('Resources', '<<>>'))
-      assert resources_obj.Get('XObject') is None
+          '0 0 obj %s endobj' % obj.get('Resources', '<<>>'))
+      assert resources_obj.get('XObject') is None
       # Currently, typically resources_obj.head ==
       # '<</ProcSet[/PDF/ImageB]>>'. /ProcSet is optional since PDF 1.2.
       # TODO(pts): Remove /ProcSet from resources_obj.
-      resources_obj.Set('XObject', '<</S %s 0 R>>' % image_obj_num)
+      resources_obj.set('XObject', '<</S %s 0 R>>' % image_obj_num)
       # TODO(pts): Instead of creating a /Subtype/Form which references a
       # /Subtype/Image (in its `/Resources<</XObject</S x 0 r>> >>'), we
       # should make content streams reference the /Subtype/Image directly,
@@ -7086,10 +6991,10 @@ class PdfData(object):
       # `q 1 0 0 1 0 0 cm /Im1 Do Q', which can conveniently be replaced.
       form_obj = PdfObj('0 0 obj<</Subtype/Form>>endobj')
       form_obj.stream = 'q %s 0 0 %s 0 0 cm/S Do Q' % (width, height)
-      form_obj.Set('BBox', '[0 0 %s %s]' % (width, height))
-      form_obj.Set('Resources', resources_obj.head)
-      form_obj.Set('Length', len(form_obj.stream))
-      form_obj.head = PdfObj.CompressValue(form_obj.head)
+      form_obj.set('BBox', '[0 0 %s %s]' % (width, height))
+      form_obj.set('Resources', resources_obj.head)
+      form_obj.set('Length', len(form_obj.stream))
+      form_obj.head = PdfObj.compress_value(form_obj.head)
       uninline_bytes_saved += obj.size - form_obj.size - image_obj.size
       # Throw away /Type, /Subtype/Form, /FormType, /PTEX.FileName,
       # /PTEX.PageNumber, /BBox and /Resources (and many others).
@@ -7100,12 +7005,12 @@ class PdfData(object):
       # Usually a little negative, like -50 for each image. But since
       # self.OptimizeImages() will recompress the image, we'll gain more than
       # 50 bytes.
-      LogInfo('uninlined %s images, saved %s bytes' %
-              (uninline_count, uninline_bytes_saved))
+      log_info('uninlined %s images, saved %s bytes' %
+               (uninline_count, uninline_bytes_saved))
     return self
 
   @classmethod
-  def RenderImages(cls, objs, ps_tmp_file_name, png_tmp_file_pattern, gs_device):
+  def render_images(cls, objs, ps_tmp_file_name, png_tmp_file_pattern, gs_device):
     """Returns: dictionary mapping obj_num to PNG filename."""
     if not objs:
       return {}
@@ -7124,63 +7029,63 @@ class PdfData(object):
       # We can assume that OptimizeImages has simplified /ColorSpace and
       # /BitsPerComponent for us.
 
-      if ('/JBIG2Decode' in str(obj.Get('Filter')) and
-          '/JBIG2Globals' in str(obj.Get('DecodeParms'))):
+      if ('/JBIG2Decode' in str(obj.get('Filter')) and
+          '/JBIG2Globals' in str(obj.get('DecodeParms'))):
         # TODO(pts): Add support for /JBIG2Globals, also elsewhere in main.py.
         # TODO(pts): At least skip the image.
         raise NotImplementedError('/JBIG2Globals not supported.')
-      if ('/CCITTFaxDecode' in str(obj.Get('Filter')) and
-          '/BlackIs1' in str(obj.Get('DecodeParms'))):
-        decodeparms = obj.Get('DecodeParms')
+      if ('/CCITTFaxDecode' in str(obj.get('Filter')) and
+          '/BlackIs1' in str(obj.get('DecodeParms'))):
+        decodeparms = obj.get('DecodeParms')
         if decodeparms.startswith('['):
-          decodeparms = PdfObj.ParseArray(decodeparms)
+          decodeparms = PdfObj.parse_array(decodeparms)
         else:
           decodeparms = [decodeparms]
-        decodeparms = map(PdfObj.ParseDict, decodeparms)
+        decodeparms = map(PdfObj.parse_dict, decodeparms)
         if [1 for parm in decodeparms if parm.get('BlackIs1') is True]:
           # Invert the image later, with /Decode.
           obj = PdfObj(obj)
           for parm in decodeparms:
             parm.pop('BlackIs1', None)
-          decodeparms = map(PdfObj.SerializeDict, decodeparms)
+          decodeparms = map(PdfObj.serialize_dict, decodeparms)
           if len(decodeparms) == 1:
-            obj.Set('DecodeParms', decodeparms[0])
+            obj.set('DecodeParms', decodeparms[0])
           else:
-            obj.Set('DecodeParms', '[%s]' % ' '.join(decodeparms))
-          if '/Indexed' in str(obj.Get('ColorSpace')):
-            indexed_bpc = obj.Get('BitsPerComponent')
+            obj.set('DecodeParms', '[%s]' % ' '.join(decodeparms))
+          if '/Indexed' in str(obj.get('ColorSpace')):
+            indexed_bpc = obj.get('BitsPerComponent')
             assert isinstance(indexed_bpc, int)
           else:
             indexed_bpc = 0
-          if str(obj.Get('ColorSpace')) == '/DeviceRGB':
+          if str(obj.get('ColorSpace')) == '/DeviceRGB':
             samples_per_pixel = 3
           else:
             samples_per_pixel = 1
-          decode_kind = PdfObj.ClassifyImageDecode(
-              obj.Get('Decode'), indexed_bpc)
+          decode_kind = PdfObj.classify_image_decode(
+              obj.get('Decode'), indexed_bpc)
           if decode_kind == 'inverted':
-            obj.Set('Decode', None)
+            obj.set('Decode', None)
           else:
-            obj.Set('Decode', PdfObj.GenerateImageDecode(
+            obj.set('Decode', PdfObj.generate_image_decode(
                 True, samples_per_pixel, indexed_bpc))
-      if (obj.Get('Decode') is None and
-          '/Indexed' in str(obj.Get('ColorSpace'))):
+      if (obj.get('Decode') is None and
+          '/Indexed' in str(obj.get('ColorSpace'))):
         obj = PdfObj(obj)
-        assert isinstance(obj.Get('BitsPerComponent'), int)
+        assert isinstance(obj.get('BitsPerComponent'), int)
         # We need to set `/Decode [0 255]', otherwise Ghostscript 9.05
         # misinterprets colors in `/ColorSpace [/Indexed/DeviceGray ...]'.
         # Example: pa8.pdf in https://github.com/pts/pdfsizeopt/issues/29 .
-        obj.Set('Decode', PdfObj.GenerateImageDecode(
-            False, 1, obj.Get('BitsPerComponent')))
+        obj.set('Decode', PdfObj.generate_image_decode(
+            False, 1, obj.get('BitsPerComponent')))
 
       # ImageRenderer does the inversion, image won't be inverted after
       # rendering.
       image_size += obj.size
-      obj.AppendTo(output, obj_num)
+      obj.append_to(output, obj_num)
       obj = None  # Save memory.
     output.append('(ImageRenderer: all OK\\n) print flush\n%%EOF\n')
     output_str = ''.join(output)
-    LogInfo(
+    log_info(
         'writing ImageRenderer (%s image bytes) to: %s' %
         (len(output_str) - output_prefix_len, ps_tmp_file_name))
     f = open(ps_tmp_file_name, 'wb')
@@ -7196,18 +7101,18 @@ class PdfData(object):
       png_tmp_file_name = png_tmp_file_pattern % i
       if not os.path.exists(png_tmp_file_name):
         break
-      EnsureRemoved(png_tmp_file_name)
+      ensure_removed(png_tmp_file_name)
       assert not os.path.exists(png_tmp_file_name)
 
     gs_cmd = (
         '%s -q -P- -dNOPAUSE -dBATCH -sDEVICE=%s '
         '-sOutputFile=%s -f %s'
-        % (GetGsCommand(), ShellQuote(gs_device),
-           ShellQuoteFileName(png_tmp_file_pattern, is_gs=True),
-           ShellQuoteFileName(ps_tmp_file_name, is_gs=True)))
-    LogInfo(
+        % (get_gs_command(), ShellQuote(gs_device),
+           shell_quote_file_name(png_tmp_file_pattern, is_gs=True),
+           shell_quote_file_name(ps_tmp_file_name, is_gs=True)))
+    log_info(
         'executing ImageRenderer with Ghostscript: %s' % gs_cmd)
-    write_func = (lambda m: 0, sys.stderr.write)[NeedToolLogOutput()]
+    write_func = (lambda m: 0, sys.stderr.write)[need_tool_log_output()]
     sys.stdout.flush()
     # We could add a 3rd argument `0' to os.popen to disable buffering, but
     # it fails on Windows and Python 2.6 with
@@ -7236,8 +7141,8 @@ class PdfData(object):
           line = line[len(prefix):]
         # This is usually indicates a broken PDF containing a corrupt image
         # XObject.
-        LogFatal('Error in image data (status=0x%x): %s' % (line,))
-      LogFatal('ImageRenderer failed, status=0x%x' % status)
+        log_fatal('Error in image data (status=0x%x): %s' % (line,))
+      log_fatal('ImageRenderer failed, status=0x%x' % status)
     del lines
     assert not os.path.exists(png_tmp_file_pattern % (len(objs) + 1)), (
         'ImageRenderer created too many PNGs')
@@ -7248,7 +7153,7 @@ class PdfData(object):
       i += 1
       png_tmp_file_name = png_tmp_file_pattern % i
       if not os.path.isfile(png_tmp_file_name):
-        LogFatal(
+        log_fatal(
             'ImageRenderer has not created output: %s' %
             png_tmp_file_name)
       png_files[obj_num] = png_tmp_file_name
@@ -7257,8 +7162,8 @@ class PdfData(object):
 
   # !!! Do proper PDF token sequence parsing (ParseTokensToSafe).
   PDFDATA_INDEXED_COLORSPACE_FOR_SUB_RE = re.compile(
-      r'\A\[[\0\t\n\r\f ]*/Indexed[\0\t\n\r\f ]*'
-      r'/([^\0\t\n\r\f /<(]+)(?s).*')
+      r'\A\[[\x00\t\n\r\f ]*/Indexed[\x00\t\n\r\f ]*'
+      r'/([^\x00\t\n\r\f /<(]+)(.|\n)*')
 
   @classmethod
   def _IsSlowCmdName(cls, cmd_name):
@@ -7271,10 +7176,10 @@ class PdfData(object):
     """Converts with jbig2. Assumes image is saved to image.file_name."""
     old_image, image = image, ImageData(image)
     if color_type != 'gray':
-      image.SavePng(  # Changes .file_name.
+      image.save_png(  # Changes .file_name.
           file_name=TMP_PREFIX + 'img-%d.gray.png' % obj_num,
           do_force_gray=True)
-    image.idat = self.ConvertImage(
+    image.idat = self.convert_image(
         sourcefn=image.file_name,
         is_inverted=image.is_inverted,
         targetfn=TMP_PREFIX + 'img-%d.jbig2' % obj_num,
@@ -7287,7 +7192,7 @@ class PdfData(object):
     image.file_name = TMP_PREFIX + 'img-%d.jbig2' % obj_num
     return cmd_name, image
 
-  def OptimizeImages(self, img_cmd_patterns, do_fast_bilevel_images):
+  def optimize_images(self, img_cmd_patterns, do_fast_bilevel_images):
     """Optimize image XObjects in the PDF."""
     if not isinstance(img_cmd_patterns, (list, tuple)):
       raise TypeError
@@ -7309,15 +7214,15 @@ class PdfData(object):
     for obj_num in sorted(self.objs):
       obj = self.objs[obj_num]
       if (not obj.head.startswith('<<') or '/Image' not in obj.head or
-          not re.search(r'/Subtype[\0\t\n\r\f ]*/Image\b', obj.head) or
+          not re.search(r'/Subtype[\x00\t\n\r\f ]*/Image\b', obj.head) or
           not obj.stream is not None or
-          obj.Get('Subtype') != '/Image'):
+          obj.get('Subtype') != '/Image'):
         continue
 
-      smask = obj.Get('SMask')
+      smask = obj.get('SMask')
       if isinstance(smask, str):
         try:
-          smask = PdfObj.ParseSimpleValue(smask)
+          smask = PdfObj.parse_simple_value(smask)
         except PdfTokenParseError:
           pass
       if isinstance(smask, str):
@@ -7326,20 +7231,20 @@ class PdfData(object):
           # The target image of an /SMask must be /ColorSpace /DeviceGray.
           force_grayscale_obj_nums.add(int(match.group(1)))
 
-      if obj.Get('Type') is not None:
+      if obj.get('Type') is not None:
         # /Xobject is nonstandard, but some PDF files have it (see
         # /https://github.com/pts/pdfsizeopt/issues/133), and pdfimages
         # /seems to be ignoring it:
-        if obj.Get('Type') not in ('/XObject', '/Xobject'):
+        if obj.get('Type') not in ('/XObject', '/Xobject'):
           continue  # Something is wrong with this object, don't touch it.
-        obj.Set('Type', None)  # Remove explicit default.
+        obj.set('Type', None)  # Remove explicit default.
 
-      filter_value, filter_has_changed = PdfObj.ResolveReferencesChanged(
-          obj.Get('Filter'), objs=self.objs)
+      filter_value, filter_has_changed = PdfObj.resolve_references_changed(
+          obj.get('Filter'), objs=self.objs)
       filter2 = (filter_value or '').replace(']', ' ]') + ' '
 
-      if not obj.Get('Interpolate'):
-        obj.Set('Interpolate', None)  # Remove explicit default.
+      if not obj.get('Interpolate'):
+        obj.set('Interpolate', None)  # Remove explicit default.
 
       # Don't touch lossy-compressed images.
       # TODO(pts): Read lossy-compressed images, maybe a small, uncompressed
@@ -7353,30 +7258,30 @@ class PdfData(object):
       # differences as well.
       # TODO(pts): Support an image mask (with /Mask x 0 R pointing to
       # an obj << /Subtype/Image /ImageMask true >>).
-      mask = obj.Get('Mask')
+      mask = obj.get('Mask')
       do_remove_mask = False
       try:
-        mask = PdfObj.ResolveReferences(mask, objs=self.objs)
+        mask = PdfObj.resolve_references(mask, objs=self.objs)
       except UnexpectedStreamError:
         assert isinstance(mask, str)
-        mask = PdfObj.ParseSimpleValue(mask)
+        mask = PdfObj.parse_simple_value(mask)
         do_remove_mask = True
       if (isinstance(mask, str) and mask and
           not do_remove_mask and
           # TODO(pts): Remove /Mask [].
-          not re.match(r'\[[\0\t\n\r\f ]*\]\Z', mask)):
+          not re.match(r'\[[\x00\t\n\r\f ]*\]\Z', mask)):
         continue
 
-      bpc, bpc_has_changed = PdfObj.ResolveReferencesChanged(
-          obj.Get('BitsPerComponent'), objs=self.objs)
-      if obj.Get('ImageMask'):
+      bpc, bpc_has_changed = PdfObj.resolve_references_changed(
+          obj.get('BitsPerComponent'), objs=self.objs)
+      if obj.get('ImageMask'):
         if bpc != 1:
           bpc_has_changed = True
           bpc = 1
       if bpc not in (1, 2, 4, 8):
         continue
 
-      decodeparms = obj.Get('DecodeParms') or ''
+      decodeparms = obj.get('DecodeParms') or ''
       if isinstance(decodeparms, str) and '/JBIG2Globals' in decodeparms:
         # We don't support optimizing JBIG2 images with global references.
         # For testing: /mnt/mandel/warez/tmp/linux.pdf
@@ -7391,7 +7296,7 @@ class PdfData(object):
         # image again.
         # TODO(pts): Set the result of ResolveReferences back before doing
         # the identity check.
-        LogProportionalInfo(
+        log_proportional_info(
             'using identical image obj %s for obj %s' %
             (target_obj_num, obj_num))
         modify_obj_nums[obj_num] = target_obj_num
@@ -7402,9 +7307,9 @@ class PdfData(object):
 
       # TODO(pts): Inline this to reduce PDF size.
       # pdftex emits: /ColorSpace [/Indexed /DeviceRGB <n> <obj_num> 0 R]
-      colorspace, colorspace_has_changed = PdfObj.ResolveReferencesChanged(
-          obj.Get('ColorSpace'), objs=self.objs, do_strings=True)
-      if obj.Get('ImageMask'):
+      colorspace, colorspace_has_changed = PdfObj.resolve_references_changed(
+          obj.get('ColorSpace'), objs=self.objs, do_strings=True)
+      if obj.get('ImageMask'):
         if colorspace != '/DeviceGray':  # can be None
           colorspace = '/DeviceGray'
           colorspace_has_changed = True
@@ -7417,36 +7322,36 @@ class PdfData(object):
       if filter_has_changed:
         if obj is obj0:
           obj = PdfObj(obj)
-        obj.Set('Filter', filter_value)
+        obj.set('Filter', filter_value)
       if bpc_has_changed:
         if obj is obj0:
           obj = PdfObj(obj)
-        obj.Set('BitsPerComponent', bpc)
+        obj.set('BitsPerComponent', bpc)
       if colorspace_has_changed:
         if obj is obj0:
           obj = PdfObj(obj)
-        obj.Set('ColorSpace', colorspace)
-      if obj.Get('Mask') and do_remove_mask:
+        obj.set('ColorSpace', colorspace)
+      if obj.get('Mask') and do_remove_mask:
         if obj is obj0:
           obj = PdfObj(obj)
-        obj.Set('Mask', None)
+        obj.set('Mask', None)
       for name in ('Width', 'Height', 'Decode', 'DecodeParms', 'ImageMask'):
-        value = obj.Get(name)
-        value, value_has_changed = PdfObj.ResolveReferencesChanged(
+        value = obj.get(name)
+        value, value_has_changed = PdfObj.resolve_references_changed(
             value, objs=self.objs)
         if value_has_changed:
           if obj is obj0:
             obj = PdfObj(obj)
-          obj.Set(name, value)
+          obj.set(name, value)
 
-      if obj.Get('ImageMask'):
+      if obj.get('ImageMask'):
         if obj is obj0:
           obj = PdfObj(obj)
         assert colorspace == '/DeviceGray'  # Set above.
-        assert obj.Get('ColorSpace') == '/DeviceGray'  # Set above.
-        obj.Set('ImageMask', None)
+        assert obj.get('ColorSpace') == '/DeviceGray'  # Set above.
+        obj.set('ImageMask', None)
         # We don't remove /Decode here, because /Decode [1 0] signals inversion.
-        obj.Set('BitsPerComponent', 1)
+        obj.set('BitsPerComponent', 1)
 
       # Ignore images with exotic color spaces (e.g. DeviceCMYK, CalGray,
       # DeviceN).
@@ -7456,9 +7361,9 @@ class PdfData(object):
       # convert it to RGB, though.
       #
       # !!! Do proper PDF token sequence parsing.
-      if not re.match(r'(?:/Device(?:RGB|Gray)\Z|\[[\0\t\n\r\f ]*'
-                      r'/Indexed[\0\t\n\r\f ]*'
-                      r'/Device(?:RGB|Gray)[\0\t\n\r\f (<\[/])', colorspace):
+      if not re.match(r'(?:/Device(?:RGB|Gray)\Z|\[[\x00\t\n\r\f ]*'
+                      r'/Indexed[\x00\t\n\r\f ]*'
+                      r'/Device(?:RGB|Gray)[\x00\t\n\r\f (<\[/])', colorspace):
         continue
 
       # These entries may contain references we don't want to resolve
@@ -7467,12 +7372,12 @@ class PdfData(object):
       #
       # TODO(pts): Can we remove /Metadata from images and Type 1 fonts?
       for name in ('Metadata', 'SMask', 'Name', 'Intent'):
-        value = obj.Get(name)
+        value = obj.get(name)
         if value is not None:
           if obj_num not in removed_entries:
             removed_entries[obj_num] = {}
           removed_entries[obj_num][name] = value
-          obj.Set(name, None)
+          obj.set(name, None)
 
       # We've already called ResolveReferences on /Filter, /BitsPerComponent,
       # /ColorSpace, /Width, /Height, /Decode, /DecodeParms, /ImageMask.
@@ -7486,14 +7391,14 @@ class PdfData(object):
       if 'R' in obj.head and PdfObj.PDF_REF_RE.search(obj.head):
         continue
 
-      width = obj.Get('Width')
+      width = obj.get('Width')
       assert isinstance(width, int)
       assert width > 0
-      height = obj.Get('Height')
+      height = obj.get('Height')
       assert isinstance(height, int)
       assert height > 0
 
-      if not PdfObj.IsGrayColorSpace(colorspace):
+      if not PdfObj.is_gray_color_space(colorspace):
         gs_device = 'png16m'
       elif bpc > 1 or colorspace != '/DeviceGray':
         # TODO(pts): Make it work for 1-bit grayscale palette.
@@ -7501,13 +7406,13 @@ class PdfData(object):
       else:
         gs_device = 'pngmono'
 
-      decode_kind = PdfObj.ClassifyImageDecode(
-          obj.Get('Decode'),
+      decode_kind = PdfObj.classify_image_decode(
+          obj.get('Decode'),
           int('/Indexed' in colorspace and bpc))
       if decode_kind not in ('normal', 'inverted'):
-        LogWarning(
+        log_warning(
             'ignoring image XObject %d with %s /Decode value: %s' %
-            (obj_num, decode_kind, obj.Get('Decode')))
+            (obj_num, decode_kind, obj.get('Decode')))
         continue
 
       image_count += 1
@@ -7515,13 +7420,13 @@ class PdfData(object):
       images[obj_num] = []
       # TODO(pts): More accurate /DecodeParms reporting (remove if no
       # predictor).
-      LogProportionalInfo(
+      log_proportional_info(
           'will optimize image XObject %s; orig width=%s height=%s '
           'colorspace=%s bpc=%s inv=%s filter=%s dp=%s size=%s '
           'gs_device=%s' %
-          (obj_num, obj.Get('Width'), obj.Get('Height'),
-           colorspace_short, bpc, decode_kind == 'inverted', obj.Get('Filter'),
-           int(bool(obj.Get('DecodeParms'))), obj.size, gs_device))
+          (obj_num, obj.get('Width'), obj.get('Height'),
+           colorspace_short, bpc, decode_kind == 'inverted', obj.get('Filter'),
+           int(bool(obj.get('DecodeParms'))), obj.size, gs_device))
 
       # TODO(pts): Is this necessary? If so, add it back.
       #obj = PdfObj(obj)
@@ -7535,16 +7440,16 @@ class PdfData(object):
         # TODO(pts): Do the image data inversion here in Python code if
         # decode_kind == 'inverted'. This way we can avoid emitting
         # `/Decode [1 0]'.
-        image1 = ImageData().LoadPdfImageObj(
+        image1 = ImageData().load_pdf_image_obj(
             obj=obj, do_zip=False, decode_kind=decode_kind)
-        if not image1.CanBePngImage(do_ignore_compression=True):
+        if not image1.can_be_png_image(do_ignore_compression=True):
           raise FormatUnsupported('cannot save to PNG')
         # We try to invert (do_try_invert=True) to get rid of `/Decode [1 0]',
         # thus saving a few bytes.
-        image2 = ImageData(image1).CompressToZipPng(
+        image2 = ImageData(image1).compress_to_zip_png(
             do_try_invert=image1.is_inverted)
         # image2 won't be None here.
-      except FormatUnsupported, e:
+      except FormatUnsupported as e:
         #LogProportionalInfo('LoadPdfImageObj does not support obj: %s' % e)
         image1 = image2 = None
 
@@ -7555,13 +7460,13 @@ class PdfData(object):
         obj2 = PdfObj(None)
         obj2.head = '<<>>'
         obj2.stream = obj.stream
-        if len(obj2.stream) > int(obj.Get('Length')):
-           obj2.stream = obj2.stream[:int(obj.Get('Length'))]
-        obj2.Set('Length', len(obj2.stream))
-        obj2.Set('Subtype', '/Image')
+        if len(obj2.stream) > int(obj.get('Length')):
+           obj2.stream = obj2.stream[:int(obj.get('Length'))]
+        obj2.set('Length', len(obj2.stream))
+        obj2.set('Subtype', '/Image')
         for name in ('Width', 'Height', 'ColorSpace', 'Decode', 'Filter',
                      'DecodeParms', 'BitsPerComponent'):
-          obj2.Set(name, obj.Get(name))
+          obj2.set(name, obj.get(name))
         device_image_objs[gs_device][obj_num] = obj2
       else:
         assert image1 is not image2
@@ -7573,19 +7478,19 @@ class PdfData(object):
           # image1.file_name is None.
           images[obj_num].append(('parse-image1', image1))
         # Saving it so it can be converted with sam2p_np.
-        image2.SavePng(file_name=TMP_PREFIX + 'img-%d.parse.png' % obj_num)
+        image2.save_png(file_name=TMP_PREFIX + 'img-%d.parse.png' % obj_num)
         images[obj_num].append(('parse', image2))
 
     if not images:  # No images => no conversion.
       return self
-    LogInfo('optimizing %s images of %s bytes in total' %
-            (image_count, image_total_size))
+    log_info('optimizing %s images of %s bytes in total' %
+             (image_count, image_total_size))
 
     sam2p_np_pattern = sam2p_pr_pattern = None
     img_cmd_patterns2 = []
     has_jbig2 = False
     for cmd_pattern in img_cmd_patterns:
-      cmd_name = GetCmdName(cmd_pattern)
+      cmd_name = get_cmd_name(cmd_pattern)
       if cmd_name == 'sam2p_np':
         sam2p_np_pattern = cmd_pattern
       elif cmd_name == 'sam2p_pr':
@@ -7603,7 +7508,7 @@ class PdfData(object):
       objs = device_image_objs[gs_device]
       if objs:
         # Dictionary mapping object numbers to /Image PdfObj{}s.
-        rendered_images = self.RenderImages(
+        rendered_images = self.render_images(
             objs=objs, ps_tmp_file_name=ps_tmp_file_name, gs_device=gs_device,
             png_tmp_file_pattern=TMP_PREFIX + 'img-%%04d.%s.tmp.png' % gs_device)
         os.remove(ps_tmp_file_name)
@@ -7612,7 +7517,7 @@ class PdfData(object):
           # ImageRenderer does the inversion, we mustn't need to set
           # ImageData().Load(..., is_inverted=True) below.
           images[obj_num].append(
-              ('gs', ImageData().Load(file_name=rendered_images[obj_num])))
+              ('gs', ImageData().load(file_name=rendered_images[obj_num])))
         rendered_images = None  # Save memory.
     device_img_objs = None  # Save memory.
 
@@ -7643,22 +7548,22 @@ class PdfData(object):
       #   image optimizers are tried: img_cmd_patterns. It's essential that
       #   each image optimizer can read PNG files, because oi_image is a PNG.
       obj_images = images[obj_num]
-      obj_width = PdfObj.ResolveReferences(obj.Get('Width'), self.objs)
-      obj_height = PdfObj.ResolveReferences(obj.Get('Height'), self.objs)
+      obj_width = PdfObj.resolve_references(obj.get('Width'), self.objs)
+      obj_height = PdfObj.resolve_references(obj.get('Height'), self.objs)
       for method, image in obj_images:
         wd_ht = (obj_width, obj_height)
         i_wd_ht = (image.width, image.height)
         assert wd_ht == i_wd_ht, (obj_num, wd_ht, i_wd_ht, method, obj.head)
       assert obj_images
       assert obj_images[-1][0] in ('parse', 'gs')
-      obj_images[-1][1].MaybeConvertToGray1()
-      rendered_tuple = obj_images[-1][1].ToDataTuple()
+      obj_images[-1][1].maybe_convert_to_gray1()
+      rendered_tuple = obj_images[-1][1].to_data_tuple()
       target_image = by_rendered_tuple.get(rendered_tuple)
       if target_image is not None:  # We have already rendered this image.
         # For testing: pts2.zip.4timesb.pdf
         # This is just a speed optimization so we don't have to run
         # sam2p or imgdataopt again.
-        LogProportionalInfo(
+        log_proportional_info(
             'using already rendered image for obj %s' % obj_num)
         assert obj_width == target_image.width
         assert obj_height == target_image.height
@@ -7668,22 +7573,22 @@ class PdfData(object):
       elif (do_fast_bilevel_images and has_jbig2 and
             obj_images[-1][1].bpc == 1 and
             obj_images[-1][1].color_type in ('gray', 'indexed-rgb') and
-            obj_images[-1][1].CanCompressToZipPng() and
+            obj_images[-1][1].can_compress_to_zip_png() and
             (obj_width * obj_height) >> 16):  # Shortcut to do jbig2 only.
         oi_image = obj_images[-1][1]
         if not (oi_image.color_type == 'gray' and
                 oi_image.compression == 'zip-png' and
                 (oi_image.file_name or '').endswith('.png')):
           oi_image = ImageData(oi_image)
-          oi_image.CompressToZipPng(
+          oi_image.compress_to_zip_png(
               do_try_invert=oi_image.is_inverted, effort=3)
-          oi_image.SavePng(
+          oi_image.save_png(
               file_name=TMP_PREFIX + 'img-%d.save-oi.png' % obj_num,
               do_force_gray=True)
           obj_images.append(('jbig2_oi', oi_image))
         obj_images_size = len(obj_images)
         for cmd_pattern in img_cmd_patterns:
-          cmd_name = GetCmdName(cmd_pattern)
+          cmd_name = get_cmd_name(cmd_pattern)
           if 'jbig2' in cmd_name:
             obj_images.append(self._ConvertImageWithJbig2(
                 oi_image, cmd_name, cmd_pattern, obj_num, 'gray'))
@@ -7697,7 +7602,7 @@ class PdfData(object):
         rendered_image_is_inverted = obj_images[-1][1].is_inverted
         assert rendered_image_file_name is not None
         assert rendered_image_file_name.endswith('.png')
-        obj_images.append(self.ConvertImage(
+        obj_images.append(self.convert_image(
             sourcefn=rendered_image_file_name,
             is_inverted=rendered_image_is_inverted,
             need_gray=(obj_num in force_grayscale_obj_nums),
@@ -7742,19 +7647,19 @@ class PdfData(object):
           if (obj_width * obj_height) >> 16:
             do_save_oi_fast = True
             img_cmd_patterns = [cmd_pattern for cmd_pattern in img_cmd_patterns
-                                if 'jbig2' in GetCmdName(cmd_pattern)]
+                                if 'jbig2' in get_cmd_name(cmd_pattern)]
           else:
             do_save_oi_fast = False
             img_cmd_patterns = [
                 cmd_pattern for cmd_pattern in img_cmd_patterns
-                if not self._IsSlowCmdName(GetCmdName(cmd_pattern))]
-        image_tuple = np_image.ToDataTuple()
+                if not self._IsSlowCmdName(get_cmd_name(cmd_pattern))]
+        image_tuple = np_image.to_data_tuple()
         target_image = by_image_tuple.get(image_tuple)
         if target_image is not None:  # We have already optimized this image.
           # For testing: pts2.ziplzw.pdf
           # The latest sam2p and imgdataopt are deterministic, so the bytes
           # of the file produced by them depend only on the RGB image data.
-          LogProportionalInfo(
+          log_proportional_info(
               'using already processed image for obj %s' % obj_num)
           obj_images.append(('#prev-processed-best', target_image))
           target_image = None  # Save memory.
@@ -7767,9 +7672,9 @@ class PdfData(object):
             #            instead of np_image here, thus not having to save a
             #            temporary .png?
             obj_images.append(('save_oi', ImageData(np_image)
-                .CompressToZipPng(do_try_invert=np_image.is_inverted,
-                                  effort=(9 - 6 * do_save_oi_fast))
-                .SavePng(file_name=TMP_PREFIX + 'img-%d.save-oi.png' % obj_num)
+                .compress_to_zip_png(do_try_invert=np_image.is_inverted,
+                                     effort=(9 - 6 * do_save_oi_fast))
+                .save_png(file_name=TMP_PREFIX + 'img-%d.save-oi.png' % obj_num)
                 ))
             np_image = None  # Save memory reference.
           else:
@@ -7779,7 +7684,7 @@ class PdfData(object):
             # generates a .png), and sam2p can't reliably read .pdf files,
             # because it runs `gs -sDEVICE=pnmraw', to which some
             # Ghostscript versions report `Unknown device: pnmraw'.
-            obj_images.append(self.ConvertImage(
+            obj_images.append(self.convert_image(
                 sourcefn=rendered_image_file_name,
                 is_inverted=rendered_image_is_inverted,
                 need_gray=(obj_num in force_grayscale_obj_nums),
@@ -7802,7 +7707,7 @@ class PdfData(object):
           #    (maybe to UpdatePdfObj)
           cmd_names_used = set()
           for cmd_pattern in img_cmd_patterns:
-            cmd_name = GetCmdName(cmd_pattern)
+            cmd_name = get_cmd_name(cmd_pattern)
             if not cmd_name or cmd_name in ('sam2p_pr', 'sam2p_np'):
               continue
             if cmd_name in cmd_names_used:
@@ -7825,7 +7730,7 @@ class PdfData(object):
               # New pngout if: 'Unable to compress further: copying
               # original file'
               return_none_if_status = 0x200
-            image_item = self.ConvertImage(
+            image_item = self.convert_image(
                 sourcefn=oi_image.file_name,
                 is_inverted=oi_image.is_inverted,
                 need_gray=(obj_num in force_grayscale_obj_nums),
@@ -7848,11 +7753,11 @@ class PdfData(object):
       obj_infos = [(obj.size, '#orig', '', obj, None)]
       # Populate obj_infos from obj_images.
       for cmd_name, image_data in obj_images:
-        if obj.Get('ImageMask') and not image_data.CanUpdateImageMask():
+        if obj.get('ImageMask') and not image_data.can_update_image_mask():
           # We can't use this optimized image, so we skip it.
           # No warning for what was rendered by Ghostscript.
           if cmd_name != 'gs':
-            LogWarning(
+            log_warning(
                 'skipping bpc=%s color_type=%s file_name=%r '
                 'for image XObject %s because of source /ImageMask' %
                 (image_data.bpc, image_data.color_type, image_data.file_name,
@@ -7861,7 +7766,7 @@ class PdfData(object):
         if (obj_num in force_grayscale_obj_nums and
             image_data.color_type != 'gray'):
           if cmd_name != 'gs':
-            LogWarning(
+            log_warning(
                 'skipping bpc=%s color_type=%s file_name=%r '
                 'for image XObject %s because grayscale is needed' %
                 (image_data.bpc, image_data.color_type, image_data.file_name,
@@ -7869,9 +7774,9 @@ class PdfData(object):
           continue
         new_obj = PdfObj(obj)
         # Resolve references.
-        new_obj.Set('Width', obj_width)
-        new_obj.Set('Height', obj_height)
-        image_data.UpdatePdfObj(new_obj)
+        new_obj.set('Width', obj_width)
+        new_obj.set('Height', obj_height)
+        image_data.update_pdf_obj(new_obj)
         obj_infos.append((new_obj.size, cmd_name, image_data.file_name,
                           new_obj, image_data))
       del obj_images[:]  # Free memory.
@@ -7889,14 +7794,14 @@ class PdfData(object):
       # properly ([0] first)) if one of them is an object. So we implement
       # our own comparator.
       # !! TODO(pts): Analyze this. How does sorted(...) break here?
-      def CompareStr(a, b):
+      def compare_str(a, b):
         return (a < b and -1) or (a > b and 1) or 0
 
-      def CompareObjInfo(a, b):
+      def compare_obj_info(a, b):
         # Compare first by byte size, then by command name.
-        return a[0].__cmp__(b[0]) or CompareStr(a[1], b[1])
+        return a[0].__cmp__(b[0]) or compare_str(a[1], b[1])
 
-      obj_infos.sort(CompareObjInfo)
+      obj_infos.sort(compare_obj_info)
       method_sizes = ','.join(
           ['%s:%s' % (obj_info[1], obj_info[0]) for obj_info in obj_infos])
 
@@ -7907,26 +7812,26 @@ class PdfData(object):
         #   optimized ones, e.g. when running pdfsizeopt again.
         # * !! Originals in eurotex2006.final.pdf tend to be smaller here,
         #   because they have ColorSpace in a separate XObject.
-        LogProportionalInfo(
+        log_proportional_info(
             'keeping original image XObject %s, '
             'replacements too large: %s' %
             (obj_num, method_sizes))
       else:
         assert obj_infos[0][3] is not obj
-        LogProportionalInfo(
+        log_proportional_info(
             'optimized image XObject %s file_name=%s '
             'size=%s (%s) methods=%s' %
             (obj_num, obj_infos[0][2], obj_infos[0][0],
-             FormatPercent(obj_infos[0][0], obj.size), method_sizes))
+             format_percent(obj_infos[0][0], obj.size), method_sizes))
         bytes_saved += self.objs[obj_num].size - obj_infos[0][0]
-        if ('/JBIG2Decode' in (obj_infos[0][3].Get('Filter') or '') and
+        if ('/JBIG2Decode' in (obj_infos[0][3].get('Filter') or '') and
             self.version < '1.4'):
           self.version = '1.4'
-        assert obj_infos[0][3].Get('Width') == obj_width
-        assert obj_infos[0][3].Get('Height') == obj_height
+        assert obj_infos[0][3].get('Width') == obj_width
+        assert obj_infos[0][3].get('Height') == obj_height
         self.objs[obj_num] = obj = obj_infos[0][3]
         if (obj_num in force_grayscale_obj_nums and
-            obj.Get('ColorSpace') != '/DeviceGray'):
+            obj.get('ColorSpace') != '/DeviceGray'):
           raise AssertionError(
               'SMask image %d must have /ColorSpace /DeviceGray.' % obj_num)
         # At this point, obj.Get('Mask') contains `x y R' if it contained it
@@ -7939,21 +7844,21 @@ class PdfData(object):
         # case for len(obj_info) == 1.
         # TODO(pts): Investigate why the original image can be the smallest.
       del obj_infos[:]  # Free memory occupied by unchosen images.
-    LogInfo(
+    log_info(
         'saved %s bytes (%s) on optimizable images' %
-        (bytes_saved, FormatPercent(bytes_saved, image_total_size)))
+        (bytes_saved, format_percent(bytes_saved, image_total_size)))
     # !! compress PDF palette to a new object if appropriate
 
     for obj_num in modify_obj_nums:
       self.objs[obj_num] = PdfObj(self.objs[modify_obj_nums[obj_num]])
     for obj_num in removed_entries:
       obj = self.objs[obj_num]
-      for name, value in removed_entries[obj_num].iteritems():
-        obj.Set(name, value)
+      for name, value in removed_entries[obj_num].items():
+        obj.set(name, value)
 
     return self
 
-  def FixAllBadNumbers(self):
+  def fix_all_bad_numbers(self):
     # !!! Remove this once PdfObj.__init__ does it.
     # buggy pdfTeX-1.21a generated
     # /Matrix[1. . . 1. . .]/BBox[. . 612. 792.]
@@ -7964,17 +7869,17 @@ class PdfData(object):
       obj = self.objs[obj_num]
       if (obj.head.startswith('<<') and
           # !!! TODO(pts): Do proper PDF token sequence parsing.
-          re.search(r'/Subtype[\0\t\n\r\f ]*/Form\b', obj.head) and
-          obj.Get('Subtype') == '/Form'):
-        matrix = obj.Get('Matrix')
+          re.search(r'/Subtype[\x00\t\n\r\f ]*/Form\b', obj.head) and
+          obj.get('Subtype') == '/Form'):
+        matrix = obj.get('Matrix')
         if isinstance(matrix, str):
-          obj.Set('Matrix', obj.GetBadNumbersFixed(matrix))
-        bbox = obj.Get('BBox')
+          obj.set('Matrix', obj.get_bad_numbers_fixed(matrix))
+        bbox = obj.get('BBox')
         if isinstance(bbox, str):
-          obj.Set('BBox', obj.GetBadNumbersFixed(bbox))
+          obj.set('BBox', obj.get_bad_numbers_fixed(bbox))
     return self
 
-  def RemoveUnusedObjs(self):
+  def remove_unused_objs(self):
     """Removes unused objects from self.objs."""
     # Since PdfObj.head is a safe token sequence, we can use PDF_SIMPLE_REF_RE
     # to find references.
@@ -8001,11 +7906,10 @@ class PdfData(object):
         del objs[obj_num]
         unused_count += 1
     if unused_count:
-      LogInfo('eliminated %d unused objs, depth=%d' % (unused_count, depth))
+      log_info('eliminated %d unused objs, depth=%d' % (unused_count, depth))
 
   @classmethod
-  def FindEqclasses(cls, objs, do_remove_unused=False, do_renumber=False,
-                    do_unify_pages=True):
+  def find_eqclasses(cls, objs, do_remove_unused=False, do_renumber=False, do_unify_pages=True):
     """Find equivalence classes in objs, return new objs.
 
     Args:
@@ -8034,7 +7938,7 @@ class PdfData(object):
       head = objs[obj_num].head
       # !! TODO(pts): reorder dicts to canonical order
       # CompressValue changes all generational refs to generation 0.
-      head_minus = PdfObj.CompressValue(
+      head_minus = PdfObj.compress_value(
           head, obj_num_map='0', old_obj_nums_ret=refs_to,
           do_emit_strings_as_hex=True)
       stream = objs[obj_num].stream
@@ -8046,7 +7950,7 @@ class PdfData(object):
           search_todo.append(desc)
       elif (not do_unify_pages and
             stream is None and head_minus.startswith('<<') and
-            objs[obj_num].Get('Type') == '/Page'):
+            objs[obj_num].get('Type') == '/Page'):
         # Make sure that /Page objects are not unified. xpdf and evince
         # display the error message `Loop in Pages tree' (but still display
         # the PDF) if we unify equivalent pages, but since the PDF spec
@@ -8081,7 +7985,7 @@ class PdfData(object):
           refs_to = desc[3]
           eqlist = [desc]
           nelist = []
-          for i in xrange(1, len(eqclass)):
+          for i in range(1, len(eqclass)):
             descb = eqclass[i]
             refs_tob = descb[3]
             j = 0
@@ -8103,7 +8007,7 @@ class PdfData(object):
     eliminated_count = len(objs) - len(eqclasses)
     assert eliminated_count >= 0
     if eliminated_count > 0:
-      LogInfo('eliminated %s duplicate objs' % eliminated_count)
+      log_info('eliminated %s duplicate objs' % eliminated_count)
 
     # Set of eqclass-leader object numbers.
     unused_obj_nums = set()
@@ -8123,7 +8027,7 @@ class PdfData(object):
       if not do_remove_unused:
         unused_obj_nums.clear()
       elif unused_obj_nums:
-        LogInfo(
+        log_info(
             'eliminated %s unused objs in %s classes' %
             (sum([len(eqclass_of[obj_num]) for obj_num in unused_obj_nums]),
              len(unused_obj_nums)))
@@ -8132,7 +8036,7 @@ class PdfData(object):
     obj_num_map = {}
     if do_renumber:
 
-      def CompareDesc(desc_a, desc_b):
+      def compare_desc(desc_a, desc_b):
         """Order by decreasing inrefs_count, then increasing obj_num."""
         return (desc_b[4].__cmp__(desc_a[4]) or  # inrefs_count
                 desc_a[0].__cmp__(desc_b[0]))    # original obj_num
@@ -8140,7 +8044,7 @@ class PdfData(object):
       descs = [eqclass[0] for eqclass in eqclasses
                if not isinstance(eqclass[0][0], str) and
                eqclass[0][0] not in unused_obj_nums]
-      descs.sort(CompareDesc)
+      descs.sort(compare_desc)
       i = 0
       for desc in descs:
         i += 1
@@ -8155,14 +8059,14 @@ class PdfData(object):
       refs_to_rev = refs_to[:]
       refs_to_rev.reverse()
 
-      def ReplacementRef(match):
+      def replacement_ref(match):
         match_obj_num = int(match.group(1))
         assert match_obj_num == 0  # Real ref target is in refs_to_rev[-1].
         assert refs_to_rev
         target_obj_num = refs_to_rev.pop()
         new_class = eqclass_of.get(target_obj_num)
         if new_class is None:
-          LogWarning(
+          log_warning(
               'obj %s missing, referenced by objs %r...' %
               (target_obj_num, [desc[0] for desc in eqclass]))
           return 'null'
@@ -8170,7 +8074,7 @@ class PdfData(object):
           new_obj_num = new_class[0][0]
           return '%s 0 R' % obj_num_map.get(new_obj_num, new_obj_num)
 
-      head = PdfObj.PDF_SIMPLE2_REF_RE.sub(ReplacementRef, head_minus)
+      head = PdfObj.PDF_SIMPLE2_REF_RE.sub(replacement_ref, head_minus)
       assert not refs_to_rev
 
       # Since above we've called PdfObj.CompressValue(...,
@@ -8178,7 +8082,7 @@ class PdfData(object):
       # binary instead) here.
       head = PdfObj.PDF_HEX_STRING_OR_DICT_RE.sub(
           lambda match: (match.group(1) is not None and
-              PdfObj.SerializePdfStringSafe(match.group(1).decode('hex'))
+              PdfObj.serialize_pdf_string_safe(match.group(1).decode('hex'))
               or '<<'), head)
       obj = PdfObj(None)
       obj.head = head
@@ -8187,7 +8091,7 @@ class PdfData(object):
 
     return objs_ret
 
-  def OptimizeStreams(self, do_decompress_only=False):
+  def optimize_streams(self, do_decompress_only=False):
     """Recompress all non-image streams, keep the smallest.
 
     Args:
@@ -8204,7 +8108,7 @@ class PdfData(object):
         skipped_count += 1
         continue
       if ('/Subtype' in obj.head and '/Image' in obj.head and
-          obj.Get('Subtype') == '/Image'):
+          obj.get('Subtype') == '/Image'):
         # Force regeneration from obj._cache, give self.OptimizeObjs a better
         # chance to find duplicates.
         #
@@ -8215,22 +8119,22 @@ class PdfData(object):
         continue
 
       obj_infos = []
-      if obj.HasUncompressedStream():
+      if obj.has_uncompressed_stream():
         data, filter_value = obj.stream, None
-        obj.Set('Filter', None)
-        obj.Set('DecodeParms', None)
+        obj.set('Filter', None)
+        obj.set('DecodeParms', None)
         # '#' has a small ASCII code, so prefer '#orig' to 'zip'.
         obj_infos.append((obj.size, '#orig', obj))
       else:
-        filter_value = str(obj.Get('Filter'))
+        filter_value = str(obj.get('Filter'))
         # Keep objects with lossy filters untouched.
         if ('/DCTDecode' in filter_value or '/JPXDecode' in filter_value):
           skipped_count += 1
           continue
         try:
-          data = obj.GetUncompressedStream(self.objs)
-        except (FilterNotImplementedError, FilterError), e:
-          LogWarning(
+          data = obj.get_uncompressed_stream(self.objs)
+        except (FilterNotImplementedError, FilterError) as e:
+          log_warning(
               'error decompressing obj %d: %s' %
               (obj_num, e))
           counts['#dec-error'] = counts.get('#dec-error', 0) + 1
@@ -8238,9 +8142,9 @@ class PdfData(object):
         obj_infos.append((obj.size, '#orig', obj))
         obj2 = PdfObj(obj)
         obj2.stream = data
-        obj2.Set('Filter', None)
-        obj2.Set('DecodeParms', None)
-        obj2.Set('Length', len(obj2.stream))
+        obj2.set('Filter', None)
+        obj2.set('DecodeParms', None)
+        obj2.set('Length', len(obj2.stream))
         obj_infos.append((obj2.size, 'uncompressed', obj2))
         del obj2  # Save memory.
 
@@ -8250,9 +8154,9 @@ class PdfData(object):
         # Try flate with maximum effort.
         obj2 = PdfObj(obj)
         obj2.stream = zlib.compress(data, 9)
-        obj2.Set('Length', len(obj2.stream))
-        obj2.Set('Filter', '/FlateDecode')
-        obj2.Set('DecodeParms', None)
+        obj2.set('Length', len(obj2.stream))
+        obj2.set('Filter', '/FlateDecode')
+        obj2.set('DecodeParms', None)
         obj_infos.append((obj2.size, 'zip', obj2))
         del obj2  # Save memory.
 
@@ -8270,13 +8174,13 @@ class PdfData(object):
     else:
       what = 'optimized'
     if counts:
-      msg = ', '.join('%d %s' % (c, k) for k, c in sorted(counts.iteritems()))
+      msg = ', '.join('%d %s' % (c, k) for k, c in sorted(counts.items()))
     else:
       msg = 'none'
-    LogInfo(
+    log_info(
         '%s %d streams, kept %s' % (what, len(self.objs) - skipped_count, msg))
 
-  def DecompressStreams(self, is_flate_only):
+  def decompress_streams(self, is_flate_only):
     """Decompress stream data in most objects.
 
     This usually greatly increases the size of the PDF file, but it's a useful
@@ -8298,7 +8202,7 @@ class PdfData(object):
       msg_word = 'streams'
     for pdf_obj in self.objs.itervalues():
       if pdf_obj.head.startswith('<<') and substring in pdf_obj.head:
-        filter_value = pdf_obj.Get('Filter')
+        filter_value = pdf_obj.get('Filter')
         if isinstance(filter_value, str):  # Should always be true (except None).
           if is_flate_only:
             do_decompress = '/FlateDecode' in filter_value
@@ -8308,14 +8212,14 @@ class PdfData(object):
                 '/DCTDecode' not in filter_value and
                 '/JPXDecode' not in filter_value)
           if do_decompress:
-            pdf_obj.stream = pdf_obj.GetUncompressedStream(self.objs)
-            pdf_obj.Set('Filter', None)
-            pdf_obj.Set('DecodeParms', None)
-            pdf_obj.Set('Length', len(pdf_obj.stream))
+            pdf_obj.stream = pdf_obj.get_uncompressed_stream(self.objs)
+            pdf_obj.set('Filter', None)
+            pdf_obj.set('DecodeParms', None)
+            pdf_obj.set('Length', len(pdf_obj.stream))
             uncompress_count += 1
-    LogInfo('decompressed %d %s' % (uncompress_count, msg_word))
+    log_info('decompressed %d %s' % (uncompress_count, msg_word))
 
-  def CompressUncompressedStreams(self):
+  def compress_uncompressed_streams(self):
     """Compress uncompressed stream data in all objects.
 
     Only /FlateDecode will be tried. If it's larger than the original, then
@@ -8325,17 +8229,17 @@ class PdfData(object):
     for pdf_obj in self.objs.itervalues():
       if (pdf_obj.stream is not None and
           pdf_obj.head.startswith('<<') and
-          pdf_obj.Get('Filter') in (None, '[]')):
-        pdf_obj.SetStreamAndCompress(
-            pdf_obj.GetUncompressedStream(self.objs), pdf=self)
-        if pdf_obj.Get('Filter'):
+          pdf_obj.get('Filter') in (None, '[]')):
+        pdf_obj.set_stream_and_compress(
+            pdf_obj.get_uncompressed_stream(self.objs), pdf=self)
+        if pdf_obj.get('Filter'):
           uncompressed_count += 1
         compress_count += 1
-    LogInfo(
+    log_info(
         'compressed %d streams, kept %d of them uncompressed' %
         (compress_count, uncompressed_count))
 
-  def OptimizeObjs(self, do_unify_pages):
+  def optimize_objs(self, do_unify_pages):
     """Optimize PDF objects.
 
     This method does the following:
@@ -8358,7 +8262,7 @@ class PdfData(object):
     """
     # TODO(pts): Inline ``obj null endobj'' and ``obj<<>>endobj'' etc.
     self.objs['trailer'] = self.trailer
-    new_objs = self.FindEqclasses(
+    new_objs = self.find_eqclasses(
         self.objs, do_remove_unused=True, do_renumber=True,
         do_unify_pages=do_unify_pages)
     self.trailer = new_objs.pop('trailer')
@@ -8366,8 +8270,8 @@ class PdfData(object):
     self.objs.update(new_objs)
     return self
 
-  def ParseSequentially(self, data, file_name=None, offsets_out=None,
-                        obj_num_by_ofs_out=None, setitem_callback=None):
+  def parse_sequentially(self, data, file_name=None, offsets_out=None,
+                         obj_num_by_ofs_out=None, setitem_callback=None):
     """Load a PDF by parsing the file data sequentially.
 
     This method overrides the old contents of self from data.
@@ -8401,14 +8305,14 @@ class PdfData(object):
     elif not isinstance(obj_num_by_ofs_out, dict):
       raise TypeError
 
-    def DefaultSetItem(obj_num, pdf_obj, unused_end_ofs):
+    def default_set_item(obj_num, pdf_obj, unused_end_ofs):
       if obj_num is not None:
         if obj_num in self.objs:
           raise PdfTokenParseError('duplicate object number %s' % obj_num)
         self.objs[obj_num] = pdf_obj
 
     if setitem_callback is None:
-      setitem_callback = DefaultSetItem
+      setitem_callback = default_set_item
 
     match = PdfObj.PDF_VERSION_HEADER_RE.search(buffer(data, 0, 256))
     if not match:
@@ -8481,13 +8385,13 @@ class PdfData(object):
         i = trailer_ofs
         del end_ofs_out[:]
         # TODO(pts): What if there are multiple trailers (linearized)?
-        self.trailer = PdfObj.ParseTrailer(
+        self.trailer = PdfObj.parse_trailer(
             data, start=i, end_ofs_out=end_ofs_out)
-        self.trailer.Set('XRefStm', None)
-        self.trailer.Set('Prev', None)
-        if self.trailer.Get('Type') is not None:
+        self.trailer.set('XRefStm', None)
+        self.trailer.set('Prev', None)
+        if self.trailer.get('Type') is not None:
           raise PdfTokenParseError(
-              'unexpected trailer obj type: %s' % self.trailer.Get('Type'))
+              'unexpected trailer obj type: %s' % self.trailer.get('Type'))
         i = end_ofs_out[-1]
         if data[i : i + 1] in ws:
           i += 1
@@ -8523,10 +8427,10 @@ class PdfData(object):
       try:
         pdf_obj = PdfObj(data, start=i, end_ofs_out=end_ofs_out, file_ofs=i,
                          objs=length_objs)
-      except PdfIndirectLengthError, exc:
+      except PdfIndirectLengthError as exc:
         # For testing: eurotex2006.final.pdf and lme_v6.pdf
         if obj_starts is None:
-          obj_starts, self.has_generational_objs = self.ParseUsingXref(
+          obj_starts, self.has_generational_objs = self.parse_using_xref(
               data,
               do_ignore_generation_numbers=self.do_ignore_generation_numbers)
         j = obj_starts[exc.length_obj_num]
@@ -8541,9 +8445,9 @@ class PdfData(object):
       obj_num_by_ofs_out[i] = obj_num
       if xref_ofs == i:
         self.trailer = pdf_obj
-        if self.trailer.Get('Type') != '/XRef':
+        if self.trailer.get('Type') != '/XRef':
           raise PdfTokenParseError(
-              'unexpected trailer obj type: %s' % self.trailer.Get('Type'))
+              'unexpected trailer obj type: %s' % self.trailer.get('Type'))
       assert end_ofs_out[-1] > i
       i = end_ofs_out[-1]
       setitem_callback(obj_num, pdf_obj, i)  # self.objs[obj_num] = pdf_obj
@@ -8561,19 +8465,19 @@ class PdfData(object):
     if self.trailer is None:
       raise PdfTokenParseError('trailer/xref obj not found')
     # Postcondition of the code above.
-    assert self.trailer.Get('Type') in ('/XRef', None)
+    assert self.trailer.get('Type') in ('/XRef', None)
     return self
 
   @classmethod
-  def ComputePdfStatistics(cls, file_name):
+  def compute_pdf_statistics(cls, file_name):
     """Compute statistics for the specified PDF file."""
-    LogInfo('computing statistics for PDF: %s' % file_name)
+    log_info('computing statistics for PDF: %s' % file_name)
     f = open(file_name, 'rb')
     try:
       data = f.read()
     finally:
       f.close()
-    LogInfo('PDF size is %s bytes' % len(data))
+    log_info('PDF size is %s bytes' % len(data))
 
     offsets_out = []
     offsets_idx = [0]
@@ -8613,11 +8517,11 @@ class PdfData(object):
     other_stream_obj_nums = set()
     other_nonstream_obj_nums = set()
 
-    def AddRefToSet(ref_data, set_obj):
+    def add_ref_to_set(ref_data, set_obj):
       if not isinstance(ref_data, str):
         raise PdfTokenParseError('not a reference (in a string)')
       if ref_data.startswith('['):
-        ref_items = PdfObj.ParseArray(ref_data)
+        ref_items = PdfObj.parse_array(ref_data)
       else:
         ref_items = [ref_data]
       for ref_data in ref_items:
@@ -8635,7 +8539,7 @@ class PdfData(object):
 
     pdf = PdfData()
 
-    def SetItemCallback(obj_num, pdf_obj, end_ofs):
+    def set_item_callback(obj_num, pdf_obj, end_ofs):
       if obj_num is None:
         assert isinstance(pdf_obj, str)
         if end_ofs in (
@@ -8658,12 +8562,12 @@ class PdfData(object):
         stats['trailer'] += obj_size - xref_size
         return
       if (pdf_obj.stream is None or
-          (pdf_obj.head.startswith('<<') and pdf_obj.Get('Type') == '/ObjStm')):
+          (pdf_obj.head.startswith('<<') and pdf_obj.get('Type') == '/ObjStm')):
         other_nonstream_obj_nums.add(obj_num)
       else:
         other_stream_obj_nums.add(obj_num)
       if pdf_obj.head.startswith('<<'):
-        if pdf_obj.Get('Type') == '/ObjStm':
+        if pdf_obj.get('Type') == '/ObjStm':
           # We have to parse this to find /Contents and /FontFile*
           # references.
 
@@ -8674,53 +8578,53 @@ class PdfData(object):
           # other_nonstream_objs consume more than 50% in
           # pdf_reference_1-7.pdf.
 
-          obj_data = pdf_obj.GetUncompressedStream()
-          for head in PdfObj.ParseArray('[%s]' % obj_data):
+          obj_data = pdf_obj.get_uncompressed_stream()
+          for head in PdfObj.parse_array('[%s]' % obj_data):
             if isinstance(head, str) and head.startswith('<<'):
-              dict_obj = PdfObj.ParseDict(head)
+              dict_obj = PdfObj.parse_dict(head)
               if (dict_obj.get('Type') == '/Page' and
                   'Contents' in dict_obj):
-                AddRefToSet(dict_obj['Contents'], drawing_obj_nums)
+                add_ref_to_set(dict_obj['Contents'], drawing_obj_nums)
               if dict_obj.get('Type') in ('/FontDescriptor', None):
                 for key in PdfObj.PDF_FONT_FILE_KEYS:
                   ref_data = dict_obj.get(key)
                   if isinstance(ref_data, str):
                     try:
-                      AddRefToSet(ref_data, font_data_obj_nums)
+                      add_ref_to_set(ref_data, font_data_obj_nums)
                     except PdfTokenParseError:
                       pass
-        elif (pdf_obj.Get('Type') == '/Page' and
-              pdf_obj.Get('Contents') is not None):
-          AddRefToSet(pdf_obj.Get('Contents'), drawing_obj_nums)
-        elif pdf_obj.Get('Subtype') == '/Form':
+        elif (pdf_obj.get('Type') == '/Page' and
+              pdf_obj.get('Contents') is not None):
+          add_ref_to_set(pdf_obj.get('Contents'), drawing_obj_nums)
+        elif pdf_obj.get('Subtype') == '/Form':
           drawing_obj_nums.add(obj_num)
 
         # Some PDFs generated by early pdftexs have /Type/FontDescriptor
         # missing.
-        if pdf_obj.Get('Type') in ('/FontDescriptor', None):
+        if pdf_obj.get('Type') in ('/FontDescriptor', None):
           for key in PdfObj.PDF_FONT_FILE_KEYS:
-            ref_data = pdf_obj.Get(key)
+            ref_data = pdf_obj.get(key)
             if isinstance(ref_data, str):
               try:
-                AddRefToSet(ref_data, font_data_obj_nums)
+                add_ref_to_set(ref_data, font_data_obj_nums)
               except PdfTokenParseError:
                 pass
 
         # TODO(pts): reorder parsing to resolve future objects in
         # objs=pdf.objs below.
-        if (pdf_obj.Get('Subtype') == '/Image' or
-            pdf_obj.DetectInlineImage(objs=pdf.objs)):
+        if (pdf_obj.get('Subtype') == '/Image' or
+            pdf_obj.detect_inline_image(objs=pdf.objs)):
           if obj_num in drawing_obj_nums:
             drawing_obj_nums.remove(obj_num)
-          if '/DCTDecode' in str(pdf_obj.Get('Filter')):
+          if '/DCTDecode' in str(pdf_obj.get('Filter')):
             jpeg_image_obj_nums.add(obj_num)
           else:
             nonjpeg_image_obj_nums.add(obj_num)
 
-    pdf.ParseSequentially(
+    pdf.parse_sequentially(
         data=data, file_name=file_name, offsets_out=offsets_out,
         obj_num_by_ofs_out=obj_num_by_ofs_out,
-        setitem_callback=SetItemCallback)
+        setitem_callback=set_item_callback)
 
     obj_num_arys = (nonjpeg_image_obj_nums, jpeg_image_obj_nums,
                     drawing_obj_nums, font_data_obj_nums)
@@ -8766,10 +8670,10 @@ class PdfData(object):
     # if trailer_obj_num[0] is None: ...  # Without xref stream.
 
     for key in sorted(stats):
-      LogInfo(
+      log_info(
           'stat %s = %s bytes (%s)' %
-          (key, stats[key], FormatPercentTwoDigits(stats[key], len(data))))
-    LogInfo('end of stats')
+          (key, stats[key], format_percent_two_digits(stats[key], len(data))))
+    log_info('end of stats')
     assert not [1 for value in stats.itervalues() if value < 0], (
         'stats has negative values')
     sum_stats = sum(stats.itervalues())
@@ -8779,7 +8683,7 @@ class PdfData(object):
     return stats
 
   @classmethod
-  def MSBFirstToInteger(cls, s):
+  def msb_first_to_integer(cls, s):
     """Convert a string containing a base-256 MSBFirst number to an integer."""
     # TODO(pts): Optimize this, including calls.
     assert isinstance(s, str)
@@ -8797,10 +8701,10 @@ class PdfData(object):
       return ret
 
   @classmethod
-  def FixPdfFromMultivalent(cls, data, output,
-                            do_generate_xref_stream=True,
-                            do_generate_object_stream=True,
-                            is_flate_ok=True):
+  def fix_pdf_from_multivalent(cls, data, output,
+                               do_generate_xref_stream=True,
+                               do_generate_object_stream=True,
+                               is_flate_ok=True):
     """Fix PDF contents file in data, generated by Mulitvalent.jar.
 
     Args:
@@ -8829,12 +8733,12 @@ class PdfData(object):
     in_offsets = []
     obj_num_by_in_ofs = {}
     # TODO(pts): Use a setitem_callback here to save memory.
-    pdf = cls().ParseSequentially(  # PdfData().
+    pdf = cls().parse_sequentially(  # PdfData().
         data=data, offsets_out=in_offsets,
         obj_num_by_ofs_out=obj_num_by_in_ofs)
     assert pdf.trailer.stream is not None
     if not is_flate_ok:
-      pdf.DecompressStreams(is_flate_only=True)
+      pdf.decompress_streams(is_flate_only=True)
     # in_offsets[-1] is the offset of `startxref', in_offsets[-2] is (for
     # Multivalent) the offset of the /Type/XRef trailer_obj. Since both pdf
     # and pdf_objs are local, it's OK to modify objects in place.
@@ -8856,20 +8760,20 @@ class PdfData(object):
         'The /Type/XRef trailer must be the last object.')
     if trailer_obj.stream is None:
       raise PdfTokenParseError('expected xref stream from Multivalent')
-    if trailer_obj.Get('Type') != '/XRef':
+    if trailer_obj.get('Type') != '/XRef':
       raise PdfTokenParseError('expected /Type/XRef from Multivalent')
     in_offsets_limit = len(in_offsets) - 2  # No `startxref', no trailer_obj.
 
-    trailer_obj.Set('ID', None)
-    trailer_obj.Set('XRefStm', None)
-    trailer_obj.Set('Compress', None)  # Specific to Multivalent.
-    if trailer_obj.Get('Index') is not None:
+    trailer_obj.set('ID', None)
+    trailer_obj.set('XRefStm', None)
+    trailer_obj.set('Compress', None)  # Specific to Multivalent.
+    if trailer_obj.get('Index') is not None:
       # Multivalent doesn't generate /Index. It would be easy to add support
       # here though.
       raise NotImplementedError('Unexpected /Index in xref object.')
-    if trailer_obj.Get('Prev') is not None:
+    if trailer_obj.get('Prev') is not None:
       raise NotImplementedError('Unexpected /Prev in xref object.')
-    trailer_obj.Set('Prev', None)  # Superfluous, just to emphasise it.
+    trailer_obj.set('Prev', None)  # Superfluous, just to emphasise it.
 
     # Keep initial comments, including the '%PDF-' header.
     output.extend(('%PDF-', version, '\n%\xD0\xD4\xC5\xD0\n',))
@@ -8878,10 +8782,10 @@ class PdfData(object):
     out_ofs_by_num = {}
 
     in_ofs_by_num = {}
-    for offsets_idx in xrange(len(in_offsets) - 1):
+    for offsets_idx in range(len(in_offsets) - 1):
       obj_ofs = in_offsets[offsets_idx]
       obj_num = obj_num_by_in_ofs[obj_ofs]
-      if type(obj_num) not in (int, long):
+      if not isinstance(obj_num, int):
         raise PdfTokenParseError
       if obj_num < 1:
         raise PdfTokenParseError
@@ -8891,7 +8795,7 @@ class PdfData(object):
     # Process individual objects emitted by Multivalent.
     objstm_objs = {}  # Map object numbers to PdfObj of /Type/ObjStm.
     has_objstm_obj = False
-    for offsets_idx in xrange(in_offsets_limit):
+    for offsets_idx in range(in_offsets_limit):
       obj_ofs = in_offsets[offsets_idx]
       obj_num = obj_num_by_in_ofs[obj_ofs]
       obj_size = in_offsets[offsets_idx + 1] - obj_ofs
@@ -8904,18 +8808,18 @@ class PdfData(object):
         head = pdf_obj.head
         if ('/Subtype/ImagE' in head and
             ('/FilteR/' in head or '/FilteR[' in head)):
-          subtype = pdf_obj.Get('Subtype')
-          filtercap = pdf_obj.Get('FilteR')
-          decodeparmscap = pdf_obj.Get('DecodeParmS')
+          subtype = pdf_obj.get('Subtype')
+          filtercap = pdf_obj.get('FilteR')
+          decodeparmscap = pdf_obj.get('DecodeParmS')
           if subtype == '/ImagE' and isinstance(filtercap, str):
-            pdf_obj.Set('Subtype', '/Image')
-            assert pdf_obj.Get('Filter') == '/JPXDecode'
-            pdf_obj.Set('Filter', filtercap)
-            pdf_obj.Set('FilteR', None)
-            pdf_obj.Set('DecodeParms', decodeparmscap)
-            pdf_obj.Set('DecodeParmS', None)
+            pdf_obj.set('Subtype', '/Image')
+            assert pdf_obj.get('Filter') == '/JPXDecode'
+            pdf_obj.set('Filter', filtercap)
+            pdf_obj.set('FilteR', None)
+            pdf_obj.set('DecodeParms', decodeparmscap)
+            pdf_obj.set('DecodeParmS', None)
         if '/Type/ObjStm' in head:
-          obj_type = pdf_obj.Get('Type')
+          obj_type = pdf_obj.get('Type')
           if obj_type == '/ObjStm':
             has_objstm_obj = True
             if not do_generate_object_stream:
@@ -8927,7 +8831,7 @@ class PdfData(object):
         output_size += len(output[output_size_idx])
         output_size_idx += 1
       out_ofs_by_num[obj_num] = old_output_size = output_size
-      pdf_obj.AppendTo(output, obj_num, do_emit_short_unsafe=True)
+      pdf_obj.append_to(output, obj_num, do_emit_short_unsafe=True)
       while output_size_idx < len(output):
         output_size += len(output[output_size_idx])
         output_size_idx += 1
@@ -8958,7 +8862,7 @@ class PdfData(object):
     # much, because its only benefit would be that we could forget /Type/ObjStm
     # objects unreferenced from the xref stream earlier -- but Multivalent
     # doesn't emit such unreferenced objects.
-    w0, w1, w2, unused_index, xref_data = trailer_obj.GetXrefStream()
+    w0, w1, w2, unused_index, xref_data = trailer_obj.get_xref_stream()
     if (do_generate_xref_stream and
         bool(do_generate_object_stream) == bool(has_objstm_obj)):
       xref_out = bytearray(xref_data)
@@ -8973,14 +8877,14 @@ class PdfData(object):
       # See Table 3.16 Entries in a cross-reference stream in
       # pdf_reference_1-7.pdf.
       if w0:
-        f0 = cls.MSBFirstToInteger(xref_data[i : i + w0])
+        f0 = cls.msb_first_to_integer(xref_data[i: i + w0])
         i += w0
       else:
         f0 = 1
-      f1 = cls.MSBFirstToInteger(xref_data[i : i + w1])
+      f1 = cls.msb_first_to_integer(xref_data[i: i + w1])
       i += w1
       if w2:
-        f2 = cls.MSBFirstToInteger(xref_data[i : i + w2])
+        f2 = cls.msb_first_to_integer(xref_data[i: i + w2])
         i += w2
       else:
         f2 = 0
@@ -9034,13 +8938,13 @@ class PdfData(object):
       # anyway.
       #
       # For testing: issue57.pdf.
-      trailer_obj.Set('Type', None)
-      trailer_obj.Set('W', None)
-      trailer_obj.Set('Filter', None)
-      trailer_obj.Set('Length', None)
-      trailer_obj.Set('DecodeParms', None)
-      trailer_obj.Set('Index', None)
-      trailer_obj.Set('Size', None)
+      trailer_obj.set('Type', None)
+      trailer_obj.set('W', None)
+      trailer_obj.set('Filter', None)
+      trailer_obj.set('Length', None)
+      trailer_obj.set('DecodeParms', None)
+      trailer_obj.set('Index', None)
+      trailer_obj.set('Size', None)
       trailer_obj.stream = None
       pdf = cls()  # PdfData().
       pdf.version = version
@@ -9055,10 +8959,10 @@ class PdfData(object):
       del output[:]
       output_size_idx = 0
       output_size = 0
-      pdf.AppendSerializedPdf(output=output,
-                              do_generate_xref_stream=True,
-                              do_generate_object_stream=True,
-                              is_flate_ok=is_flate_ok)
+      pdf.append_serialized_pdf(output=output,
+                                do_generate_xref_stream=True,
+                                do_generate_object_stream=True,
+                                is_flate_ok=is_flate_ok)
       del pdf  # Save memory.
     else:
       assert not (not do_generate_object_stream and has_objstm_obj and
@@ -9075,8 +8979,8 @@ class PdfData(object):
           objstm_items = objstm_cache.get(f1)
           if objstm_items is None:
             compressed_obj_nums, compressed_obj_headbufs = (
-                objstm_objs[f1].ParseObjStm(ref_obj_num))
-            for i in xrange(len(compressed_obj_nums)):
+                objstm_objs[f1].parse_obj_stm(ref_obj_num))
+            for i in range(len(compressed_obj_nums)):
               compressed_obj_num = compressed_obj_nums[i]
               cf12 = compressed_objects.get(compressed_obj_num)
               assert cf12, (
@@ -9098,8 +9002,8 @@ class PdfData(object):
             output_size += len(output[output_size_idx])
             output_size_idx += 1
           out_ofs_by_num[ref_obj_num] = output_size
-          compressed_pdf_obj.AppendTo(output, ref_obj_num,
-                                      do_emit_short_unsafe=True)
+          compressed_pdf_obj.append_to(output, ref_obj_num,
+                                       do_emit_short_unsafe=True)
         del objstm_cache  # Save memory.
       del compressed_objects, objstm_objs  # Save memory.
       while output_size_idx < len(output):
@@ -9117,7 +9021,7 @@ class PdfData(object):
           trailer_obj.stream = None  # For GenerateXrefStream.
           # GenerateXrefStream() also sets or clears /Type, /W, /Filter,
           # /Length, /DecodeParms, /Index and /Size of trailer_obj properly.
-          cls.GenerateXrefStream(
+          cls.generate_xref_stream(
               obj_numbers=sorted(out_ofs_by_num), xref_ofs=xref_ofs,
               trailer_obj_num=out_trailer_obj_num, trailer_obj=trailer_obj,
               obj_ofs=out_ofs_by_num, objstm_obj_num=None,
@@ -9132,16 +9036,16 @@ class PdfData(object):
           #
           # We use may_keep_old= to keep the old, compressed xref_data in case
           # it's smaller than what we could create.
-          trailer_obj.SetStreamAndCompress(
+          trailer_obj.set_stream_and_compress(
               xref_out, may_keep_old=(xref_out == xref_data and is_flate_ok),
               predictor_width=(w0 + w1 + w2), is_flate_ok=is_flate_ok)
-        LogInfo(
+        log_info(
             ' compressed xref stream from %s to %s bytes (%s)' %
             (len(xref_data), trailer_obj.size,
-             FormatPercent(trailer_obj.size, len(xref_data))))
+             format_percent(trailer_obj.size, len(xref_data))))
         del xref_out, xref_data  # Save memory.
-        trailer_obj.AppendTo(output, out_trailer_obj_num,
-                             do_emit_short_unsafe=True)
+        trailer_obj.append_to(output, out_trailer_obj_num,
+                              do_emit_short_unsafe=True)
         while output_size_idx < len(output):
           output_size += len(output[output_size_idx])
           output_size_idx += 1
@@ -9157,13 +9061,13 @@ class PdfData(object):
           done_obj_num += 1
         # done_obj_num is now max_obj_num + 1.
         output[xref_idx] = 'xref\n0 %d\n' % done_obj_num
-        trailer_obj.Set('Type', None)
-        trailer_obj.Set('W', None)
-        trailer_obj.Set('Filter', None)
-        trailer_obj.Set('Length', None)
-        trailer_obj.Set('DecodeParms', None)
-        trailer_obj.Set('Index', None)
-        trailer_obj.Set('Size', done_obj_num)
+        trailer_obj.set('Type', None)
+        trailer_obj.set('W', None)
+        trailer_obj.set('Filter', None)
+        trailer_obj.set('Length', None)
+        trailer_obj.set('DecodeParms', None)
+        trailer_obj.set('Index', None)
+        trailer_obj.set('Size', done_obj_num)
         output.append('trailer\n%s\n' % trailer_obj.head)
 
       output.append('startxref\n%d\n' % xref_ofs)
@@ -9173,9 +9077,9 @@ class PdfData(object):
     while output_size_idx < len(output):
       output_size += len(output[output_size_idx])
       output_size_idx += 1
-    LogInfo(
+    log_info(
         'optimized to %s bytes after Multivalent (%s)' %
-        (output_size, FormatPercent(output_size, len(data))))
+        (output_size, format_percent(output_size, len(data))))
     if (do_generate_xref_stream and output_size > len(data) and
         (do_generate_object_stream or not has_objstm_obj) and
         is_flate_ok):
@@ -9213,9 +9117,9 @@ class PdfData(object):
     out_pdf_tmp_file_name = self.PDFDATA_MULTIVALENT_EXT_SUB_RE.sub(
         '', in_pdf_tmp_file_name) + '-o.pdf'
 
-    LogInfo('writing Multivalent input PDF: %s' % in_pdf_tmp_file_name)
+    log_info('writing Multivalent input PDF: %s' % in_pdf_tmp_file_name)
     tmp_output = []
-    in_data_size = self.AppendSerializedPdf(
+    in_data_size = self.append_serialized_pdf(
         output=tmp_output, do_hide_images=do_escape_images,
         do_generate_xref_stream=True,
         do_generate_object_stream=True)
@@ -9225,7 +9129,7 @@ class PdfData(object):
     finally:
       f.close()
     del tmp_output  # Save memory.
-    LogInfo(
+    log_info(
         'written %s bytes to Multivalent input PDF: %s' %
         (in_data_size, in_pdf_tmp_file_name))
 
@@ -9243,18 +9147,18 @@ class PdfData(object):
     # multivalent.std.adaptor.pdf.Dict cannot be cast to
     # multivalent.std.adaptor.pdf.IRef
     multivalent_cmd = '%s %s %s' % (
-        multivalent_compress_command, multivalent_flags,
-        ShellQuoteFileName(in_pdf_tmp_file_name))
-    EnsureRemoved(out_pdf_tmp_file_name)
-    LogInfo('executing Multivalent to optimize PDF: %s' % multivalent_cmd)
+      multivalent_compress_command, multivalent_flags,
+      shell_quote_file_name(in_pdf_tmp_file_name))
+    ensure_removed(out_pdf_tmp_file_name)
+    log_info('executing Multivalent to optimize PDF: %s' % multivalent_cmd)
     sys.stdout.flush()
-    romode = (None, False)[NeedToolLogOutput()]
+    romode = (None, False)[need_tool_log_output()]
     status = os.system(RedirectOutput(multivalent_cmd, mode=romode))
 
     if status:
-      LogFatal('Multivalent failed, status=0x%x' % status)
+      log_fatal('Multivalent failed, status=0x%x' % status)
     if not os.path.isfile(out_pdf_tmp_file_name):
-      LogFatal('Multivalent has not created output: %s' % out_pdf_tmp_file_name)
+      log_fatal('Multivalent has not created output: %s' % out_pdf_tmp_file_name)
 
     f = open(out_pdf_tmp_file_name, 'rb')
     try:
@@ -9262,15 +9166,15 @@ class PdfData(object):
     finally:
       f.close()
     out_data_size = len(data)
-    LogInfo(
+    log_info(
         'Multivalent generated %s of %d bytes (%s)' %
         (out_pdf_tmp_file_name,
-         out_data_size, FormatPercent(out_data_size, in_data_size)))
+         out_data_size, format_percent(out_data_size, in_data_size)))
     assert out_data_size, (
         'Multivalent generated empty output (see its error above)')
     return data, (in_pdf_tmp_file_name, out_pdf_tmp_file_name)
 
-  def Save(self, file_name, display_file_name, multivalent_compress_command,
+  def save(self, file_name, display_file_name, multivalent_compress_command,
            do_update_file_meta,
            do_escape_images_from_multivalent,
            do_generate_xref_stream,
@@ -9290,16 +9194,13 @@ class PdfData(object):
     """
     if not display_file_name:
       display_file_name = file_name
-    assert do_generate_xref_stream or not do_generate_object_stream, (
-        'Object streams need an xref stream.')
+    assert do_generate_xref_stream or not do_generate_object_stream, 'Object streams need an xref stream.'
     if multivalent_compress_command:
       with_multivalent_msg = 'with Multivalent '
     else:
       with_multivalent_msg = ''
-    LogInfo(
-        'saving PDF with %s objs %sto: %s' %
-        (len(self.objs), with_multivalent_msg, display_file_name))
-    self._AssertBeforeWrite()
+    log_info('saving PDF with %s objs %sto: %s' % (len(self.objs), with_multivalent_msg, display_file_name))
+    self._assert_before_write()
 
     jobs = [[dict(
         is_flate_ok=is_flate_ok,
@@ -9322,7 +9223,7 @@ class PdfData(object):
             is_flate_ok=is_flate_ok, do_generate_xref_stream=False,
             do_generate_object_stream=False), 'nostm', 2, None])
     if len(jobs) > 1:
-      LogInfo('trying %d jobs and using the smallest' % len(jobs))
+      log_info('trying %d jobs and using the smallest' % len(jobs))
 
     if multivalent_compress_command:
       multivalent_output_data, tmp_files_to_remove = self._RunMultivalent(
@@ -9335,16 +9236,16 @@ class PdfData(object):
     for job in jobs:
       output = []
       if multivalent_compress_command:
-        output_size = self.FixPdfFromMultivalent(
+        output_size = self.fix_pdf_from_multivalent(
             data=multivalent_output_data, output=output, **job[0])
       else:
-        output_size = self.AppendSerializedPdf(
+        output_size = self.append_serialized_pdf(
             output=output, **job[0])
       if len(jobs) > 1:
-        LogInfo(
+        log_info(
             'job %s generated %d bytes %s(%s)' %
             (job[1], output_size, with_multivalent_msg,
-             FormatPercent(output_size, self.file_size)))
+             format_percent(output_size, self.file_size)))
       job[3] = ''.join(output)
       del output  # Save memory.
       assert len(job[3]) == output_size
@@ -9358,18 +9259,18 @@ class PdfData(object):
         # Smallest output size first, then simplicity first.
         return len(joba[3]).__cmp__(len(jobb[3])) or jobb[2].__cmp__(joba[2])
       jobs.sort(CompareJob)
-      LogInfo(
+      log_info(
           'jobs result: %s' %
           (' '.join(['%s=%d' % (job[1], len(job[3])) for job in jobs])))
       del jobs[1:]  # Save memory.
 
     output_size = len(jobs[0][3])
-    LogInfo(
+    log_info(
         'generated %d bytes %s(%s)' %
         (output_size, with_multivalent_msg,
-         FormatPercent(output_size, self.file_size)))
+         format_percent(output_size, self.file_size)))
     if output_size > self.file_size:
-      LogWarning('optimized PDF larger than original')
+      log_warning('optimized PDF larger than original')
     f = open(file_name, 'wb')
     try:
       f.write(jobs[0][3])
@@ -9392,7 +9293,7 @@ BOOL_VALUES = {
 }
 
 
-def ParseBoolFlag(key, flag_value):
+def parse_bool_flag(key, flag_value):
   flag_value_lower = flag_value.lower()
   if flag_value_lower not in BOOL_VALUES:
     raise getopt.GetoptError('flag %s=%s needs a bool value' %
@@ -9400,7 +9301,7 @@ def ParseBoolFlag(key, flag_value):
   return BOOL_VALUES[flag_value_lower]
 
 
-def ParseUintFlag(key, flag_value):
+def parse_uint_flag(key, flag_value):
   flag_value_lower = flag_value.lower()
   try:
     value = int(flag_value)
@@ -9413,7 +9314,7 @@ def ParseUintFlag(key, flag_value):
   return value
 
 
-def GetDir(file_name):
+def get_dir(file_name):
   readlink = getattr(os, 'readlink', None)  # Not available on Windows.
   if readlink:
     while 1:
@@ -9447,7 +9348,7 @@ IMAGE_OPTIMIZER_CMD_MAP = {
     'sam2p_pr': 'sam2p -j:quiet -c zip:15:9 %(sam2p_pr_gray_flags)s-- %(sourcefnq)s %(targetfnq)s',
 }
 
-def GetVersionSpec(zip_file):
+def get_version_spec(zip_file):
   if zip_file and os.path.isfile(zip_file):
     main_file = zip_file
     zip_msg = ' ZIP'
@@ -9467,7 +9368,7 @@ def GetVersionSpec(zip_file):
   return 'pdfsizeopt%s r%s size=%s' % (zip_msg, rev or 'UNKNOWN', size)
 
 
-def GetUsedScriptDir(script_dir, zip_file):
+def get_used_script_dir(script_dir, zip_file):
   # script_file = sys.modules['__main__'].__file__
   if script_dir:
     return script_dir
@@ -9477,7 +9378,7 @@ def GetUsedScriptDir(script_dir, zip_file):
     return os.path.dirname(os.path.abspath(__file__))
 
 
-def GetLibexecDir(used_script_dir):
+def get_libexec_dir(used_script_dir):
   if sys.platform.startswith('win'):
     xdir = os.path.join(used_script_dir, 'pdfsizeopt_win32exec')
     if os.path.isdir(xdir):
@@ -9488,8 +9389,8 @@ def GetLibexecDir(used_script_dir):
   return None
 
 
-def PrependToPath(extrapath_dir):
-  LogInfo('prepending to PATH: %s' % extrapath_dir)
+def prepend_to_path(extrapath_dir):
+  log_info('prepending to PATH: %s' % extrapath_dir)
   # When adding to the PATH, we mustn't call ShellQuote on extrapath_dir on
   # Unix systems. On Windows XP ... Windows 10, it works with or without
   # ShellQuote (i.e. "s round the directory name), but on wine-1.6.2, directory
@@ -9498,7 +9399,7 @@ def PrependToPath(extrapath_dir):
       extrapath_dir, os.pathsep, os.getenv('PATH', ''))
 
 
-def SetupTmpPrefix(output_file_name, tmp_dir):
+def setup_tmp_prefix(output_file_name, tmp_dir):
   global TMP_PREFIX  # !! TODO(pts): Pass it around? Or GetGsCommand()?
   if not tmp_dir:
     if sys.platform.startswith('win'):
@@ -9520,29 +9421,29 @@ def SetupTmpPrefix(output_file_name, tmp_dir):
     TMP_PREFIX = TMP_PREFIX.replace('/', os.sep)
 
 
-def DisplayHelp(mode, argv0):
-  LogInfo(
+def display_help(mode, argv0):
+  log_info(
       'usage for statistics computation: %s --stats <input.pdf>' % argv0)
-  LogInfo(
+  log_info(
       'usage for size optimization: %s [<flag>...] '
       '<input.pdf> [<output.pdf>]' % argv0)
   if mode == 'helpshort':
-    LogInfo('specify --help to get help on each flag')
+    log_info('specify --help to get help on each flag')
   else:
-    LogInfo('flags:\n\n%s' % FLAGS_HELP.strip())
+    log_info('flags:\n\n%s' % FLAGS_HELP.strip())
 
 
 class Flags(object):
   """Class for parsing the command-line of pdfsizeopt."""
 
   BOOL_FLAG_WITH_DEFAULT_RE = re.compile(
-      r'(--\w[-\w]*)=YES_NO;(?: default: (yes|no)|(?s).*)\Z')
+      r'(--\w[-\w]*)=YES_NO;(?: default: (yes|no)|(.|\n)*)\Z')
 
   FLAG_PREFIX_RE = re.compile(r'--(\w[-\w]*=?)')
 
   def __init__(self):
     f = self
-    self.SetDefaultsFromHelp(FLAGS_HELP)  # Only for bools.
+    self.set_defaults_from_help(FLAGS_HELP)  # Only for bools.
     # TODO(pts): Add =auto for use_pngout, use_jbig2, use_multivalent.
     f.use_pngout = f.use_jbig2 = f.use_sam2p_pr = None
     f.mode = 'optimize'
@@ -9551,7 +9452,7 @@ class Flags(object):
     f.verbosity = 190
     f.tmp_dir = None
 
-  def SetDefaultsFromHelp(self, help_text):
+  def set_defaults_from_help(self, help_text):
     _BOOL_FLAG_WITH_DEFAULT_RE = self.BOOL_FLAG_WITH_DEFAULT_RE
     _FLAG_PREFIX_RE = self.FLAG_PREFIX_RE
     self.getopt_flag_names = getopt_flag_names = []
@@ -9561,14 +9462,14 @@ class Flags(object):
       if match:
         assert match.group(2), 'Invalid bool flag syntax: ' + line
         flag_name = match.group(1)[2:].replace('-', '_')
-        setattr(self, flag_name, ParseBoolFlag(match.group(1), match.group(2)))
+        setattr(self, flag_name, parse_bool_flag(match.group(1), match.group(2)))
         bool_flag_names.add(flag_name)
       match = _FLAG_PREFIX_RE.match(line)
       if match:
         getopt_flag_names.append(match.group(1))  # Multiple times OK.
 
-  def Parse(self, argv):
-    def LongHasArgs(opt, longopts):
+  def parse(self, argv):
+    def long_has_args(opt, longopts):
       if opt in longopts:
         return False, opt
       elif opt + '=' in longopts:
@@ -9578,7 +9479,7 @@ class Flags(object):
 
     # Disable prefix matching, e.g. disable `--use-pngo=no'.
     # TODO(pts): Undo this and make it thread-safe.
-    getopt.long_has_args = LongHasArgs
+    getopt.long_has_args = long_has_args
 
     f = self
     if len(argv) < 2:
@@ -9602,22 +9503,22 @@ class Flags(object):
           # Special value 'none' and 'none' are also OK.
           f.img_cmds.append(value)
       elif flag_name == 'do_double_check_missing_glyphs':  # Legacy flag name.
-        f.do_double_check_type1c_output = ParseBoolFlag(key, value)
+        f.do_double_check_type1c_output = parse_bool_flag(key, value)
       elif flag_name == 'v':
-        f.verbosity = ParseUintFlag(key, value)
+        f.verbosity = parse_uint_flag(key, value)
       elif flag_name == 'quiet':
         f.verbosity = 20
       elif flag_name == 'tmp_dir':
         setattr(f, flag_name, value)
       elif flag_name in f.bool_flag_names:
-        setattr(f, flag_name, ParseBoolFlag(key, value))
+        setattr(f, flag_name, parse_bool_flag(key, value))
       else:
         assert False, 'unknown flag %s' % key  # Can't happen, getopt output.
 
 
 def main(argv, script_dir=None, zip_file=None):
   global VERBOSITY
-  welcome_msg = 'This is %s.' % GetVersionSpec(zip_file)
+  welcome_msg = 'This is %s.' % get_version_spec(zip_file)
   try:
     if not argv:
       argv = ['pdfsizeopt']
@@ -9625,7 +9526,7 @@ def main(argv, script_dir=None, zip_file=None):
     # TODO(pts): Use `import win32api; print(win32api.GetCommandLine())' on
     # Windows to detect double quotes around file names, and thus accept a PDF
     # with double quotes in the file name.
-    f.Parse(argv)
+    f.parse(argv)
     VERBOSITY = f.verbosity
 
     if f.mode == 'stats':
@@ -9662,7 +9563,7 @@ def main(argv, script_dir=None, zip_file=None):
       if f.use_sam2p_pr is True or (f.use_sam2p_pr is None and is_no_img_cmds):
         f.img_cmds.append('sam2p_pr')
       if not [1 for cmd_pattern in f.img_cmds
-              if GetCmdName(cmd_pattern) == 'sam2p_np']:
+              if get_cmd_name(cmd_pattern) == 'sam2p_np']:
         f.img_cmds.append('sam2p_np')  # Enabled by default.
       img_cmd_patterns = []
       for cmd in f.img_cmds:
@@ -9672,7 +9573,7 @@ def main(argv, script_dir=None, zip_file=None):
         cmd_pattern = IMAGE_OPTIMIZER_CMD_MAP.get(cmd, cmd).strip()
         if not cmd_pattern:
           continue
-        cmd_name = GetCmdName(cmd_pattern)
+        cmd_name = get_cmd_name(cmd_pattern)
         if not cmd_name:
           raise getopt.GetoptError(
               'command name missing from image optimizer command: %s' %
@@ -9687,50 +9588,50 @@ def main(argv, script_dir=None, zip_file=None):
         raise getopt.GetoptError('--do-generate-object-stream=yes requires '
                                  '--do-generate-xref-stream=yes')
 
-  except getopt.GetoptError, exc:
-    LogFatal(
+  except getopt.GetoptError as exc:
+    log_fatal(
         '%s\nfatal: error in command line: %s' % (welcome_msg, exc), 1)
 
   if f.mode in ('help', 'helpshort'):
     f.verbosity = VERBOSITY = 190  # Make `--quiet --help' also display.
-    LogInfo(welcome_msg)
-    DisplayHelp(f.mode, argv[0])
+    log_info(welcome_msg)
+    display_help(f.mode, argv[0])
     return
-  LogInfo(welcome_msg)
+  log_info(welcome_msg)
   if f.do_debug_image_optimizers:
-    LogInfo('will use image optimizers: %r' % img_cmd_patterns)
+    log_info('will use image optimizers: %r' % img_cmd_patterns)
   if f.mode == 'version':
     return  # Version printed above.
   if f.mode == 'stats':
     # TMP_PREFIX can be needed for /Type/ObjStm decompression with gs.
     file_name = f.args[0]
-    SetupTmpPrefix(file_name, f.tmp_dir)
-    PdfData.ComputePdfStatistics(file_name=file_name)
+    setup_tmp_prefix(file_name, f.tmp_dir)
+    PdfData.compute_pdf_statistics(file_name=file_name)
     return
   assert f.mode == 'optimize'  # Implemented below.
 
-  used_script_dir = GetUsedScriptDir(script_dir, zip_file)
-  libexec_dir = GetLibexecDir(used_script_dir)
+  used_script_dir = get_used_script_dir(script_dir, zip_file)
+  libexec_dir = get_libexec_dir(used_script_dir)
   if libexec_dir is not None:
-    PrependToPath(libexec_dir)  # Find external tools in libexec_dir first...
+    prepend_to_path(libexec_dir)  # Find external tools in libexec_dir first...
   else:
-    PrependToPath(used_script_dir)  # ... otherwise, find them in script dir.
+    prepend_to_path(used_script_dir)  # ... otherwise, find them in script dir.
   del used_script_dir  # Make sure it's not used.
 
   # Call it before the first call to GetGsCommand(...).
-  SetupTmpPrefix(output_file_name, f.tmp_dir)
+  setup_tmp_prefix(output_file_name, f.tmp_dir)
 
   if f.do_debug_gs:
-    LogInfo('PATH: %s' % os.getenv('PATH', ''))
-    LogInfo('getcwd: %s' % os.getcwd())
-    LogInfo(
+    log_info('PATH: %s' % os.getenv('PATH', ''))
+    log_info('getcwd: %s' % os.getcwd())
+    log_info(
         'found working Ghostscript: %s' %
-        GetGsCommand(is_verbose=True))
+        get_gs_command(is_verbose=True))
 
   if not f.use_multivalent:
     multivalent_compress_command = None
   else:
-    multivalent_compress_command = GetMultivalentCompressCommand(
+    multivalent_compress_command = get_multivalent_compress_command(
         libexec_dir)
 
   has_not_found = False
@@ -9743,20 +9644,20 @@ def main(argv, script_dir=None, zip_file=None):
     else:
       cmd_prog = (cmd_pattern.split() or ('',))[0]
     if not cmd_prog:
-      LogFatal('empty image optimizer program: %s' % cmd_prog, 1)
+      log_fatal('empty image optimizer program: %s' % cmd_prog, 1)
     if os.path.isabs(cmd_prog):
       if not os.path.isfile(cmd_prog):
-        LogError('image optimizer not found: %s' % cmd_prog)
+        log_error('image optimizer not found: %s' % cmd_prog)
         has_not_found = True
       else:
         img_cmd_patterns_good.append(cmd_pattern)
-    elif not FindExeOnPath(cmd_prog):
-      LogError('image optimizer not found on PATH: %s' % cmd_prog)
+    elif not find_exe_on_path(cmd_prog):
+      log_error('image optimizer not found on PATH: %s' % cmd_prog)
       has_not_found = True
     else:
       img_cmd_patterns_good.append(cmd_pattern)
   if has_not_found and f.do_require_image_optimizers:
-    LogFatal(
+    log_fatal(
         'not all image optimizers found (see above), '
         'ignore with --do-require-image-optimizers=no', 3)
   img_cmd_patterns = img_cmd_patterns_good
@@ -9766,50 +9667,48 @@ def main(argv, script_dir=None, zip_file=None):
 
   # It's OK that file_name == output_file_name: we don't read and write them
   # at the same time.
-  pdf = PdfData(
-      do_ignore_generation_numbers=f.do_ignore_generation_numbers,
-      ).Load(file_name)
-  pdf.RemoveUnusedObjs()
-  pdf.FixAllBadNumbers()
+  pdf = PdfData(do_ignore_generation_numbers=f.do_ignore_generation_numbers).load(file_name)
+  pdf.remove_unused_objs()
+  pdf.fix_all_bad_numbers()
   if f.do_optimize_fonts:
-    pdf.ConvertType1FontsToType1C()
-    pdf.OptimizeType1CFonts(
+    pdf.convert_type_1_fonts_to_type_1c()
+    pdf.optimize_type_1c_fonts(
         do_keep_font_optionals=f.do_keep_font_optionals,
         do_double_check_type1c_output=f.do_double_check_type1c_output,
         do_unify_fonts=f.do_unify_fonts,
         do_regenerate_all_fonts=f.do_regenerate_all_fonts)
   if f.do_optimize_images:
-    pdf.ConvertInlineImagesToXObjects()
-    pdf.OptimizeImages(
+    pdf.convert_inline_images_to_x_objects()
+    pdf.optimize_images(
         img_cmd_patterns=img_cmd_patterns,
         do_fast_bilevel_images=f.do_fast_bilevel_images)
   if f.do_optimize_streams:
     # We call this before pdf.OptimizeObjs, so pdf.OptimizeObjs can found
     # more duplicate objs (in case the same stream data was compressed
     # differently).
-    pdf.OptimizeStreams(do_decompress_only=f.do_decompress_most_streams)
+    pdf.optimize_streams(do_decompress_only=f.do_decompress_most_streams)
   if f.do_optimize_objs or f.do_remove_generational_objs:
     # TODO(pts): Do only a simpler optimization with renumbering if
     # f.do_optimize_objs is false and f.do_remove_generational_objs is true.
-    pdf.OptimizeObjs(do_unify_pages=f.do_unify_pages)
+    pdf.optimize_objs(do_unify_pages=f.do_unify_pages)
   elif f.do_optimize_obj_heads:
-    pdf.trailer.head = PdfObj.CompressValue(pdf.trailer.head)
+    pdf.trailer.head = PdfObj.compress_value(pdf.trailer.head)
     for obj in pdf.objs.itervalues():
-      obj.head = PdfObj.CompressValue(obj.head)
+      obj.head = PdfObj.compress_value(obj.head)
   if f.do_decompress_most_streams:
     # TODO(pts): Also decompress in Multivalent output.
-    pdf.DecompressStreams(is_flate_only=False)
+    pdf.decompress_streams(is_flate_only=False)
   elif f.do_decompress_flate:
     # TODO(pts): Also decompress in Multivalent output.
-    pdf.DecompressStreams(is_flate_only=True)
+    pdf.decompress_streams(is_flate_only=True)
   # TODO(pts): Better handle which of f.do_compress_uncompressed_streams
   #            and f.do_decompress_most_streams takes precedence. Maybe
   #            that which is specified on the command-line (?).
   if (f.do_compress_uncompressed_streams and
       not f.do_decompress_most_streams and
       multivalent_compress_command is None):
-    pdf.CompressUncompressedStreams()
-  pdf.Save(
+    pdf.compress_uncompressed_streams()
+  pdf.save(
       output_file_name + '.tmp',
       display_file_name=output_file_name,
       multivalent_compress_command=multivalent_compress_command,
@@ -9819,4 +9718,4 @@ def main(argv, script_dir=None, zip_file=None):
       do_generate_object_stream=f.do_generate_object_stream,
       is_flate_ok=(f.do_compress_uncompressed_streams and
                    not f.do_decompress_most_streams))
-  Rename(output_file_name + '.tmp', output_file_name)
+  rename(output_file_name + '.tmp', output_file_name)

@@ -182,7 +182,7 @@ def MinifyPostScriptProcsets(file_name, code_orig):
     if name.startswith('__'):
       del globals_dict[name]
   names, pscodes = [], []
-  for name, pscode in sorted(globals_dict.iteritems()):
+  for name, pscode in sorted(globals_dict.items()):
     names.append(name)
     if not isinstance(pscode, str):
       raise ValueError('Expected pscode as str, got: %r' % type(pscode))
