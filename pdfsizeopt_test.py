@@ -29,8 +29,7 @@ import sys
 from lib.pdfsizeopt import cff, float_util
 
 if not ((2, 4) <= sys.version_info[:2] < (3, 0)):
-  sys.stderr.write(
-      'fatal: Python version 2.4, 2.5, 2.6 or 2.7 needed for: %s\n' % __file__)
+  sys.stderr.write('fatal: Python version 2.4, 2.5, 2.6 or 2.7 needed for: %s\n' % __file__)
   sys.exit(1)
 
 if os.path.isfile(os.path.join(
