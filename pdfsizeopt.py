@@ -13,8 +13,7 @@ try:
   script_dir = os.path.dirname(__file__)
 except (OSError, AttributeError, NotImplementedError):
   pass
-if os.path.isfile(os.path.join(
-    script_dir, 'lib', 'pdfsizeopt', 'main.py')):
+if os.path.isfile(os.path.join(script_dir, 'lib', 'pdfsizeopt', 'main.py')):
   sys.path[0] = os.path.join(script_dir, 'lib')
 
 sys.exit(main.main(sys.argv, script_dir=script_dir))
