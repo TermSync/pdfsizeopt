@@ -2,7 +2,7 @@ import re
 import zlib
 import struct
 
-from lib.pdfsizeopt.util import *
+from lib.util import *
 from lib.pdfsizeopt.PdfObj import PdfObj
 
 logger = Logger()

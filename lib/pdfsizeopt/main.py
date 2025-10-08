@@ -218,7 +218,7 @@ import os.path
 import sys
 import getopt
 
-from lib.pdfsizeopt.util import *
+from lib.util import *
 from lib.pdfsizeopt.PdfObj import PdfObj
 from lib.pdfsizeopt.PdfData import PdfData
 
@@ -702,7 +702,7 @@ def setup_tmp_prefix(output_file_name, tmp_dir):
       if output_file_name:
         tmp_dir = os.path.dirname(output_file_name)
       else:
-        tmp_dir = '.'
+        tmp_dir = '..'
   tmp_basename = 'psotmp.%d.' % os.getpid()
   if tmp_dir == '.':
     TMP_PREFIX = tmp_basename

@@ -1,3 +1,3 @@
-from lib.pdfsizeopt.util.util import *
-from lib.pdfsizeopt.util.error import *
-from lib.pdfsizeopt.util.logging import Logger
+from lib.util.util import *
+from lib.util.error import *
+from lib.util.logging import Logger

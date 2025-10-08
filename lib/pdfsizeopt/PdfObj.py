@@ -2,7 +2,7 @@ import re
 import sys
 import zlib
 
-from lib.pdfsizeopt.util import *
+from lib.util import *
 
 
 logger = Logger()
