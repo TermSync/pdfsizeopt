@@ -515,7 +515,7 @@ class PdfObj(object):
       stream_end_idx = stream_start_idx + int(match.group(1))
     else:
       # For testing: lme_v6.pdf (and eurotex2006.final.pdf?)
-      if (int(match.group(2)) != 0 and not do_ignore_generation_numbers):
+      if int(match.group(2)) != 0 and not do_ignore_generation_numbers:
         raise NotImplementedError(
             'generational refs (in /Length %s %s R) not implemented '
             'at ofs=%s' % (match.group(1), match.group(2), file_ofs))
@@ -1794,15 +1794,15 @@ class PdfObj(object):
 
     if do_emit_safe_names:
      if do_expect_postscript_name_input:
-       data = data.replace('#', '#23')
+       data = data.replace(b'#', b'#23')
        # This escapes eg. * to #2A.
-       data = cls.PDF_HEXTOKENS_SAFE_HEX_ESCAPE_RE.sub(lambda match: '#%02X' % ord(match.group()), data)
+       data = cls.PDF_HEXTOKENS_SAFE_HEX_ESCAPE_RE.sub(lambda match: b'#%02X' % ord(match.group()), data)
      else:
        # Like NormalizePdfName, but we don't need the extra check.
        data = cls._escape_pdf_names_in_hex_tokens_safe(data)
     else:
       if do_expect_postscript_name_input:
-        data = data.replace('#', '#23')
+        data = data.replace(b'#', b'#23')
       else:
         data = cls._escape_pdf_names_in_hex_tokens_optimized(data)
 
@@ -1854,7 +1854,7 @@ class PdfObj(object):
         if (match.start() == 0 or match.end() == len(data) or
             chr(data[match.start() - 1]) in '<>)[]{}' or  # % not needed.
             chr(data[match.end()]) in '/<>([]{}'):  # % not needed.
-          return ''
+          return b''
         else:
           return b' '
 
