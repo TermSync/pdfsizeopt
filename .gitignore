@@ -1,5 +1,6 @@
 *~
 *.pyc
+*.egg-info
 Multivalent.jar
 MultivalentCompress.jar
 pdfsizeopt_libexec/
@@ -11,6 +12,9 @@ docker/busybox
 docker/pdfsizeopt.single
 docker/pdfsizeopt_libexec_linux.tar.gz
 docker_extraimgopt/pdfsizeopt_libexec_extraimgopt_linux.tar.gz
+
+dist/
+build/
 
 .idea/
 *.DS_Store

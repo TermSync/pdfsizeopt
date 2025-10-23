@@ -1,3 +1,16 @@
+#!/usr/bin/python
+
+
+import re
+import os
+import os.path
+import sys
+import getopt
+
+from lib.util import *
+from lib.pdfsizeopt.PdfObj import PdfObj
+from lib.pdfsizeopt.PdfData import PdfData
+
 # pdfsizeopt: PDF file size optimizer
 #
 #   This program is free software; you can redistribute it and/or modify
@@ -30,7 +43,6 @@
 
 __author__ = 'pts@fazekas.hu (Peter Szabo)'
 
-import struct
 
 FLAGS_HELP = r"""
 --optimize; default mode
@@ -211,17 +223,6 @@ FLAGS_HELP = r"""
 # won't expand that to a useful version number.
 
 __pychecker__ = 'maxlines=999 maxlocals=99 unusednames=self,cls maxreturns=99 maxbranches=9999'
-
-import re
-import os
-import os.path
-import sys
-import getopt
-
-from lib.util import *
-from lib.pdfsizeopt.PdfObj import PdfObj
-from lib.pdfsizeopt.PdfData import PdfData
-
 
 bytearray_tostring = bytearray.__str__
 
@@ -535,7 +536,7 @@ def rename(fromfn, tofn):
   try:
     os.rename(fromfn, tofn)
     return
-  except OSError as e:
+  except OSError:
     # On Windows: WindowsError:
     # [Error 183] Cannot create a file when that file already exists.
     # sys.platform.startswith('win') and e[0] == 183):
@@ -549,8 +550,7 @@ def rename(fromfn, tofn):
         return
       except OSError as e:
         pass
-  logger.log_fatal(
-      'unable to rename from %r to %r: %s' % (fromfn, tofn, e), 4)
+        logger.log_fatal('unable to rename from %r to %r: %s' % (fromfn, tofn, e), 4)
 
 
 def find_on_path(file_name):
@@ -801,7 +801,7 @@ class Flags(object):
         assert False, 'unknown flag %s' % key  # Can't happen, getopt output.
 
 
-def main(argv, script_dir=None, zip_file=None):
+def optimize(argv, script_dir=None, zip_file=None):
   global VERBOSITY
   welcome_msg = 'This is %s.' % get_version_spec(zip_file)
   try:
@@ -891,3 +891,18 @@ def main(argv, script_dir=None, zip_file=None):
       do_generate_object_stream=f.do_generate_object_stream,
       is_flate_ok=(f.do_compress_uncompressed_streams and not f.do_decompress_most_streams))
   rename(output_file_name + '.tmp', output_file_name)
+
+
+def main():
+  __file__ = globals()['__file__']
+  print(__file__)
+  script_dir = os.path.dirname(__file__)
+  try:
+    __file__ = os.path.join(script_dir, os.readlink(__file__))
+    script_dir = os.path.dirname(__file__)
+  except (OSError, AttributeError, NotImplementedError):
+    pass
+  if os.path.isfile(os.path.join(script_dir, 'lib', 'pdfsizeopt', 'main.py')):
+    sys.path[0] = os.path.join(script_dir, 'lib')
+
+  sys.exit(optimize(sys.argv, script_dir=script_dir))
