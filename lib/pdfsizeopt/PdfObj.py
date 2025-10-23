@@ -1121,7 +1121,7 @@ class PdfObj(object):
             j += 1
         else:
           output.append(data[i : j])
-          output.append(c.to_bytes())  # Append without the backslash.
+          output.append(c.to_bytes(1, 'big'))  # Append without the backslash.
           j += 2
         i = j
       elif chr(c) == '\r':
