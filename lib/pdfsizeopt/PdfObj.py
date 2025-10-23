@@ -1443,7 +1443,7 @@ class PdfObj(object):
   @classmethod
   def _escape_pdf_names_in_hex_tokens_safe(cls, data: bytes, _cache = None):  # !!! Add unit tests.
     if _cache is None:
-      _cache = [cls.PDF_SAFE_KEEP_HEX_ESCAPED_RE.sub(lambda match: b'#%02X' % int.from_bytes(match.group()), (i).to_bytes(1)) for i in range(256)]
+      _cache = [cls.PDF_SAFE_KEEP_HEX_ESCAPED_RE.sub(lambda match: b'#%02X' % int.from_bytes(match.group()), (i).to_bytes(1, byteOrder='big')) for i in range(256)]
     """Data is a PDF token sequence containing all strings as <hex>."""
     if b'#' in data:  # Works for both strings and buffers.
       # This unescapes e.g. #41 to A, and keeps e.g. #20 escaped. It doesn't
@@ -1460,7 +1460,7 @@ class PdfObj(object):
   @classmethod
   def _escape_pdf_names_in_hex_tokens_optimized(cls, data, idx=None, _cache = None):  # !!! Add unit tests.
     if _cache is None:
-      _cache = [cls.PDF_SAFE_KEEP_HEX_ESCAPED_RE.sub(lambda match: b'#%02X' % int.from_bytes(match.group()), (i).to_bytes(1)) for i in range(256)]
+      _cache = [cls.PDF_SAFE_KEEP_HEX_ESCAPED_RE.sub(lambda match: b'#%02X' % int.from_bytes(match.group()), (i).to_bytes(1, byteOrder='big')) for i in range(256)]
     """Data is a PDF token sequence containing all strings as <hex>."""
     if b'#' not in data:  # Works for both strings and buffers.
       return data
