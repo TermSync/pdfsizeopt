@@ -1,7 +1,10 @@
 import sys
 
 class Logger:
-  def __init__(self, verbosity=190):
+
+  verbosity = 190
+
+  def __init__(self, verbosity):
     self.verbosity = verbosity
 
   def log_fatal(self, msg, exit_code=2):

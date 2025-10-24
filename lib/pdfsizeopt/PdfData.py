@@ -5,7 +5,7 @@ import struct
 from lib.util import *
 from lib.pdfsizeopt.PdfObj import PdfObj
 
-logger = Logger()
+logger = Logger(DEFAULT_VERBOSITY)
 
 class PdfData(object):
 

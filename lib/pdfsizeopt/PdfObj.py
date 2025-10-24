@@ -1,11 +1,13 @@
+import os
 import re
 import sys
 import zlib
+import subprocess
 
 from lib.util import *
 
 
-logger = Logger()
+logger = Logger(DEFAULT_VERBOSITY)
 
 
 class PdfObj(object):
@@ -19,6 +21,8 @@ class PdfObj(object):
     _cache: ParseDict(self._head) or None.
     stream: stripped string between `stream' and `endstream', or None
   """
+  tmp_prefix = '///dev/null/psotmp..'  # Will be overridden in main.
+
   __slots__ = ['_head', 'stream', '_cache']
 
   PDF_WHITESPACE_CHARS = b'\0\t\n\r\f '
@@ -186,7 +190,7 @@ class PdfObj(object):
   PDF_HEX_STRING_LITERAL_OR_DICT_RE = re.compile(br'<(?:<|[\x00\t\n\r\f 0-9a-fA-F]*>?)')
   """Matches a << or a PDF hex <...> string literal, without maybe the trailing >."""
 
-  PDF_HEX_STRING_LITERAL_RE = re.compile(r'<[\x00\t\n\r\f 0-9a-fA-F]*>?')
+  PDF_HEX_STRING_LITERAL_RE = re.compile(br'<[\x00\t\n\r\f 0-9a-fA-F]*>?')
   """Matches a PDF hex <...> string literal, where the trailing > is optional,
   but then anchored to \Z."""
 
@@ -1071,10 +1075,12 @@ class PdfObj(object):
     return trailer_obj
 
   @classmethod
-  def _parse_non_simple_pdf_string(
-      cls, data, start, end,
-      _escapes = dict(('n\n', 'r\r', 't\t', 'b\b', 'f\f', '4\4', '5\5', '6\6', '7\7'))):
+  def _parse_non_simple_pdf_string(cls, data, start, end):
     """Internal method. Use ParsePdfString instead."""
+    _escapes = {
+      'n': b'\n', 'r': b'\r', 't': b'\t', 'b': b'\b', 'f': b'\f', 4: b'\x04', 5: b'\x05', 6: b'\x06', 7: b'\x07'
+    }
+
     i = start + 1
     j, output, depth = i, [], 1
     while 1:
@@ -1109,7 +1115,7 @@ class PdfObj(object):
             j += 4
         elif chr(c) in 'nrtbf4567':
           output.append(data[i : j])
-          output.append(_escapes[c])
+          output.append(_escapes[chr(c)])
           j += 2
         elif chr(c) == '\n':  # Skip '\n'.
           output.append(data[i : j])
@@ -1117,7 +1123,7 @@ class PdfObj(object):
         elif chr(c) == '\r':  # Skip '\r' or '\r\n'.
           output.append(data[i : j])
           j += 2
-          if j < end and data[j] == '\n':
+          if j < end and chr(data[j]) == '\n':
             j += 1
         else:
           output.append(data[i : j])
@@ -1126,9 +1132,9 @@ class PdfObj(object):
         i = j
       elif chr(c) == '\r':
         output.append(data[i : j])
-        output.append('\n')
+        output.append(b'\n')
         j += 1
-        if j < end and data[j] == '\n':
+        if j < end and chr(data[j]) == '\n':
           j += 1
         i = j
       else:
@@ -1402,8 +1408,8 @@ class PdfObj(object):
     Raises:
       PdfTokenParseError:
     """
-    assert data.startswith('[')
-    assert data.endswith(']')
+    assert data.startswith(b'[')
+    assert data.endswith(b']')
     start = 1
     end = len(data) - 1
     return cls._parse_tokens(data, start, end, end)
@@ -1555,7 +1561,7 @@ class PdfObj(object):
           match = None
       elif value.startswith(b'<<'):
         value1 = value[2 : -2]
-        if '%' in value1 or '<' in value1 or '(' in value1:
+        if b'%' in value1 or b'<' in value1 or b'(' in value1:
           # !! TODO(pts): Implement a faster solution if no % or (
           end_ofs_out = []
           value1 = data[match.start(1):]  # Add more chars if needed.
@@ -1565,9 +1571,9 @@ class PdfObj(object):
             raise PdfTokenParseError('truncated array at %d, got %r...: %s' % (match.start(1), value1[0 : 16], exc))
           except PdfTokenParseError as exc:
             raise PdfTokenParseError('bad array at %d, got %r...: %s' % (match.start(1), value1[0 : 16], exc))
-          assert value2.startswith(' <<') and value2.endswith('>>')
+          assert value2.startswith(b' <<') and value2.endswith(b'>>')
           start = match.start(1) + end_ofs_out[0]
-          if '%' in value:
+          if b'%' in value:
             value = cls.compress_value(value2[1:])
           else:
             value = data[match.start(1) : start]
@@ -1617,7 +1623,7 @@ class PdfObj(object):
     """
     if w_value is None:
       raise PdfTokenParseError('missing /W in xref object')
-    if not isinstance(w_value, str) or not w_value.startswith('['):
+    if not isinstance(w_value, bytes) or not w_value.startswith(b'['):
       raise PdfTokenParseError('item /W in xref object is not an array')
     widths = PdfObj.parse_array(w_value)
     if (len(widths) != 3 or
@@ -1653,7 +1659,7 @@ class PdfObj(object):
         raise PdfXrefStreamError('bad or missing /Size for xref stream')
       index = [0, size]
     else:
-      if not isinstance(index_value, str) or not index_value.startswith('['):
+      if not isinstance(index_value, bytes) or not index_value.startswith(b'['):
         raise PdfTokenParseError('item /Index in xref object is not an array')
       index = tuple(PdfObj.parse_array(index_value))
       if (not index or len(index) % 2 != 0 or
@@ -2129,13 +2135,13 @@ class PdfObj(object):
     # exponential format (such as 6.02E23).
 
     # Convert the number to canonical (shortest) form.
-    token = (number_match.group(1) or '') + number_match.group(2)
-    if '.' in token:
-      token = token.rstrip('0')
-      if token.endswith('.'):
+    token: bytes = (number_match.group(1) or b'') + number_match.group(2)
+    if b'.' in token:
+      token = token.rstrip(b'0')
+      if token.endswith(b'.'):
         token = token[:-1]  # Convert real to integer: '42.' -> '42'
-    if token in ('', '-'):
-      token = '0'
+    if token in (b'', b'-'):
+      token = b'0'
     return token
 
   PDF_CLASSIFY = [40] * 256
@@ -2230,7 +2236,7 @@ class PdfObj(object):
       o = cls.PDF_CLASSIFY[data[i]]
       if o == 0:  # whitespace
         i += 1
-        while i < data_size and cls.PDF_CLASSIFY[ord(data[i])] == 0:
+        while i < data_size and cls.PDF_CLASSIFY[data[i]] == 0:
           i += 1
       elif o == 14:  # [
         stack.append(b'[')
@@ -2263,7 +2269,7 @@ class PdfObj(object):
           token = b'/' + cls.PDF_SAFE_KEEP_HEX_ESCAPED_RE.sub(lambda match: '#%02X' % ord(match.group()), token)
         else:
           token = data[j : i]
-          if token != 'R' and not cls.PDF_KEYWORD_OR_NUMBER_AT_EOS_RE.match(token):
+          if token != b'R' and not cls.PDF_KEYWORD_OR_NUMBER_AT_EOS_RE.match(token):
             raise PdfTokenParseError('Invalid character in keyword or number %r' % token)
 
         number_match = cls.PDF_NUMBER_AT_EOS_RE.match(token)
@@ -2272,11 +2278,11 @@ class PdfObj(object):
         else:
           output.append(b' ' + token)
 
-        if number_match or token[0] == '/' or token in ('true', 'false', 'null', 'R'):
-          if token == 'R' and (
+        if number_match or chr(token[0]) == '/' or token in (b'true', b'false', b'null', b'R'):
+          if token == b'R' and (
              len(output) < 3 or
-             not re.match(r' -?\d+\Z', output[-2]) or
-             not re.match(r' -?\d+\Z', output[-3])):
+             not re.match(br' -?\d+\Z', output[-2]) or
+             not re.match(br' -?\d+\Z', output[-3])):
             raise PdfTokenParseError('invalid R after %r' % output[-2:])
           if stack[-1] == b'-':
             if re.match(' -?\d+\Z', output[-1]):
@@ -2310,10 +2316,10 @@ class PdfObj(object):
         i += 1
         if i == data_size:
           raise PdfTokenTruncated
-        if data[i] != '>':
+        if chr(data[i]) != '>':
           raise PdfTokenParseError('dict-close expected')
         item = stack.pop()
-        if item != '<':
+        if item != b'<':
           raise PdfTokenParseError('got dict-close, expected %r' % item)
         output.append(b' >>')
         i += 1
@@ -2323,7 +2329,7 @@ class PdfObj(object):
         i += 1
         if i == data_size:
           raise PdfTokenTruncated
-        if data[i] == '<':
+        if chr(data[i]) == '<':
           stack.append(b'<')
           output.append(b' <<')
           i += 1
@@ -2334,7 +2340,7 @@ class PdfObj(object):
           #     data, i - 1, data_size, is_partial_ok=True)
           # output.append(' <%s>' % s.encode('hex'))
           match = cls.PDF_HEX_STRING_LITERAL_RE.match(data, i - 1, data_size)
-          if not match or data[match.end() - 1] != '>':
+          if not match or chr(data[match.end() - 1]) != '>':
             if match and match.end() == data_size:
               raise PdfTokenTruncated('Truncated hex string.')
             raise PdfTokenParseError('Bad hex string.')
@@ -2419,15 +2425,15 @@ class PdfObj(object):
     is_gs_ok = True  # TODO(pts): Add command-line flag to disable.
     if not is_gs_ok:
       raise FilterNotImplementedError('filter not implemented: ' + filter_value)
-    if '/JBIG2Decode' in filter_value and '/JBIG2Globals' in decodeparms:
+    if b'/JBIG2Decode' in filter_value and b'/JBIG2Globals' in decodeparms:
       raise FilterNotImplementedError('/JBIG2Globals not supported.')
 
     ps_file_name = None
-    tmp_file_name = TMP_PREFIX + 'filter.tmp.bin'
-    f = open(tmp_file_name, 'wb')
+    tmp_file_name = PdfObj.tmp_prefix + 'filter.tmp.bin'
+    f = open(tmp_file_name, 'w')
     write_ok = False
     try:
-      f.write(self.stream)
+      f.write(self.stream.decode('latin-1'))
       write_ok = True
     finally:
       f.close()
@@ -2435,7 +2441,7 @@ class PdfObj(object):
         os.remove(tmp_file_name)
     decodeparms_pair = ''
     if decodeparms:
-      decodeparms_pair = '/DecodeParms ' + decodeparms
+      decodeparms_pair = '/DecodeParms ' + decodeparms.decode('latin-1')
 
     # !! batch all decompressions, so we don't have to run gs again.
 
@@ -2445,12 +2451,12 @@ class PdfObj(object):
         '/o(%%stdout)(w)file def/s 4096 string def '
         '{i s readstring exch o exch writestring not{exit}if}loop '
         'o closefile quit' %
-        (filter_value, decodeparms_pair))
+        (filter_value.decode('latin-1'), decodeparms_pair))
     if sys.platform.startswith('win'):
       # TODO(pts): If tmp_file_name contains funny characters, Ghostscript
       # will fails with data == ''. Fix it (possibly not use -s...="..." on
       # Windows?).
-      ps_file_name = TMP_PREFIX + 'filter.tmp.ps'
+      ps_file_name = self.tmp_prefix + 'filter.tmp.ps'
       f = open(ps_file_name, 'wb')
       try:
         f.write(gs_code)
@@ -2463,13 +2469,18 @@ class PdfObj(object):
     else:
       gs_defilter_cmd = (
           '%s -dNODISPLAY -sINFN=%s -q -P- -c %s' %
-          (get_gs_command(), shell_quote_file_name(tmp_file_name, is_gs=True),
+          (get_gs_command(PdfObj.tmp_prefix), shell_quote_file_name(tmp_file_name, is_gs=True),
            ShellQuote(gs_code)))
     logger.log_proportional_info(
         'decompressing %d bytes with Ghostscript '
         '/Filter%s%s' % (len(self.stream), filter_value, decodeparms_pair))
     sys.stdout.flush()
-    f = os.popen(RedirectOutput(gs_defilter_cmd, mode=True), 'rb')
+    c = RedirectOutput(gs_defilter_cmd, mode=True)
+    f = os.popen(RedirectOutput(gs_defilter_cmd, mode=True), 'r')
+
+    cm = ["TMPDIR=/var/folders/w_/gsg1q8w9423chn2vt8q8x_n80000gp/T", "TEMP=/var/folders/w_/gsg1q8w9423chn2vt8q8x_n80000gp/T", "gs", "-dNODISPLAY", "-sINFN=/var/folders/w_/gsg1q8w9423chn2vt8q8x_n80000gp/T/psotmp.67278.filter.tmp.bin", "-q", "-P-", "-c", "/i INFN(r)file<</CloseSource true /Intent 2/Filter /FlateDecode/DecodeParms <</Columns 5/Predictor 12>>>>/ReusableStreamDecode filter def /o(%stdout)(w)file def/s 4096 string def {i s readstring exch o exch writestring not{exit}if}loop o closefile quit"]
+    process = subprocess.Popen(cm, stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=True, text=True)
+    output, _ = process.communicate()
     # On Windows, data would start with 'Error: ' on a Ghostscript error, and
     # data will be '' if gswin32c is not found.
     data = f.read()  # TODO(pts): Handle IOError etc.
