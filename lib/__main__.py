@@ -1,6 +1,4 @@
 #!/usr/bin/python
-
-
 import os
 import os.path
 import sys
@@ -71,7 +69,6 @@ def optimize(argv, script_dir=None, zip_file=None):
     # Windows to detect double quotes around file names, and thus accept a PDF
     # with double quotes in the file name.
     f.parse(argv)
-    VERBOSITY = f.verbosity
 
     if f.mode == 'optimize':
       if not f.args:

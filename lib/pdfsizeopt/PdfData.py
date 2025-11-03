@@ -1,8 +1,15 @@
+import os
 import re
 import zlib
 import struct
 
-from lib.util import *
+from lib.util.constants import DEFAULT_VERBOSITY
+from lib.util.util import format_percent, shell_quote_file_name
+from lib.util.error import (
+  FilterError, FilterNotImplementedError, PdfFileEncryptedError, PdfTokenParseError, PdfXrefStreamError,
+  PdfXrefError, PdfMissingRootError, PdfUnexpectedIlStreamError, PdfNoObjsError, PdfIndirectLengthError
+)
+from lib.util.logging import Logger
 from lib.pdfsizeopt.PdfObj import PdfObj
 
 logger = Logger(DEFAULT_VERBOSITY)
@@ -59,7 +66,7 @@ class PdfData(object):
     try:
       try:
         obj_starts, self.has_generational_objs = self.parse_using_xref(data, do_ignore_generation_numbers=self.do_ignore_generation_numbers)
-      except PdfXrefStreamError as exc:
+      except PdfXrefStreamError:
         raise
       except PdfXrefError as exc:
         logger.log_warning('problem with xref table: %s' % exc)
@@ -360,7 +367,6 @@ class PdfData(object):
         del obj_starts[xref_obj_num]
 
     # Parse the object streams.
-    compressed_obj_errors = {}
     for objstm_obj_num in sorted(obj_streams):
       obj_start = obj_starts.get(objstm_obj_num)
       if obj_start is None:
@@ -408,7 +414,7 @@ class PdfData(object):
               'obj_num_in_objstm=%d objstm_obj_num=%d i=%d' %
               (obj_num, compressed_obj_nums[i], objstm_obj_num, i))
         compressed_obj_nums[i] = None
-        assert isinstance(compressed_obj_headbufs[i], (buffer, str))
+        assert isinstance(compressed_obj_headbufs[i], (bytes, str))
         obj_starts[obj_num] = compressed_obj_headbufs[i] = PdfObj('%d 0 obj\n%s\nendobj\n' % (obj_num, compressed_obj_headbufs[i]))
     for obj_num in sorted(obj_streams):
       del obj_starts[obj_num]
