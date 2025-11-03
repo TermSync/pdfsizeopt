@@ -12,6 +12,7 @@ from lib.util.error import (
 )
 
 from lib.util.logging import Logger
+from lib.util.util import permissive_zlib_decompress
 
 logger = Logger(DEFAULT_VERBOSITY)
 

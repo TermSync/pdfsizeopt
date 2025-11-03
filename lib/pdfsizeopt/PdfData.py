@@ -198,14 +198,14 @@ class PdfData(object):
         # PdfObj.GetAndClearXrefStream() guarantees that we get a positive
         # ii_remaining and we don't exhaust the index array below.
         if ii >= len(index):
-          raise PdfXrefStreamError(
-              'Index too large: ii=%d index_size=%d' % (ii, len(index)))
+          raise PdfXrefStreamError('Index too large: ii=%d index_size=%d' % (ii, len(index)))
         if obj_num is not None and index[ii] <= obj_num:
           # TODO(pts): Check in xref_obj.GetAndClearXrefStream() instead.
           raise PdfXrefStreamError(
               'Sections within an xref stream not increasing: '
               'old_obj_num=%d new_obj_num=%d' %
-              (obj_num, index[ii]))
+              (obj_num, index[ii])
+          )
         obj_num = index[ii]
         ii_remaining = index[ii + 1] - 1
         assert ii_remaining >= 0
@@ -227,8 +227,10 @@ class PdfData(object):
       yield obj_num, f0, f1, f2
 
   @classmethod
-  def parse_using_xref_stream(cls, data, do_ignore_generation_numbers,
-                              xref_ofs, xref_obj_num, xref_generation, obj_starts=None, do_allow_duplicate_obj=False):
+  def parse_using_xref_stream(
+    cls, data, do_ignore_generation_numbers,
+    xref_ofs, xref_obj_num, xref_generation,
+    obj_starts=None, do_allow_duplicate_obj=False):
     """Determine obj offsets in a PDF file using the cross-reference stream.
 
     Args:
@@ -264,7 +266,8 @@ class PdfData(object):
         if not do_ignore_generation_numbers:
           raise NotImplementedError(
               'generational objects (in xref %s %s) not supported at %d' %
-              (xref_obj_num, xref_generation, xref_ofs))
+              (xref_obj_num, xref_generation, xref_ofs)
+          )
         has_generational_objs = True
       if xref_obj_num in xref_obj_nums:
         raise PdfXrefStreamError('duplicate xref obj %d' % xref_obj_num)
@@ -277,8 +280,7 @@ class PdfData(object):
 
       # Parse the xref stream data.
       #
-      # TODO(pts): Handle the various exceptions raised by
-      #            xref_obj.GetUncompressedStream().
+      # TODO(pts): Handle the various exceptions raised by xref_obj.GetUncompressedStream().
       w0, w1, w2, index, xref_data = xref_obj.get_and_clear_xref_stream(
           xref_ofs=xref_ofs, xref_obj_num=xref_obj_num)
       for obj_num, f0, f1, f2 in cls.yield_xref_stream_entries(w0, w1, w2, index, xref_data):
@@ -294,7 +296,8 @@ class PdfData(object):
             if not do_ignore_generation_numbers:
               raise NotImplementedError(
                   'generational objects (in %s %s) not supported at %d' %
-                  (obj_num, f2, xref_ofs))
+                  (obj_num, f2, xref_ofs)
+              )
             has_generational_objs = True
 
           if f1 < 9:
@@ -332,8 +335,7 @@ class PdfData(object):
         raise PdfXrefStreamError('invalid /Prev at %d: %r' % (xref_ofs, prev))
       match = PdfObj.PDF_OBJ_DEF_RE.match(data, prev)
       if not match:
-        raise PdfXrefStreamError('could not find obj at /Prev at %d: %d' %
-                                 (xref_ofs, prev))
+        raise PdfXrefStreamError('could not find obj at /Prev at %d: %d' % (xref_ofs, prev))
       xref_ofs = prev
       xref_obj_num = int(match.group(1))
       xref_generation = int(match.group(2))
@@ -346,24 +348,21 @@ class PdfData(object):
     assert trailer_obj
     logger.log_proportional_info(
         'found %d obj offsets and %d obj streams in xref stream' %
-        (len(obj_starts) - ('xref' in obj_starts) - ('trailer' in obj_starts),
-         len(obj_streams)))
+        (len(obj_starts) - ('xref' in obj_starts) - ('trailer' in obj_starts), len(obj_streams))
+    )
     max_obj_num = None
     for xref_obj_num in sorted(xref_obj_nums):
       obj_start = obj_starts.get(xref_obj_num)
       if obj_start is None:
         if max_obj_num is None:
-          max_obj_num = max(
-              (obj_num != 'xref' and obj_num != 'trailer' and obj_num or 0) for obj_num in obj_starts)
+          max_obj_num = max((obj_num != 'xref' and obj_num != 'trailer' and obj_num or 0) for obj_num in obj_starts)
         if xref_obj_num != max_obj_num + 1:
           # pgfmanual.pdf in
           # https://code.google.com/p/pdfsizeopt/issues/detail?id=75
-          logger.log_warning(
-              'missing offset for xref stream obj %d' % xref_obj_num)
+          logger.log_warning('missing offset for xref stream obj %d' % xref_obj_num)
       else:
         if not isinstance(obj_start, int):
-          logger.log_warning(
-              'in-object-stream xref stream obj %d' % xref_obj_num)
+          logger.log_warning('in-object-stream xref stream obj %d' % xref_obj_num)
         del obj_starts[xref_obj_num]
 
     # Parse the object streams.
@@ -372,27 +371,22 @@ class PdfData(object):
       if obj_start is None:
         raise PdfXrefStreamError('Missing xref obj stream %d' % objstm_obj_num)
       if not isinstance(obj_start, int):
-        raise PdfXrefStreamError('In-object-stream obj stream %d' %
-                                 objstm_obj_num)
+        raise PdfXrefStreamError('In-object-stream obj stream %d' % objstm_obj_num)
       try:
         objstm_obj = PdfObj(data, start=obj_start, file_ofs=obj_start)
       except PdfIndirectLengthError as e:
         # Example: objstm_obj_num == 16 in functional-programming-python.pdf
         if e.length_obj_num not in obj_starts:
-          raise PdfXrefStreamError('Parse objstm obj %d: %s' %
-                                   (objstm_obj_num, e))
+          raise PdfXrefStreamError('Parse objstm obj %d: %s' % (objstm_obj_num, e))
         length_obj_start = obj_starts[e.length_obj_num]
         length_obj = PdfObj(
             data, start=length_obj_start, file_ofs=length_obj_start)
         try:
-          objstm_obj = PdfObj(data, start=obj_start, file_ofs=obj_start,
-                              objs={e.length_obj_num: length_obj})
+          objstm_obj = PdfObj(data, start=obj_start, file_ofs=obj_start, objs={e.length_obj_num: length_obj})
         except PdfTokenParseError as e:
-          raise PdfXrefStreamError('Parse objstm obj %d: %s' %
-                                   (objstm_obj_num, e))
+          raise PdfXrefStreamError('Parse objstm obj %d: %s' % (objstm_obj_num, e))
       except PdfTokenParseError as e:
-        raise PdfXrefStreamError('Parse objstm obj %d: %s' %
-                                 (objstm_obj_num, e))
+        raise PdfXrefStreamError('Parse objstm obj %d: %s' % (objstm_obj_num, e))
       obj_streams[objstm_obj_num] = objstm_obj.parse_obj_stm(objstm_obj_num)
 
     # Parse used compressed objs (in objstm objs), and add them to
@@ -405,14 +399,14 @@ class PdfData(object):
         compressed_obj_nums, compressed_obj_headbufs = obj_streams[objstm_obj_num]
         if i >= len(compressed_obj_headbufs):
           raise PdfXrefStreamError(
-              'Too few compressed objs (%d) in objstm obj %d, '
-              'needed index %d for obj %d.' %
-              (len(compressed_obj_headbufs), objstm_obj_num, i, obj_num))
+              'Too few compressed objs (%d) in objstm obj %d, needed index %d for obj %d.' %
+              (len(compressed_obj_headbufs), objstm_obj_num, i, obj_num)
+          )
         if compressed_obj_nums[i] != obj_num:
           raise PdfXrefStreamError(
-              'Mismatch in obj_num: obj_num_in_xref_stream=%d '
-              'obj_num_in_objstm=%d objstm_obj_num=%d i=%d' %
-              (obj_num, compressed_obj_nums[i], objstm_obj_num, i))
+              'Mismatch in obj_num: obj_num_in_xref_stream=%d obj_num_in_objstm=%d objstm_obj_num=%d i=%d' %
+              (obj_num, compressed_obj_nums[i], objstm_obj_num, i)
+          )
         compressed_obj_nums[i] = None
         assert isinstance(compressed_obj_headbufs[i], (bytes, str))
         obj_starts[obj_num] = compressed_obj_headbufs[i] = PdfObj('%d 0 obj\n%s\nendobj\n' % (obj_num, compressed_obj_headbufs[i]))
@@ -431,9 +425,8 @@ class PdfData(object):
     if all_unused_obj_count:
       logger.log_proportional_info(
           'ignoring %d unused compressed objs: %s' %
-          (all_unused_obj_count,
-           ', '.join('%d in objstm obj %d' % (b, a)
-                     for a, b in unused_obj_items)))
+          (all_unused_obj_count, ', '.join('%d in objstm obj %d' % (b, a) for a, b in unused_obj_items))
+      )
 
     return obj_starts, has_generational_objs
 
@@ -517,7 +510,8 @@ class PdfData(object):
               if not do_ignore_generation_numbers:
                 raise NotImplementedError(
                     'generational objects (in %s %s n) not supported at %d' %
-                    (match.group(1), match.group(2), xref_ofs))
+                    (match.group(1), match.group(2), xref_ofs)
+                )
               has_generational_objs = True
             obj_ofs = int(match.group(1))
             if obj_num in obj_starts:
@@ -533,8 +527,8 @@ class PdfData(object):
               # "0000000000 00000 n \n"
               if obj_ofs in obj_starts_rev:
                 raise PdfXrefError(
-                    'duplicate use of obj offset %s: %s and %s' %
-                    (obj_ofs, obj_starts_rev[obj_ofs], obj_num))
+                  'duplicate use of obj offset %s: %s and %s' % (obj_ofs, obj_starts_rev[obj_ofs], obj_num)
+                )
               obj_starts_rev[obj_ofs] = obj_num
               # TODO(pts): Check that we match PdfObj.OBJ_DEF_RE at obj_ofs.
               obj_starts[obj_num] = obj_ofs
@@ -580,7 +574,11 @@ class PdfData(object):
       for xrefstm_ofs, xrefstm_obj_num, xrefstm_obj_generation in xrefstm_objs:
         obj_starts_copy = dict(obj_starts)
         # Updates obj_starts, changes obj_starts['trailer'] to a PdfObj.
-        cls.parse_using_xref_stream(data, do_ignore_generation_numbers, xrefstm_ofs, xrefstm_obj_num, xrefstm_obj_generation, obj_starts_copy, do_allow_duplicate_obj=True)
+        cls.parse_using_xref_stream(
+          data, do_ignore_generation_numbers, xrefstm_ofs, xrefstm_obj_num,
+          xrefstm_obj_generation, obj_starts_copy, do_allow_duplicate_obj=True
+        )
+
         for obj_num, obj_ofs in obj_starts_copy.items():
           if obj_num not in obj_start_nums:
             obj_starts[obj_num] = obj_ofs
@@ -618,10 +616,10 @@ class PdfData(object):
           if not do_ignore_generation_numbers:
             raise NotImplementedError(
                 'generational objects (in %s %s n) not supported at %d' %
-                (match.group(1), match.group(2), match.start() + 1))
+                (match.group(1), match.group(2), match.start() + 1)
+            )
           has_generational_objs = True
-        assert prev_obj_num not in obj_starts, (
-            'duplicate obj %d' % prev_obj_num)
+        assert prev_obj_num not in obj_starts, ('duplicate obj %d' % prev_obj_num)
         # Skip over '\n'
         obj_starts[prev_obj_num] = match.start() + 1
       else:
@@ -638,9 +636,9 @@ class PdfData(object):
     return obj_starts, has_generational_objs
 
   @classmethod
-  def generate_xref_stream(cls, obj_numbers, obj_ofs, xref_ofs, trailer_obj,
-                           trailer_obj_num, objstm_obj_num, objstm_obj_numbers,
-                           is_flate_ok=True):
+  def generate_xref_stream(
+    cls, obj_numbers, obj_ofs, xref_ofs, trailer_obj,
+    trailer_obj_num, objstm_obj_num, objstm_obj_numbers, is_flate_ok=True):
     """Generate the xref stream for the specified trailer object.
 
     Add the appropriate, size-optimized trailer_obj.stream, add the
@@ -687,9 +685,8 @@ class PdfData(object):
       obj_numbers_size = len(obj_numbers)
       obj_numbers.update(objstm_obj_numbers)
       obj_numbers.add(objstm_obj_num)
-      assert (len(obj_numbers) ==
-              obj_numbers_size + len(objstm_obj_numbers) + 1), (
-          '/Type/ObjStm and non-objstm object numbers must be disjoint.')
+      assert (len(obj_numbers) == obj_numbers_size + len(objstm_obj_numbers) + 1), \
+        '/Type/ObjStm and non-objstm object numbers must be disjoint.'
       obj_numbers = sorted(obj_numbers)
       max_w2 = max(max_w2, len(objstm_obj_numbers) - 1)
       objstm_obj_numbers_rev = {}
@@ -727,8 +724,7 @@ class PdfData(object):
 
     for i in range(1, len(obj_numbers)):
       if obj_numbers[i] - 1 != obj_numbers[i - 1]:
-        if not (obj_numbers[i] - 2 == obj_numbers[i - 1] and
-                obj_numbers[i] - 1 == trailer_obj_num):
+        if not (obj_numbers[i] - 2 == obj_numbers[i - 1] and obj_numbers[i] - 1 == trailer_obj_num):
           need_w0 = True
       max_ofs = max(max_ofs, ofs_list[i])  # Negative entries are ignored.
     if objstm_obj_numbers:
@@ -798,7 +794,7 @@ class PdfData(object):
       del ofs_output
       extra_width = 1 + max_w2_size
     else:
-      data = ''
+      data = b''
       if index_size:
         assert obj_numbers[0] != 0
         if obj_numbers[0] <= (index_size - 1) / max_ofs_size:
@@ -807,21 +803,21 @@ class PdfData(object):
           #
           # For testing: --use-multivalent=no --do-generate-xref-stream=yes
           # --do-generate-object-stream=no issue57.pdf
-          data = '\0' * (obj_numbers[0] * max_ofs_size)
+          data = b'x\00' * (obj_numbers[0] * max_ofs_size)
           trailer_obj.set(b'Index', None)
       assert max_w2 == -1
       trailer_obj.set(b'W', '[0 %d 0]' % max_ofs_size)
       if max_ofs_size == 1:
-        data += struct.pack('>%dB' % len(ofs_list), *ofs_list)
+        data += struct.pack(b'>%dB' % len(ofs_list), *ofs_list)
       elif max_ofs_size == 2:
-        data += struct.pack('>%dH' % len(ofs_list), *ofs_list)
+        data += struct.pack(b'>%dH' % len(ofs_list), *ofs_list)
       elif max_ofs_size == 3:
-        data += ''.join(struct.pack('>L', ofs)[1:] for ofs in ofs_list)
+        data += b''.join(struct.pack(b'>L', ofs)[1:] for ofs in ofs_list)
       elif max_ofs_size == 4:
-        data += struct.pack('>%dL' % len(ofs_list), *ofs_list)
+        data += struct.pack(b'>%dL' % len(ofs_list), *ofs_list)
       else:
         i = 8 - max_ofs_size
-        data += ''.join(struct.pack('>Q', ofs)[i:] for ofs in ofs_list)
+        data += b''.join(struct.pack(b'>Q', ofs)[i:] for ofs in ofs_list)
       extra_width = 0
       #assert False, (len(data), max_ofs_size, extra_width)
     trailer_obj.set_stream_and_compress(data, predictor_width=(max_ofs_size + extra_width), is_flate_ok=is_flate_ok)
@@ -962,8 +958,8 @@ class PdfData(object):
         objstm_obj.set(b'First', objstm_first)
         logger.log_info(
             'generated object stream of %d bytes in %d objects (%s)' %
-            (len(objstm_obj.stream), objstm_objcount,
-             format_percent(len(objstm_obj.stream), objstm_size)))
+            (len(objstm_obj.stream), objstm_objcount, format_percent(len(objstm_obj.stream), objstm_size))
+        )
         i = j = 0
         objstm_obj_numbers_set = set(objstm_obj_numbers)
         while i < len(obj_numbers):
@@ -1044,12 +1040,12 @@ class PdfData(object):
         j = i + 1
         while j < obj_count and obj_numbers[j] - 1 == obj_numbers[j - 1]:
           j += 1
-        output.append('xref\n0 %s\n0000000000 65535 f \n' % (j + 1))
+        output.append(b'xref\n0 %s\n0000000000 65535 f \n' % (j + 1))
         while i < j:
-          output.append('%010d 00000 n \n' % obj_ofs[obj_numbers[i]])
+          output.append(b'%010d 00000 n \n' % obj_ofs[obj_numbers[i]])
           i += 1
       else:
-        output.append('xref\n0 1\n0000000000 65535 f \n')
+        output.append(b'xref\n0 1\n0000000000 65535 f \n')
         i = 0
 
       # Add subsequent xref subsections.
@@ -1057,12 +1053,12 @@ class PdfData(object):
         j = i + 1
         while j < obj_count and obj_numbers[j] - 1 == obj_numbers[j - 1]:
           j += 1
-        output.append('%s %s\n' % (obj_numbers[i], j - i))
+        output.append(b'%d %d\n' % (obj_numbers[i], j - i))
         while i < j:
-          output.append('%010d 00000 n \n' % obj_ofs[obj_numbers[i]])
+          output.append(b'%010d 00000 n \n' % obj_ofs[obj_numbers[i]])
           i += 1
 
-      output.append('trailer\n%s\n' % trailer_obj.head)
+      output.append(b'trailer\n%s\n' % trailer_obj.head)
 
     output.append(b'startxref\n%d\n' % xref_ofs)
     output.append(b'%%EOF\n')  # Avoid doubling % in printf().
@@ -1080,8 +1076,8 @@ class PdfData(object):
 
   # !!! Do proper PDF token sequence parsing (ParseTokensToSafe).
   PDFDATA_INDEXED_COLORSPACE_FOR_SUB_RE = re.compile(
-      r'\A\[[\x00\t\n\r\f ]*/Indexed[\x00\t\n\r\f ]*'
-      r'/([^\x00\t\n\r\f /<(]+)(.|\n)*')
+      r'\A\[[\x00\t\n\r\f ]*/Indexed[\x00\t\n\r\f ]*/([^\x00\t\n\r\f /<(]+)(.|\n)*'
+  )
 
   @classmethod
   def _IsSlowCmdName(cls, cmd_name):
@@ -1177,9 +1173,11 @@ class PdfData(object):
         eqclass_of[obj_num] = eqclasses[-1]
         if do_remove_unused:
           search_todo.append(desc)
-      elif (not do_unify_pages and
-            stream is None and head_minus.startswith('<<') and
-            objs[obj_num].get(b'Type') == '/Page'):
+      elif (
+        not do_unify_pages
+        and stream is None and head_minus.startswith('<<')
+        and objs[obj_num].get(b'Type') == '/Page'
+      ):
         # Make sure that /Page objects are not unified. xpdf and evince
         # display the error message `Loop in Pages tree' (but still display
         # the PDF) if we unify equivalent pages, but since the PDF spec
@@ -1218,8 +1216,7 @@ class PdfData(object):
             descb = eqclass[i]
             refs_tob = descb[3]
             j = 0
-            while (j < len(refs_to) and
-                   eqclass_of.get(refs_to[j]) is eqclass_of.get(refs_tob[j])):
+            while j < len(refs_to) and eqclass_of.get(refs_to[j]) is eqclass_of.get(refs_tob[j]):
               j += 1
             if j == len(refs_to):
               eqlist.append(descb)
@@ -1258,13 +1255,16 @@ class PdfData(object):
       elif unused_obj_nums:
         logger.log_info(
             'eliminated %s unused objs in %s classes' %
-            (sum([len(eqclass_of[obj_num]) for obj_num in unused_obj_nums]),
-             len(unused_obj_nums)))
+            (sum([len(eqclass_of[obj_num]) for obj_num in unused_obj_nums]), len(unused_obj_nums))
+        )
 
     # Maps eqclass-leader object number to object number.
     obj_num_map = {}
     if do_renumber:
-      descs = [eqclass[0] for eqclass in eqclasses if not isinstance(eqclass[0][0], str) and eqclass[0][0] not in unused_obj_nums]
+      descs = [
+        eqclass[0] for eqclass in eqclasses
+        if not isinstance(eqclass[0][0], str) and eqclass[0][0] not in unused_obj_nums
+      ]
       descs.sort(key=lambda desc: (-desc[4], desc[0]))
       i = 0
       for desc in descs:
@@ -1288,8 +1288,8 @@ class PdfData(object):
         new_class = eqclass_of.get(target_obj_num)
         if new_class is None:
           logger.log_warning(
-              'obj %s missing, referenced by objs %r...' %
-              (target_obj_num, [desc[0] for desc in eqclass]))
+              'obj %s missing, referenced by objs %r...' % (target_obj_num, [desc[0] for desc in eqclass])
+          )
           return b'null'
         else:
           new_obj_num = new_class[0][0]
@@ -1302,9 +1302,9 @@ class PdfData(object):
       # do_emit_strings_as_hex=True), we have to undo it (i.e. make hex strings
       # binary instead) here.
       head = PdfObj.PDF_HEX_STRING_OR_DICT_RE.sub(
-          lambda match: (match.group(1) is not None and
-              PdfObj.serialize_pdf_string_safe(match.group(1))
-              or b'<<'), head)
+          lambda match: (match.group(1) is not None and PdfObj.serialize_pdf_string_safe(match.group(1)) or b'<<'
+          ), head
+      )
 
       obj = PdfObj(None)
       obj.head = head
@@ -1329,8 +1329,7 @@ class PdfData(object):
       if obj.stream is None:
         skipped_count += 1
         continue
-      if (b'/Subtype' in obj.head and b'/Image' in obj.head and
-          obj.get(b'Subtype') == b'/Image'):
+      if b'/Subtype' in obj.head and b'/Image' in obj.head and obj.get(b'Subtype') == b'/Image':
         # Force regeneration from obj._cache, give self.OptimizeObjs a better
         # chance to find duplicates.
         #
@@ -1380,8 +1379,7 @@ class PdfData(object):
         obj_infos.append((obj2.size, 'zip', obj2))
         del obj2  # Save memory.
 
-        # TODO(pts): Additionally, try advzip etc., or flate with
-        #            predictors, like in SetStreamAndCompress.
+        # TODO(pts): Additionally, try advzip etc., or flate with predictors, like in SetStreamAndCompress.
 
         obj_infos.sort()
 
@@ -1397,8 +1395,7 @@ class PdfData(object):
       msg = ', '.join('%d %s' % (c, k) for k, c in sorted(counts.items()))
     else:
       msg = 'none'
-    logger.log_info(
-        '%s %d streams, kept %s' % (what, len(self.objs) - skipped_count, msg))
+    logger.log_info('%s %d streams, kept %s' % (what, len(self.objs) - skipped_count, msg))
 
   def compress_uncompressed_streams(self):
     """Compress uncompressed stream data in all objects.
@@ -1441,16 +1438,13 @@ class PdfData(object):
     """
     # TODO(pts): Inline ``obj null endobj'' and ``obj<<>>endobj'' etc.
     self.objs['trailer'] = self.trailer
-    new_objs = self.find_eqclasses(
-        self.objs, do_remove_unused=True, do_renumber=True,
-        do_unify_pages=do_unify_pages)
+    new_objs = self.find_eqclasses(self.objs, do_remove_unused=True, do_renumber=True, do_unify_pages=do_unify_pages)
     self.trailer = new_objs.pop('trailer')
     self.objs.clear()
     self.objs.update(new_objs)
     return self
 
-  def parse_sequentially(self, data, file_name=None, offsets_out=None,
-                         obj_num_by_ofs_out=None, setitem_callback=None):
+  def parse_sequentially(self, data, file_name=None, offsets_out=None, obj_num_by_ofs_out=None, setitem_callback=None):
     """Load a PDF by parsing the file data sequentially.
 
     This method overrides the old contents of self from data.
