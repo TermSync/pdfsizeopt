@@ -1703,7 +1703,8 @@ class PdfData(object):
       if len(jobs) > 1:
         logger.log_info(
             'job %s generated %d bytes (%s)' %
-            (job[1], output_size, format_percent(output_size, self.file_size)))
+            (job[1], output_size, format_percent(output_size, self.file_size))
+        )
       job[3] = b''.join(output)
       del output  # Save memory.
       assert len(job[3]) == output_size

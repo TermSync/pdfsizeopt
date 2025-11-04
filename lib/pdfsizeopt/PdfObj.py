@@ -423,8 +423,10 @@ class PdfObj(object):
   From table 4.43, 4.44, ++ on page 353 of pdf_reference_1-7.pdf .
   """
 
-  def __init__(self, other, objs=None, file_ofs=0, start=0, end_ofs_out=None, do_ignore_generation_numbers=False,
-               is_ilstream_ok=False):
+  def __init__(
+    self, other, objs=None, file_ofs=0, start=0, end_ofs_out=None,
+    do_ignore_generation_numbers=False, is_ilstream_ok=False
+  ):
     """Initialize from other.
 
     If other is a PdfObj, copy everything. Otherwise, if other is a string,
@@ -492,9 +494,10 @@ class PdfObj(object):
     except PdfTokenParseError as e:
       # !!! TODO(pts): Traceback in Python 2.4 and 2.7 wasn't retained. Why?
       raise (
-        e.__class__(
-          'In obj data between ofs %d and %d: %s' % (file_ofs, file_ofs + len(other) - start, e)
-        ), None, sys.exc_info()[2])
+        e.__class__('In obj data between ofs %d and %d: %s' % (file_ofs, file_ofs + len(other) - start, e)),
+        None,
+        sys.exc_info()[2]
+      )
     self._head = head
 
     if stream_start_idx is None:
@@ -534,7 +537,8 @@ class PdfObj(object):
       if int(match.group(2)) != 0 and not do_ignore_generation_numbers:
         raise NotImplementedError(
           'generational refs (in /Length %s %s R) not implemented '
-          'at ofs=%s' % (match.group(1), match.group(2), file_ofs))
+          'at ofs=%s' % (match.group(1), match.group(2), file_ofs)
+        )
       obj_num = int(match.group(1))
       if obj_num <= 0:
         raise PdfTokenParseError('obj num %d >= 0 expected for indirect /Length at ofs=%s' % (obj_num, file_ofs))
@@ -560,10 +564,12 @@ class PdfObj(object):
       if match is None:
         raise PdfTokenParseError(
           'expected endstream+endobj in obj %d at ofs=%s' %
-          (obj_def_obj_num, file_ofs + stream_end_idx))
+          (obj_def_obj_num, file_ofs + stream_end_idx)
+        )
       logger.log_warning(
         'incorrect /Length fixed for obj %d: %d to %d' %
-        (obj_def_obj_num, stream_end_idx - stream_start_idx, match.end(1)))
+        (obj_def_obj_num, stream_end_idx - stream_start_idx, match.end(1))
+      )
       self.set(b'Length', match.end(1))  # Trailing whitespace included.
       stream_end_idx = match.end(1) + stream_start_idx
       if end_ofs_out is not None:
@@ -697,7 +703,7 @@ class PdfObj(object):
             strdata = _whitespace_re.sub('', data[match.start() + 1: match.end() - 1])
             if len(strdata) & 1 != 0:
               strdata += b'0'
-            strdata_dec = strdata.decode('hex')
+            strdata_dec = strdata
             if _unsafe_string_char_re.search(strdata_dec):
               output.append(b'<' + strdata.lower() + b'>')
             else:
@@ -779,7 +785,7 @@ class PdfObj(object):
       for match in cls.PDF_ANGLE_BRACKET_FOR_SIMPLE_RE.finditer(data):
         a = match.group()
         if len(a) < 2 or chr(a[-1]) not in '<>':
-          if (a[0] == '<' and a[1: 2] != '<' and end == match.end() and
+          if (chr(a[0]) == '<' and a[1: 2] != '<' and end == match.end() and
             not (do_expect_endobj or do_expect_startxref)):
             raise PdfTokenTruncated('Truncated hex string.')
           else:
@@ -793,8 +799,7 @@ class PdfObj(object):
         data = _escape_hex(data)
       else:
         data = cls.PDF_UNSAFE_NAME_IN_SIMPLE_RE.sub(lambda match: b'#%02X' % ord(match.group()), data)
-      if not ((data.startswith(b'<<') and data.find(b'<', 2) < 0) or data.find(
-        b'<') < 0):  # The `if' is just a shortcut for speed.
+      if not ((data.startswith(b'<<') and data.find(b'<', 2) < 0) or data.find(b'<') < 0):  # The 'if' is just a shortcut for speed.
         end = len(data)  # Recompute it, len(data) has changed.
         data = cls.PDF_HEX_STRING_LITERAL_OR_DICT_RE.sub(replacement_angle, data)
 
@@ -856,8 +861,7 @@ class PdfObj(object):
       return '0'
     # Just convert '.' to '0' in an array.
     # We don't convert `42.' to '42.0' here.
-    return cls.PDF_BAD_NUMBER_RE.sub(
-      lambda match: match.group(1) + '0', data)
+    return cls.PDF_BAD_NUMBER_RE.sub(lambda match: match.group(1) + '0', data)
 
   @classmethod
   def is_space_needed(cls, data1, data2):
@@ -1071,7 +1075,7 @@ class PdfObj(object):
       self.set(b'Length', len(self.stream))
       self.set(b'Filter', items[0][2].get(b'Filter'))
       self.set(b'DecodeParms', items[0][2].get(b'DecodeParms'))
-      if (pdf and items[0][1] == 'zip-pred2' and predictor_width > 4 and pdf.version < '1.3'):
+      if pdf and items[0][1] == 'zip-pred2' and predictor_width > 4 and pdf.version < '1.3':
         pdf.version = '1.3'
 
   @classmethod
@@ -1246,7 +1250,7 @@ class PdfObj(object):
     elif cls.PDF_INT_AT_EOS_RE.match(data):
       return int(data)
     elif data.startswith(b'('):
-      return '<%s>' % cls.parse_pdf_string(data)[0].encode('hex')
+      return b'<' + cls.parse_pdf_string(data)[0] + b'>'
     elif data.startswith(b'<<'):
       if not data.endswith(b'>>'):
         raise PdfTokenParseError('Unclosed dict in %r' % data)
@@ -1264,9 +1268,9 @@ class PdfObj(object):
         if match and match.end() == len(data):
           raise PdfTokenTruncated('Truncated hex string %r' % data)
         raise PdfTokenParseError('Bad hex string %r' % data)
-      data = cls.PDF_WHITESPACE_RE.sub('', data).lower()
+      data = cls.PDF_WHITESPACE_RE.sub(b'', data).lower()
       if (len(data) & 1) != 0:
-        return data[:-1] + '0>'
+        return data[:-1] + b'0>'
       else:
         return data
     elif data.startswith(b'/'):
@@ -1283,14 +1287,14 @@ class PdfObj(object):
       number_match = data and cls.PDF_NUMBER_AT_EOS_RE.match(data)
       if number_match:
         # Integer was already parsed above.
-        # Don't parse float, we usually don't need them parsed. Thus we also
+        # Don't parse float, we usually don't need them parsed. Thus, we also
         # won't verify float.
         return cls._normalize_number(number_match)
       raise PdfTokenParseError('Syntax error in %r' % data)
 
   @classmethod
   def parse_simplest_dict(cls, data):
-    """Parse simplest PDF token sequence to a dict mapping strings to values.
+    """Parse the simplest PDF token sequence to a dict mapping strings to values.
 
     This method returns a PDF token sequence without comments (%).
 
@@ -1329,8 +1333,7 @@ class PdfObj(object):
       start = match.end()
       dict_obj[match.group(1)] = cls.parse_simple_value(match.group(2))
     if not cls.PDF_WHITESPACE_AT_EOS_RE.match(data, start, end):
-      raise PdfTokenNotSimplest(
-        'not simplest at %d, got %r' % (start, data[start: start + 16]))
+      raise PdfTokenNotSimplest('not simplest at %d, got %r' % (start, data[start: start + 16]))
     return dict_obj
 
   @classmethod
@@ -1407,7 +1410,7 @@ class PdfObj(object):
     Please note that this method doesn't implement a validating parser: it
     happily accepts some invalid PDF constructs.
 
-    There is no corresponding super fast ParseSimplestArray call implemented,
+    There is no corresponding fast ParseSimplestArray call implemented,
     because parsing arrays is not a common operation.
 
     For duplicate keys, only the last key--value pair is kept.
@@ -1464,8 +1467,12 @@ class PdfObj(object):
   @classmethod
   def _escape_pdf_names_in_hex_tokens_safe(cls, data: bytes, _cache=None):  # !!! Add unit tests.
     if _cache is None:
-      _cache = [cls.PDF_SAFE_KEEP_HEX_ESCAPED_RE.sub(lambda match: b'#%02X' % int.from_bytes(match.group(), 'big'),
-                                                     (i).to_bytes(1, 'big')) for i in range(256)]
+      _cache = [
+        cls.PDF_SAFE_KEEP_HEX_ESCAPED_RE.sub(
+          lambda match: b'#%02X' % int.from_bytes(match.group(), 'big'),
+          i.to_bytes(1, 'big')
+        ) for i in range(256)
+      ]
     """Data is a PDF token sequence containing all strings as <hex>."""
     if b'#' in data:  # Works for both strings and buffers.
       # This unescapes e.g. #41 to A, and keeps e.g. #20 escaped. It doesn't
@@ -1477,14 +1484,17 @@ class PdfObj(object):
         # #), because pdf_reference_1-7.pdf says that # must also be escaped.
         raise PdfTokenParseError('Hex error in name %r.' % data)
     m = cls.PDF_HEXTOKENS_SAFE_HEX_ESCAPE_RE.match(data)
-    return cls.PDF_HEXTOKENS_SAFE_HEX_ESCAPE_RE.sub(lambda match: b'#%02X' % ord(match.group()),
-                                                    data)  # Escapes e.g. * to #2A.
+    return cls.PDF_HEXTOKENS_SAFE_HEX_ESCAPE_RE.sub(lambda match: b'#%02X' % ord(match.group()), data)  # Escapes e.g. * to #2A.
 
   @classmethod
   def _escape_pdf_names_in_hex_tokens_optimized(cls, data, idx=None, _cache=None):  # !!! Add unit tests.
     if _cache is None:
-      _cache = [cls.PDF_SAFE_KEEP_HEX_ESCAPED_RE.sub(lambda match: b'#%02X' % int.from_bytes(match.group(), 'big'),
-                                                     (i).to_bytes(1, 'big')) for i in range(256)]
+      _cache = [
+        cls.PDF_SAFE_KEEP_HEX_ESCAPED_RE.sub(
+          lambda match: b'#%02X' % int.from_bytes(match.group(), 'big'),
+          i.to_bytes(1, 'big')
+        ) for i in range(256)
+      ]
     """Data is a PDF token sequence containing all strings as <hex>."""
     if b'#' not in data:  # Works for both strings and buffers.
       return data
