@@ -871,8 +871,8 @@ class PdfObj(object):
   """Matches one or more PDF whitespace characters."""
 
   PDF_STREAM_OR_ENDOBJ_RE = re.compile(
-      r'(stream(?:[\0\t\f ]*\r?\n|[\0\t\f ])|'
-      r'endobj(?:\r\n|[\0\t\n\r\f /%]|\Z))')
+      r'(stream(?:[\x00\t\f ]*\r?\n|[\x00\t\f ])|'
+      r'endobj(?:\r\n|[\x00\t\n\r\f /%]|\Z))')
   """Matches stream or endobj in a PDF obj in .group(1).
 
   pdf_reference_1-7.pdf requires stream\r?\n, we are more permissive.
@@ -880,40 +880,40 @@ class PdfObj(object):
   """
 
   PDF_PREFIXED_STREAM_OR_ENDOBJ_RE = re.compile(
-      r'[\0\t\n\r\f \)>\]]' + PDF_STREAM_OR_ENDOBJ_RE.pattern)
+      r'[\x00\t\n\r\f \)>\]]' + PDF_STREAM_OR_ENDOBJ_RE.pattern)
   """Matches stream or endobj in a PDF obj, prefixed with 1 char."""
 
   REST_OF_R_RE = re.compile(
-      r'(?:[\0\t\n\r\f ]|%[^\r\n]*[\r\n])+([-+]?\d+)'
-      r'(?:[\0\t\n\r\f ]|%[^\r\n]*[\r\n])+R(?=[\0\t\n\r\f /%<>\[\](])')
+      r'(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+([-+]?\d+)'
+      r'(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+R(?=[\x00\t\n\r\f /%<>\[\](])')
   """Matches the generation number and the 'R' (followed by a char)."""
 
   PDF_END_OF_REF_RE = re.compile(
-      r'[\0\t\n\r\f ]R(?=[\0\t\n\r\f /%(<>\[\]]|\Z)')
+      r'[\x00\t\n\r\f ]R(?=[\x00\t\n\r\f /%(<>\[\]]|\Z)')
   """Matches the whitespace, the 'R' and looks ahead 1 char."""
 
-  PDF_REF_END_RE = re.compile(r'[\0\t\n\r\f ]R\Z')
+  PDF_REF_END_RE = re.compile(r'[\x00\t\n\r\f ]R\Z')
   """Matches a whitespace char and an R at the end of the string."""
 
   PDF_REF_AT_EOS_RE = re.compile(
       r'([-+]?\d+)'
-      r'(?:[\0\t\n\r\f ]|%[^\r\n]*[\r\n])+([-+]?\d+)'
-      r'(?:[\0\t\n\r\f ]|%[^\r\n]*[\r\n])+R\Z')
+      r'(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+([-+]?\d+)'
+      r'(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+R\Z')
   """Matches an <x> <y> R at end-of-string."""
 
   PDF_REF_RE = re.compile(
-      PDF_REF_AT_EOS_RE.pattern[:-2] + r'(?=[\0\t\n\r\f /%(<>\[\]]|\Z)')
+      PDF_REF_AT_EOS_RE.pattern[:-2] + r'(?=[\x00\t\n\r\f /%(<>\[\]]|\Z)')
   """Matches an <x> <y> R."""
 
   PDF_NUMBER_OR_REF_RE = re.compile(
-      r'([-+]?\d+)(?=[\0\t\n\r\f /%(<>\[\]])(?:'
-      r'(?:[\0\t\n\r\f ]|%[^\r\n]*[\r\n])+([-+]?\d+)'
-      r'(?:[\0\t\n\r\f ]|%[^\r\n]*[\r\n])+R'
-      r'(?=[\0\t\n\r\f /%(<>\[\]]|\Z))?')
+      r'([-+]?\d+)(?=[\x00\t\n\r\f /%(<>\[\]])(?:'
+      r'(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+([-+]?\d+)'
+      r'(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+R'
+      r'(?=[\x00\t\n\r\f /%(<>\[\]]|\Z))?')
   """Matches a number or an <x> <y> R."""
 
   LENGTH_OF_STREAM_RE = re.compile(
-      r'/Length(?:[\0\t\n\r\f ]|%[^\r\n]*[\r\n])+' +
+      r'/Length(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+' +
       PDF_NUMBER_OR_REF_RE.pattern)
   """Matches `/Length <x>' or `/Length <x> <y> R'."""
 
@@ -921,9 +921,9 @@ class PdfObj(object):
   """Matches the beginning of a subset font name (starting with slash)."""
 
   PDF_COMMENTS_OR_WHITESPACE_RE = re.compile(
-      r'(?:[\0\t\n\r\f ]+(?![\0\t\n\r\f ])|%[^\r\n]*(?:[\r\n]|\Z))*')
+      r'(?:[\x00\t\n\r\f ]+(?![\x00\t\n\r\f ])|%[^\r\n]*(?:[\r\n]|\Z))*')
       # TODO(pts): Does this do fewer backtracks than the one below?
-      # r'[\0\t\n\r\f ]*(?:%[^\r\n]*(?:[\r\n]|\Z)[\0\t\n\r\f ]*)*')
+      # r'[\x00\t\n\r\f ]*(?:%[^\r\n]*(?:[\r\n]|\Z)[\x00\t\n\r\f ]*)*')
   """Matches any number (0 is OK) of terminated comments and whitespace.
 
   Doesn't capture any regexp group.
@@ -934,12 +934,12 @@ class PdfObj(object):
   """Matches any number (>= 1) of terminated comments and whitespace."""
 
   PDF_JUST_OBJ_DEF_RE = re.compile(
-      r'(\d+)[\0\t\n\r\f ](\d+)[\0\t\n\r\f ]+obj'
-      r'(?=[\0\t\n\r\f %/<\[({])')
+      r'(\d+)[\x00\t\n\r\f ](\d+)[\x00\t\n\r\f ]+obj'
+      r'(?=[\x00\t\n\r\f %/<\[({])')
   """Matches an `obj' definition without leading or trailing whitespace."""
 
   PDF_OBJ_DEF_RE = re.compile(
-      r'[\0\t\n\r\f ]*' + PDF_JUST_OBJ_DEF_RE.pattern +
+      r'[\x00\t\n\r\f ]*' + PDF_JUST_OBJ_DEF_RE.pattern +
       PDF_COMMENTS_OR_WHITESPACE_RE.pattern)
   """Matches an `obj' definition with maybe leading and trailing whitespace.
 
@@ -949,8 +949,8 @@ class PdfObj(object):
   """
 
   PDF_OBJ_DEF_OR_XREF_RE = re.compile(
-      PDF_JUST_OBJ_DEF_RE.pattern + r'[\0\t\n\r\f ]*'
-      r'|xref[\0\t\n\r\f ]+|startxref[\0\t\n\r\f ]+')
+      PDF_JUST_OBJ_DEF_RE.pattern + r'[\x00\t\n\r\f ]*'
+      r'|xref[\x00\t\n\r\f ]+|startxref[\x00\t\n\r\f ]+')
   """Matches an `obj' definition, xref or startxref.
 
   It's important that leading whitespace is not ignored.
@@ -959,7 +959,7 @@ class PdfObj(object):
   """
 
   PDF_HEXTOKENS_SAFE_HEX_ESCAPE_RE = re.compile(
-      r'[^-+A-Za-z0-9_./#\[\]()<>{}\0\t\n\r\f ]')
+      r'[^-+A-Za-z0-9_./#\[\]()<>{}\x00\t\n\r\f ]')
   """Matches a single name character which needs to be hex-escaped.
 
   This regexp should be matched against a PDF token sequence (rather than a
@@ -974,7 +974,7 @@ class PdfObj(object):
   members of PDF_SAFE_KEEP_HEX_ESCAPED_RE,. """
 
   PDF_OPTIMIZED_KEEP_HEX_ESCAPED_RE = re.compile(
-      r'[/#\[\]()<>{}\0\t\n\r\f %]')
+      r'[/#\[\]()<>{}\x00\t\n\r\f %]')
   """Like PDF_SAFE_KEEP_HEX_ESCAPED_RE, but contains only a minimum set of
   characters so that the PDF is still valid.
 
@@ -1026,7 +1026,7 @@ class PdfObj(object):
   'foo&bar' all the way to the end, but PDF_TOKENS_UNSAFE_CHARS_RE isn't found.
   """
 
-  PDF_TOKENS_UNSAFE_CHARS_RE = re.compile(r'[{}\\\v\0\t\n\r\f%\\]+')
+  PDF_TOKENS_UNSAFE_CHARS_RE = re.compile(r'[{}\\\v\x00\t\n\r\f%\\]+')
   """Matches a single unsafe character in a PDF token sequence.
 
   * Space is not unsafe, we need it for `/Length 5'.
@@ -1051,18 +1051,18 @@ class PdfObj(object):
   """
 
   PDF_ANGLE_BRACKET_FOR_SIMPLE_RE = re.compile(
-      r'<(?:<|[\0\t\n\r\f 0-9a-fA-F]*>?)|>(?:>)?')
+      r'<(?:<|[\x00\t\n\r\f 0-9a-fA-F]*>?)|>(?:>)?')
   """Matches angle bracket constructs.
 
   Useful for detecting PDF token sequence syntax errors in simple parsing."""
 
   PDF_HEX_STRING_LITERAL_OR_DICT_RE = re.compile(
-      r'<(?:<|[\0\t\n\r\f 0-9a-fA-F]*>?)')
+      r'<(?:<|[\x00\t\n\r\f 0-9a-fA-F]*>?)')
   """Matches a << or a PDF hex <...> string literal, without maybe the
   trailing >."""
 
   PDF_HEX_STRING_LITERAL_RE = re.compile(
-      r'<[\0\t\n\r\f 0-9a-fA-F]*>?')
+      r'<[\x00\t\n\r\f 0-9a-fA-F]*>?')
   """Matches a PDF hex <...> string literal, where the trailing > is optional,
   but then anchored to \Z."""
 
@@ -1076,7 +1076,7 @@ class PdfObj(object):
   """
 
   PDF_TOKENS_NONSIMPLE_CHAR_RE = re.compile(
-      r'[^-+A-Za-z0-9_.#/\[\]<>\0\t\n\r\f ' +
+      r'[^-+A-Za-z0-9_.#/\[\]<>\x00\t\n\r\f ' +
       PDF_UNSAFE_NAME_IN_SIMPLE_RE.pattern[1 : -1] + r']')
   """Matches a non-simple character in a PDF obj, needs the
   PDF_TOKENS_INTERESTING_RE parser.
@@ -1093,11 +1093,11 @@ class PdfObj(object):
 
   # !!! Faster regexps by splitting. Do some benchmarks on huge PDFs.
   PDF_TOKENS_INTERESTING_RE = re.compile(
-      PDF_COMMENT_OR_WHITESPACE_RE.pattern + r'(?=([^\0\t\n\r\f ]|\Z))|'  # 1. Comment or whitespace.
+      PDF_COMMENT_OR_WHITESPACE_RE.pattern + r'(?=([^\x00\t\n\r\f ]|\Z))|'  # 1. Comment or whitespace.
       r'\(([^\\()\r]*)\)|'  # 2. Simple string: without parens or backslash.
       r'(\()|'  # 3. Beginning of a complicated string.
-      r'(/[-+A-Za-z0-9_.]*[^<>(){}\[\]/\0\t\n\r\f %\-+A-Za-z0-9_.][^<>(){}\[\]/\0\t\n\r\f %]*)|' +  # 4. Name with explicit hex (#AB) escape or name which needs hex-escaping. !!! Reuse PDF_SAFE_KEEP_HEX_ESCAPED_RE.
-      r'(/(?=[<>(){}\[\]/\0\t\n\r\f %]|\Z))|' +  # 5. An empty name token.
+      r'(/[-+A-Za-z0-9_.]*[^<>(){}\[\]/\x00\t\n\r\f %\-+A-Za-z0-9_.][^<>(){}\[\]/\x00\t\n\r\f %]*)|' +  # 4. Name with explicit hex (#AB) escape or name which needs hex-escaping. !!! Reuse PDF_SAFE_KEEP_HEX_ESCAPED_RE.
+      r'(/(?=[<>(){}\[\]/\x00\t\n\r\f %]|\Z))|' +  # 5. An empty name token.
       r'(#[0-9a-fA-F]{0,2})|' +  # 6. A hex-escape (usually in a name or a keyword).
       r'(' + PDF_HEX_STRING_LITERAL_OR_DICT_RE.pattern + ')|'  # 7. Hex string literal or stray <.
       r'([{}\\\v\)]|>>?)|'  # 8. Invalid PDF tokens (except for >>). (At least invalid outside name tokens.)
@@ -1107,7 +1107,7 @@ class PdfObj(object):
   PDF_EMPTY_NAME_TOKEN_RE = re.compile('/(?:[<>(){}\[\]/\0\t\n\r\f %]|\Z)')
 
   PDF_WHITESPACE_IN_SIMPLE_RE = re.compile(
-      r'([^\0\t\n\r\f ])[\0\t\n\r\f ]+(?=([^\0\t\n\r\f ]|\Z))')
+      r'([^\x00\t\n\r\f ])[\x00\t\n\r\f ]+(?=([^\x00\t\n\r\f ]|\Z))')
   """Matches whitespace in a simple obj head."""
 
   PDF_NUMBER_AT_EOS_RE = re.compile(r'(?:([-])|[+]?)0*(\d*(?:[.]\d*)?)\Z')
@@ -1129,20 +1129,20 @@ class PdfObj(object):
   """Matches a PDF keyword (e.g. true, false, null, obj) or number."""
 
   PDF_STARTXREF_EOF_RE = re.compile(
-      r'[>\0\t\n\r\f ]startxref[\0\t\n\r\f ]+(\d+)(?:[\0\t\n\r\f ]+'
-      r'%%EOF[\0\t\n\r\f ]*)?')
+      r'[>\x00\t\n\r\f ]startxref[\x00\t\n\r\f ]+(\d+)(?:[\x00\t\n\r\f ]+'
+      r'%%EOF[\x00\t\n\r\f ]*)?')
   PDF_STARTXREF_EOF_AT_EOS_RE = re.compile(
       PDF_STARTXREF_EOF_RE.pattern + r'\Z')
   """Matches whitespace (or >), startxref, offset, then EOF at EOS."""
 
   PDF_VERSION_HEADER_RE = re.compile(
-      r'%PDF-(1[.]\d)%?(\r?\n%[\x80-\xff]{1,4}\r?\n|[\0\t\n\r\f ])')
+      r'%PDF-(1[.]\d)%?(\r?\n%[\x80-\xff]{1,4}\r?\n|[\x00\t\n\r\f ])')
   """Matches the header with the version at the beginning of the PDF."""
 
   PDF_TRAILER_RE = re.compile(
-      r'(?s)trailer[\0\t\n\r\f ]*(<<.*?>>)' +
+      r'(?s)trailer[\x00\t\n\r\f ]*(<<.*?>>)' +
       PDF_COMMENTS_OR_WHITESPACE_RE.pattern +
-      r'(?:startxref|xref)[\0\t\n\r\f ]')
+      r'(?:startxref|xref)[\x00\t\n\r\f ]')
   """Matches from 'trailer' to 'startxref' or 'xref'.
 
   TODO(pts): Match more generally, see multiple trailers for testing in:
@@ -1151,11 +1151,11 @@ class PdfObj(object):
 
   PDF_PREFIXED_STARTXREF_RE = re.compile(
       '>>' + PDF_COMMENTS_OR_WHITESPACE_RE.pattern +
-      r'(startxref|xref)[\0\t\n\r\f ]')
+      r'(startxref|xref)[\x00\t\n\r\f ]')
   """Matches startxref or xref in a PDF trailer, prefixed with >>."""
 
   PDF_XREF_SECTION_RE = re.compile(
-      r'[\0\t\n\r\f ]*(xref[\0\t\n\r\f ]+)\d+[\0\t\n\r\f ]+\d+[\0\t\n\r\f ]+')
+      r'[\x00\t\n\r\f ]*(xref[\x00\t\n\r\f ]+)\d+[\x00\t\n\r\f ]+\d+[\x00\t\n\r\f ]+')
   """Matches the start of a PDF xref section.
 
   Some broken PDFs have whitespace in front the xref, so we accept that.
@@ -1163,35 +1163,35 @@ class PdfObj(object):
   """
 
   PDF_XREF_SUBSECTION_OR_TRAILER_RE = re.compile(
-      r'(\d+)[\0\t\n\r\f ]+(\d+)[\0\t\n\r\f ]+|'
-      r'[\0\t\n\r\f ]*(xref[\0\t\n\r\f ]|trailer(?:[\0\t\n\r\f ]|<<))')
+      r'(\d+)[\x00\t\n\r\f ]+(\d+)[\x00\t\n\r\f ]+|'
+      r'[\x00\t\n\r\f ]*(xref[\x00\t\n\r\f ]|trailer(?:[\x00\t\n\r\f ]|<<))')
   """Matches a PDF xref entry, or the 'xref' or 'trailer' keyword."""
 
   PDF_XREF_ENTRY_RE = re.compile(
-      r'(\d{10})[\0\t\n\r\f ](\d{5})[\0\t\n\r\f ]([nf])'
-      r'[\0\t\n\r\f ]{2}')
+      r'(\d{10})[\x00\t\n\r\f ](\d{5})[\x00\t\n\r\f ]([nf])'
+      r'[\x00\t\n\r\f ]{2}')
   """Matches a single PDF xref entry: obj_num, offset and slot type."""
 
   PDF_OBJ_OR_TRAILER_RE = re.compile(
-      r'[\n\r](?:(\d+)[\0\t\n\r\f ]+(\d+)[\0\t\n\r\f ]+obj\b|'
-      r'trailer(?=[\0\t\n\r\f ]|<<))')
+      r'[\n\r](?:(\d+)[\x00\t\n\r\f ]+(\d+)[\x00\t\n\r\f ]+obj\b|'
+      r'trailer(?=[\x00\t\n\r\f ]|<<))')
   """Matches an 'obj' start or a 'trailer' start."""
 
-  PDF_TRAILER_WORD_RE = re.compile(r'[\0\t\n\r\f ](trailer[\0\t\n\r\f ]*<<)')
+  PDF_TRAILER_WORD_RE = re.compile(r'[\x00\t\n\r\f ](trailer[\x00\t\n\r\f ]*<<)')
   """Matches whitespace, the 'trailer' and some more chars."""
 
   PDF_ENDSTREAM_ENDOBJ_RE = re.compile(
-      r'([\0\t\n\r\f ]*)endstream[\0\t\n\r\f ]+endobj(?:[\0\t\n\r\f /]|\Z)')
+      r'([\x00\t\n\r\f ]*)endstream[\x00\t\n\r\f ]+endobj(?:[\x00\t\n\r\f /]|\Z)')
   """Matches endstream+endobj."""
 
-  PDF_BAD_NUMBER_RE = re.compile(r'([\0\t\n\r\f \[])[.](?=[\0\t\n\r\f \]])')
+  PDF_BAD_NUMBER_RE = re.compile(r'([\x00\t\n\r\f \[])[.](?=[\x00\t\n\r\f \]])')
   """Matches a bad (unparsable) number."""
 
   PDF_SIMPLE_VALUE_RE = re.compile(
-      r'(?s)[\0\t\n\r\f ]*('
+      r'(?s)[\x00\t\n\r\f ]*('
       r'\[.*?\]|<<.*?>>|<[^>]*>|\(.*?\)|%[^\n\r]*|'
       + PDF_REF_RE.pattern + '|'
-      r'/?[^\[\]()<>{}/\0\t\n\r\f %]+)')
+      r'/?[^\[\]()<>{}/\x00\t\n\r\f %]+)')
   """Matches a single PDF token or comment in a simplistic way.
 
   For [...], <<...>> and (...) which contain nested delimiters, only a prefix
@@ -1199,23 +1199,23 @@ class PdfObj(object):
   """
 
   PDF_SIMPLEST_KEY_VALUE_RE = re.compile(
-      r'[\0\t\n\r\f ]*/([-+A-Za-z0-9_.]+)(?=[\0\t\n\r\f /\[(<])'
-      r'[\0\t\n\r\f ]*('
-      r'\d+[\0\t\n\r\f ]+\d+[\0\t\n\r\f ]+R|'
+      r'[\x00\t\n\r\f ]*/([-+A-Za-z0-9_.]+)(?=[\x00\t\n\r\f /\[(<])'
+      r'[\x00\t\n\r\f ]*('
+      r'\d+[\x00\t\n\r\f ]+\d+[\x00\t\n\r\f ]+R|'
       r'\([^()\\]*\)|(?s)<(?!<).*?>|'
       r'\[[^%(\[\]]*\]|<<[^%(<>]*>>|'
-      r'/?[-+A-Za-z0-9_.]+(?=[\0\t\n\r\f /\[(<]|\Z))')
+      r'/?[-+A-Za-z0-9_.]+(?=[\x00\t\n\r\f /\[(<]|\Z))')
   """Matches a very simple PDF key--value pair, in a most simplistic way."""
   # TODO(pts): How to prevent backtracking if the regexp doesn't match?
 
-  PDF_WHITESPACE_AT_EOS_RE = re.compile(r'[\0\t\n\r\f ]*\Z')
+  PDF_WHITESPACE_AT_EOS_RE = re.compile(r'[\x00\t\n\r\f ]*\Z')
   """Matches whitespace (0 or more) at end of string."""
 
-  PDF_WHITESPACE_RE = re.compile(r'[\0\t\n\r\f ]+')
+  PDF_WHITESPACE_RE = re.compile(r'[\x00\t\n\r\f ]+')
   """Matches whitespace (1 or more)."""
 
   PDF_WHITESPACE_OR_HEX_STRING_RE = re.compile(
-      r'[\0\t\n\r\f ]+|(<<)|<(?!<)([^>]*)>')
+      r'[\x00\t\n\r\f ]+|(<<)|<(?!<)([^>]*)>')
   """Matches whitespace (1 or more) or a hex string constant or <<."""
 
   PDF_NAME_HEX_OR_HASHMARK_RE = re.compile(r'#([0-9a-fA-F]{2})?')
@@ -1230,7 +1230,7 @@ class PdfObj(object):
   PDF_NONNAME_CHAR_RE = re.compile('[%s]' % re.escape(PDF_NONNAME_CHARS))
   """Matches a single character which can't be part of a PDF name."""
 
-  PDF_NAME_LITERAL_RE = re.compile(r'/([^\[\]{}()<>/%\0\t\n\r\f ]+)')
+  PDF_NAME_LITERAL_RE = re.compile(r'/([^\[\]{}()<>/%\x00\t\n\r\f ]+)')
   """Matches a PDF /name literal."""
 
   PDF_INT_RE = re.compile(r'([-+]?\d+)')
@@ -1252,7 +1252,7 @@ class PdfObj(object):
   PDF_COMMENT_RE = re.compile(r'%[^\r\n]*')
   """Matches a single comment line without a terminator."""
 
-  PDF_SIMPLE2_REF_RE = re.compile(r'(\d+)[\0\t\n\r\f ]+(\d+)[\0\t\n\r\f ]+R\b')
+  PDF_SIMPLE2_REF_RE = re.compile(r'(\d+)[\x00\t\n\r\f ]+(\d+)[\x00\t\n\r\f ]+R\b')
   """Matches `<obj> 0 R', not allowing comments.
 
   TODO(pts): Remove this, in favor of PDF_SIMPLE_REF_RE.
@@ -3114,9 +3114,9 @@ class PdfObj(object):
     if colorspace == '/DeviceGray':
       return True
     # !!! TODO(pts): Do proper PDF token sequence parsing (ParseTokensToSafe).
-    match = re.match(r'\[[\0\t\n\r\f ]*/Indexed[\0\t\n\r\f ]*'
+    match = re.match(r'\[[\x00\t\n\r\f ]*/Indexed[\x00\t\n\r\f ]*'
                      r'(/DeviceRGB|/DeviceGray)'
-                     r'[\0\t\n\r\f ]+\d+[\0\t\n\r\f ]*(?s)([<(].*)]\Z',
+                     r'[\x00\t\n\r\f ]+\d+[\x00\t\n\r\f ]*(?s)([<(].*)]\Z',
                      colorspace)
     if not match:
       return False
@@ -3194,8 +3194,8 @@ class PdfObj(object):
 
   # !!! Do proper PDF token sequence parsing (ParseTokensToSafe).
   PDFDATA_IS_INDEXED_RGB_OR_GRAY_RE = re.compile(
-      r'\[[\0\t\n\r\f ]*/Indexed[\0\t\n\r\f ]*/Device(?:RGB|Gray)'
-      r'[\0\t\n\r\f ]+\d')
+      r'\[[\x00\t\n\r\f ]*/Indexed[\x00\t\n\r\f ]*/Device(?:RGB|Gray)'
+      r'[\x00\t\n\r\f ]+\d')
 
   @classmethod
   def IsIndexedRgbOrGrayColorSpace(cls, colorspace):
@@ -3204,8 +3204,8 @@ class PdfObj(object):
 
   # !!! Do proper PDF token sequence parsing (ParseTokensToSafe).
   PDFDATA_INDEXED_RGB_OR_GRAY_RE = re.compile(
-      r'\[[\0\t\n\r\f ]*/Indexed[\0\t\n\r\f ]*/Device(RGB|Gray)'
-      r'[\0\t\n\r\f ]+\d+[\0\t\n\r\f ]*([<(](?s).*)\]\Z')
+      r'\[[\x00\t\n\r\f ]*/Indexed[\x00\t\n\r\f ]*/Device(RGB|Gray)'
+      r'[\x00\t\n\r\f ]+\d+[\x00\t\n\r\f ]*([<(](?s).*)\]\Z')
 
   @classmethod
   def ParseRgbOrGrayPalette(cls, colorspace):
@@ -3242,7 +3242,7 @@ class PdfObj(object):
     """
     # !! TODO(pts): What about PDF comments between /Subtype and /Form?
     #               Also everywhere else.
-    if (not re.search(r'/Subtype[\0\t\n\r\f ]*/Form\b', self.head) or
+    if (not re.search(r'/Subtype[\x00\t\n\r\f ]*/Form\b', self.head) or
         not self.head.startswith('<<') or
         not self.stream is not None or
         self.Get('Subtype') != '/Form' or
@@ -3265,9 +3265,9 @@ class PdfObj(object):
     # !! TODO(pts): Do proper PDF content stream token sequence parsing,
     #    matching comments etc.
     match = re.match(
-        r'q[\0\t\n\r\f ]+(\d+)[\0\t\n\r\f ]+0[\0\t\n\r\f ]+0[\0\t\n\r\f ]+'
-        r'(\d+)[\0\t\n\r\f ]+0[\0\t\n\r\f ]+0[\0\t\n\r\f ]+cm[\0\t\n\r\f ]+'
-        r'BI[\0\t\n\r\f ]*(/(?s).*?)ID(?:\r\n|[\0\t\n\r\f ])', stream)
+        r'q[\x00\t\n\r\f ]+(\d+)[\x00\t\n\r\f ]+0[\x00\t\n\r\f ]+0[\x00\t\n\r\f ]+'
+        r'(\d+)[\x00\t\n\r\f ]+0[\x00\t\n\r\f ]+0[\x00\t\n\r\f ]+cm[\x00\t\n\r\f ]+'
+        r'BI[\x00\t\n\r\f ]*(/(?s).*?)ID(?:\r\n|[\x00\t\n\r\f ])', stream)
     if not match:
       return None
     if int(match.group(1)) != width or int(match.group(2)) != height:
@@ -3281,7 +3281,7 @@ class PdfObj(object):
     stream_tail = stream[-16:]
     # TODO(pts): What if \r\n in front of EI? We don't support that.
     match = re.search(
-        r'[\0\t\n\r\f ]EI[\0\t\n\r\f ]+Q[\0\t\n\r\f ]*\Z', stream_tail)
+        r'[\x00\t\n\r\f ]EI[\x00\t\n\r\f ]+Q[\x00\t\n\r\f ]*\Z', stream_tail)
     if not match:
       return None
     stream_end = len(stream) - len(stream_tail) + match.start()
@@ -4308,7 +4308,7 @@ class ImageData(object):
     # !!! TODO(pts): Do proper PDF token sequence parsing.
     image_obj_nums = [
         obj_num for obj_num in sorted(pdf.objs)
-        if re.search(r'/Subtype[\0\t\n\r\f ]*/Image\b',
+        if re.search(r'/Subtype[\x00\t\n\r\f ]*/Image\b',
                      pdf.objs[obj_num].head)]
     # !! support single-color image by sam2p
     # !! image_obj_nums is empty on empty page (by sam2p)
@@ -4321,7 +4321,7 @@ class ImageData(object):
       colorspace = None
       # Convert imagemask generated by sam2p to indexed1
       page_objs = [pdf.objs[obj_num] for obj_num in sorted(pdf.objs) if
-                   re.search(r'/Type[\0\t\n\r\f ]*/Page\b',
+                   re.search(r'/Type[\x00\t\n\r\f ]*/Page\b',
                              pdf.objs[obj_num].head) and
                    pdf.objs[obj_num].head.startswith('<<') and
                    pdf.objs[obj_num].Get('Type') == '/Page']
@@ -5631,7 +5631,7 @@ class PdfData(object):
       if (
           # (nonstandard behavior) eurotex2006.final.pdf has
           # /Type/FontDescriptor missing, so we don't match on that.
-          re.search(r'/FontName[\0\t\n\r\f ]*/', obj.head) and
+          re.search(r'/FontName[\x00\t\n\r\f ]*/', obj.head) and
           '/FontFile' in obj.head and  # /FontFile, /FontFile2 or /FontFile3
           '/Flags' in obj.head and
           obj.head.startswith('<<')):
@@ -7195,8 +7195,8 @@ class PdfData(object):
 
   # !!! Do proper PDF token sequence parsing (ParseTokensToSafe).
   PDFDATA_INDEXED_COLORSPACE_FOR_SUB_RE = re.compile(
-      r'\A\[[\0\t\n\r\f ]*/Indexed[\0\t\n\r\f ]*'
-      r'/([^\0\t\n\r\f /<(]+)(?s).*')
+      r'\A\[[\x00\t\n\r\f ]*/Indexed[\x00\t\n\r\f ]*'
+      r'/([^\x00\t\n\r\f /<(]+)(?s).*')
 
   @classmethod
   def _IsSlowCmdName(cls, cmd_name):
@@ -7246,7 +7246,7 @@ class PdfData(object):
     for obj_num in sorted(self.objs):
       obj = self.objs[obj_num]
       if (not obj.head.startswith('<<') or '/Image' not in obj.head or
-          not re.search(r'/Subtype[\0\t\n\r\f ]*/Image\b', obj.head) or
+          not re.search(r'/Subtype[\x00\t\n\r\f ]*/Image\b', obj.head) or
           not obj.stream is not None or
           obj.Get('Subtype') != '/Image'):
         continue
@@ -7298,7 +7298,7 @@ class PdfData(object):
       if (isinstance(mask, str) and mask and
           not do_remove_mask and
           # TODO(pts): Remove /Mask [].
-          not re.match(r'\[[\0\t\n\r\f ]*\]\Z', mask)):
+          not re.match(r'\[[\x00\t\n\r\f ]*\]\Z', mask)):
         continue
 
       bpc, bpc_has_changed = PdfObj.ResolveReferencesChanged(
@@ -7390,9 +7390,9 @@ class PdfData(object):
       # convert it to RGB, though.
       #
       # !!! Do proper PDF token sequence parsing.
-      if not re.match(r'(?:/Device(?:RGB|Gray)\Z|\[[\0\t\n\r\f ]*'
-                      r'/Indexed[\0\t\n\r\f ]*'
-                      r'/Device(?:RGB|Gray)[\0\t\n\r\f (<\[/])', colorspace):
+      if not re.match(r'(?:/Device(?:RGB|Gray)\Z|\[[\x00\t\n\r\f ]*'
+                      r'/Indexed[\x00\t\n\r\f ]*'
+                      r'/Device(?:RGB|Gray)[\x00\t\n\r\f (<\[/])', colorspace):
         continue
 
       # We've already called ResolveReferences on /Filter, /BitsPerComponent,
@@ -7878,7 +7878,7 @@ class PdfData(object):
       obj = self.objs[obj_num]
       if (obj.head.startswith('<<') and
           # !!! TODO(pts): Do proper PDF token sequence parsing.
-          re.search(r'/Subtype[\0\t\n\r\f ]*/Form\b', obj.head) and
+          re.search(r'/Subtype[\x00\t\n\r\f ]*/Form\b', obj.head) and
           obj.Get('Subtype') == '/Form'):
         matrix = obj.Get('Matrix')
         if isinstance(matrix, str):
