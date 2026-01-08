@@ -440,7 +440,7 @@ def SerializeCffDict(cff_dict):
         output.append(''.join(
             chr(nibbles[i] << 4 | nibbles[i + 1])
             for i in xrange(0, len(nibbles), 2)))
-      elif isinstance(operand, int) or isinstance(operand, long):
+      elif isinstance(operand, int):
         # This also covers bool (with False==0 and True==1). Good.
 
         if -107 <= operand <= 107:
@@ -724,8 +724,8 @@ def IsCffValueEqual(a, b):
   elif (isinstance(a, str) and isinstance(b, str) and
         (a.startswith('<') or b.startswith('<'))):
     return False
-  elif (isinstance(a, (str, float, int, long)) and
-        isinstance(b, (str, float, int, long))):
+  elif (isinstance(a, (str, float, int)) and
+        isinstance(b, (str, float, int))):
     # !!! '42.9139' vs '42.913898'
     return (float(a) - float(b)) < 1e-3  # !!! pGS has 0.04379, ParseCff1 has .043790001. for /Private.BlueScale in i=1.
     return float(a) == float(b)
@@ -974,7 +974,7 @@ def ParseCffNumber(op, number):
       raise ValueError('Invalid CFF float value for op %d: %r' %
                        (op, number))
     return float_util.FormatFloatShort(number, is_int_ok=False)
-  elif isinstance(number, (int, long)):
+  elif isinstance(number, int):
     return int(number)
   else:
     raise ValueError('Invalid CFF number value for op %d: %r' %
@@ -1040,7 +1040,7 @@ def ParseCffCharset(charset_value, data, len_charstrings, cff_all_string_bufs):
     not hex-escaped, starting with '.notdef'. The length is the same as
     len_charstrings.
   """
-  if not isinstance(charset_value, (int, long)):
+  if not isinstance(charset_value, int):
     raise TypeError
   if not isinstance(len_charstrings, int):
     raise TypeError
@@ -1150,7 +1150,7 @@ def ParseCffEncoding(encoding_value, data, charset, cff_all_string_bufs):
     A list of 256 glyph name strings, each starting with a '/', and
     hex-escaped.
   """
-  if not isinstance(encoding_value, (int, long)):
+  if not isinstance(encoding_value, int):
     raise TypeError
   _CffStringToName = CffStringToName
   if encoding_value < 10:
@@ -1265,7 +1265,7 @@ def ParseCffOp(op, op_value, op_name, op_type, op_default):
         except ValueError:
           raise ValueError('Invalid CFF float delta value for op %d: %r' %
                            (op, number))
-      elif isinstance(number, (int, long)):
+      elif isinstance(number, int):
         prev_number += int(number)
       else:
         raise ValueError('Invalid CFF number delta value for op %d: %r' %
@@ -1295,7 +1295,7 @@ def ParseCffOp(op, op_value, op_name, op_type, op_default):
       raise ValueError('Invalid size for CFF integer value for op %d: %d' %
                        (op, op_value))
     op_value = op_value[0]
-    if not isinstance(op_value, (int, long)):
+    if not isinstance(op_value, int):
       raise ValueError('Invalid CFF integer value for op %d: %r' %
                        (op, op_value))
     return int(op_value)
@@ -1305,7 +1305,7 @@ def ParseCffOp(op, op_value, op_name, op_type, op_default):
                        (op, op_value))
     result = []
     for number in op_value:
-      if not isinstance(number, (int, long)):
+      if not isinstance(number, int):
         raise ValueError('Invalid CFF integer value for op %d: %r' %
                          (op, number))
       result.append(int(number))

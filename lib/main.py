@@ -1803,7 +1803,7 @@ class PdfObj(object):
   @classmethod
   def GetNumber(cls, data):
     """Return an int, log, float or None."""
-    if isinstance(data, int) or isinstance(data, long):
+    if isinstance(data, int):
       return int(data)
     elif isinstance(data, float):
       pass
@@ -1850,7 +1850,7 @@ class PdfObj(object):
       key: A PDF name literal without a slash, e.g. 'ColorSpace'
       default: The value to return if key was not found. None by default.
     Returns:
-      An str, bool, int, long or None value, as returned by
+      An str, bool, int, or None value, as returned by
       self.ParseSimpleValue, default, if key was not found.
     """
     if key.startswith('/'):
@@ -2154,7 +2154,7 @@ class PdfObj(object):
     Args:
       data: String containing a PDF token to parse (no whitespace around it).
     Returns:
-      Parsed value: True, False, None, an int (or long) or an str (for
+      Parsed value: True, False, None, an int or a str (for
       anything else). Returns PDF literals as <hex>. If the return value is
       an str, then it's normalized.
     Raises:
@@ -2283,7 +2283,7 @@ class PdfObj(object):
         There must be no leading or trailing whitespace.
     Returns:
       A dict mapping strings to values (usually strings). The values are the
-      result of ParseSimpleValue, so they can be None, int, long, bool or str.
+      result of ParseSimpleValue, so they can be None, int, bool or str.
     Raises:
       PdfTokenParseError:
     """
@@ -2850,9 +2850,9 @@ class PdfObj(object):
   def SimpleValueToString(cls, value):
     if isinstance(value, str):
       return value
-    elif isinstance(value, bool):  # must be above int and long
+    elif isinstance(value, bool):  # must be above int
       return str(value).lower()
-    elif isinstance(value, int) or isinstance(value, long):
+    elif isinstance(value, int):
       return str(value)
     elif value is None:
       return 'null'
@@ -2869,9 +2869,9 @@ class PdfObj(object):
         return cls.SerializePdfStringSafe(cls.ParsePdfString(value)[0])
       else:
         return value
-    elif isinstance(value, bool):  # must be above int and long
+    elif isinstance(value, bool):  # must be above int
       return str(value).lower()
-    elif isinstance(value, int) or isinstance(value, long):
+    elif isinstance(value, int):
       return str(value)
     elif value is None:
       return 'null'
@@ -3674,7 +3674,7 @@ class PdfObj(object):
       do_strings: bool indicating whether to embed the referred
         streams as strings.
     Returns:
-      new_data, which can be an int, a long, a float, a bool, None, or an str.
+      new_data, which can be an int, a float, a bool, None, or an str.
       ParseSimpleValue is used on new_data (to convert str to other types) if
       data is an str containing a single reference (R).
     Raises:
@@ -3685,8 +3685,7 @@ class PdfObj(object):
     # !! always do a ResolveReferences to flatten /Filter and /DecodeParms.
     if not isinstance(objs, dict):
       raise TypeError
-    if (data is None or isinstance(data, int) or isinstance(data, long) or
-        isinstance(data, float) or isinstance(data, bool)):
+    if (data is None or isinstance(data, int) or isinstance(data, float) or isinstance(data, bool)):
       return data
     if not isinstance(data, str):
       raise TypeError
@@ -5096,7 +5095,7 @@ class PdfData(object):
         raise PdfXrefError(str(exc))
       if xref_ofs is None:
         break
-      if not isinstance(xref_ofs, int) and not isinstance(xref_ofs, long):
+      if not isinstance(xref_ofs, int):
         raise PdfXrefError('/Prev xref offset not an int: %r' % xref_ofs)
       # Subsequent /Prev xref tables are not allowed to modify objects
       # we've already created.
@@ -8793,7 +8792,7 @@ class PdfData(object):
     for offsets_idx in xrange(len(in_offsets) - 1):
       obj_ofs = in_offsets[offsets_idx]
       obj_num = obj_num_by_in_ofs[obj_ofs]
-      if type(obj_num) not in (int, long):
+      if not isinstance(obj_num, int):
         raise PdfTokenParseError
       if obj_num < 1:
         raise PdfTokenParseError
