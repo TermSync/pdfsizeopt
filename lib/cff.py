@@ -843,46 +843,46 @@ def GetParsedCffDifferences(a, b):
     diff.append('/Private')
     return diff
   if a['CharStrings'] != b['CharStrings']:
-    print a['CharStrings']
-    print b['CharStrings']
+    print(a['CharStrings'])
+    print(b['CharStrings'])
     diff.append('/CharStrings')
   if a['Encoding'] != b['Encoding']:
     a_encoding = NormalizeEncoding(a['Encoding'], set(a['CharStrings']))
     b_encoding = NormalizeEncoding(b['Encoding'], set(b['CharStrings']))
     if a_encoding != b_encoding:
-      print a_encoding
-      print b_encoding
+      print(a_encoding)
+      print(b_encoding)
       diff.append('/Encoding')
   if a['FontName'] != b['FontName']:
-    print a['FontName']
-    print b['FontName']
+    print(a['FontName'])
+    print(b['FontName'])
     diff.append('/FontName')
 
   for op, (op_name, op_type, op_default) in sorted(CFF_TOP_OP_MAP.iteritems()):
     if op_name not in ('charset', 'Encoding', 'CharStrings', 'Private'):
       if not IsCffValueEqual(a.get(op_name), b.get(op_name)):
-        print '-- /%s' % op_name
-        print a.get(op_name)
-        print b.get(op_name)
+        print('-- /%s' % op_name)
+        print(a.get(op_name))
+        print(b.get(op_name))
         diff.append('/%s' % op_name)
   for op, (op_name, op_type, op_default) in sorted(CFF_PRIVATE_OP_MAP.iteritems()):
     if op_name not in ('Subrs', 'GlobalSubrs'):
       if not IsCffValueEqual(a['Private'].get(op_name), b['Private'].get(op_name)):
-        print '-- /Private.%s' % op_name
-        print a['Private'].get(op_name)
-        print b['Private'].get(op_name)
+        print('-- /Private.%s' % op_name)
+        print(a['Private'].get(op_name))
+        print(b['Private'].get(op_name))
         diff.append('/Private.%s' % op_name)
   if a['Private'].get('Subrs') != b['Private'].get('Subrs'):
-    print a['Private'].get('Subrs')
-    print b['Private'].get('Subrs')
+    print(a['Private'].get('Subrs'))
+    print(b['Private'].get('Subrs'))
     diff.append('/Subrs')
   if a['Private'].get('GlobalSubrs') != b['Private'].get('GlobalSubrs'):
-    print a['Private'].get('GlobalSubrs')
-    print b['Private'].get('GlobalSubrs')
+    print(a['Private'].get('GlobalSubrs'))
+    print(b['Private'].get('GlobalSubrs'))
     diff.append('/GlobalSubrs')
   if not IsDictOptEqual(a['Private'].get('ParsedPostScript'), b['Private'].get('ParsedPostScript')):
-    print a['Private'].get('ParsedPostScript')
-    print b['Private'].get('ParsedPostScript')
+    print(a['Private'].get('ParsedPostScript'))
+    print(b['Private'].get('ParsedPostScript'))
     diff.append('/ParsedPostScript')
   # !! Compare all other fields as well.
   # !! Apply defaults to missing fields.
@@ -1522,6 +1522,6 @@ def ParseCff1(data, is_careful=False):
   # !! when serializing: /FamilyOtherBlues must occur right after /FamilyBlues
   # !!! why? pGS (ParseType1CFonts) emits /Weight as 'FamilyName', and doesn't emit /FamilyName. This is compensated in cff.pgs by renaming to 'Weight'.
 
-  #print parsed_dict
+  #print(parsed_dict)
   return parsed_dict
   # !! Add unit tests for code coverage on everything cff.pgs covers.
