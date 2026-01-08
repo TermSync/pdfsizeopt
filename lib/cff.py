@@ -739,15 +739,12 @@ CFF_TOP_OP_DEFAULTS = [
        sorted(CFF_TOP_OP_MAP.items())
     if op_name not in ('charset', 'Encoding', 'CharStrings', 'Private') and
         op_default is not None]
-del op, op_name, op_type, op_default
 
 CFF_PRIVATE_OP_DEFAULTS = [
     (op_name, op_default)
     for op, (op_name, op_type, op_default) in
        sorted(CFF_PRIVATE_OP_MAP.items())
     if op_name not in ('Subrs', 'GlobalSubrs') and op_default is not None]
-del op, op_name, op_type, op_default
-
 
 def RemoveCffDefaults(parsed_dict):
   """Returns a new parsed_dict dict with default values for fields removed."""
