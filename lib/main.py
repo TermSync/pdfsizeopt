@@ -869,17 +869,14 @@ class PdfObj(object):
   PDF_WHITESPACES_RE = re.compile('[' + PDF_WHITESPACE_CHARS + ']+')
   """Matches one or more PDF whitespace characters."""
 
-  PDF_STREAM_OR_ENDOBJ_RE = re.compile(
-      r'(stream(?:[\x00\t\f ]*\r?\n|[\x00\t\f ])|'
-      r'endobj(?:\r\n|[\x00\t\n\r\f /%]|\Z))')
+  PDF_STREAM_OR_ENDOBJ_RE = re.compile(br'(stream(?:[\x00\t\f ]*\r?\n|[\x00\t\f ])|endobj(?:\r\n|[\x00\t\n\r\f /%]|\Z))')
   """Matches stream or endobj in a PDF obj in .group(1).
 
   pdf_reference_1-7.pdf requires stream\r?\n, we are more permissive.
   Example: 2019-05-21-azure.pdf in https://github.com/pts/pdfsizeopt/issues/117
   """
 
-  PDF_PREFIXED_STREAM_OR_ENDOBJ_RE = re.compile(
-      r'[\x00\t\n\r\f \)>\]]' + PDF_STREAM_OR_ENDOBJ_RE.pattern)
+  PDF_PREFIXED_STREAM_OR_ENDOBJ_RE = re.compile(br'[\x00\t\n\r\f \)>\]]' + PDF_STREAM_OR_ENDOBJ_RE.pattern)
   """Matches stream or endobj in a PDF obj, prefixed with 1 char."""
 
   REST_OF_R_RE = re.compile(
@@ -920,7 +917,7 @@ class PdfObj(object):
   """Matches the beginning of a subset font name (starting with slash)."""
 
   PDF_COMMENTS_OR_WHITESPACE_RE = re.compile(
-      r'(?:[\x00\t\n\r\f ]+(?![\x00\t\n\r\f ])|%[^\r\n]*(?:[\r\n]|\Z))*')
+      br'(?:[\x00\t\n\r\f ]+(?![\x00\t\n\r\f ])|%[^\r\n]*(?:[\r\n]|\Z))*')
       # TODO(pts): Does this do fewer backtracks than the one below?
       # r'[\x00\t\n\r\f ]*(?:%[^\r\n]*(?:[\r\n]|\Z)[\x00\t\n\r\f ]*)*')
   """Matches any number (0 is OK) of terminated comments and whitespace.
@@ -929,16 +926,16 @@ class PdfObj(object):
   """
 
   PDF_COMMENT_OR_WHITESPACE_RE = re.compile(
-      PDF_COMMENTS_OR_WHITESPACE_RE.pattern[:-1] + r'+')
+      PDF_COMMENTS_OR_WHITESPACE_RE.pattern[:-1] + br'+')
   """Matches any number (>= 1) of terminated comments and whitespace."""
 
   PDF_JUST_OBJ_DEF_RE = re.compile(
-      r'(\d+)[\x00\t\n\r\f ](\d+)[\x00\t\n\r\f ]+obj'
-      r'(?=[\x00\t\n\r\f %/<\[({])')
+      br'(\d+)[\x00\t\n\r\f ](\d+)[\x00\t\n\r\f ]+obj'
+      br'(?=[\x00\t\n\r\f %/<\[({])')
   """Matches an `obj' definition without leading or trailing whitespace."""
 
   PDF_OBJ_DEF_RE = re.compile(
-      r'[\x00\t\n\r\f ]*' + PDF_JUST_OBJ_DEF_RE.pattern +
+      br'[\x00\t\n\r\f ]*' + PDF_JUST_OBJ_DEF_RE.pattern +
       PDF_COMMENTS_OR_WHITESPACE_RE.pattern)
   """Matches an `obj' definition with maybe leading and trailing whitespace.
 
@@ -948,8 +945,8 @@ class PdfObj(object):
   """
 
   PDF_OBJ_DEF_OR_XREF_RE = re.compile(
-      PDF_JUST_OBJ_DEF_RE.pattern + r'[\x00\t\n\r\f ]*'
-      r'|xref[\x00\t\n\r\f ]+|startxref[\x00\t\n\r\f ]+')
+      PDF_JUST_OBJ_DEF_RE.pattern + br'[\x00\t\n\r\f ]*'
+      br'|xref[\x00\t\n\r\f ]+|startxref[\x00\t\n\r\f ]+')
   """Matches an `obj' definition, xref or startxref.
 
   It's important that leading whitespace is not ignored.
@@ -1049,14 +1046,12 @@ class PdfObj(object):
       output of PdfObj.__init__ and ParseTokensToSafe.
   """
 
-  PDF_ANGLE_BRACKET_FOR_SIMPLE_RE = re.compile(
-      r'<(?:<|[\x00\t\n\r\f 0-9a-fA-F]*>?)|>(?:>)?')
+  PDF_ANGLE_BRACKET_FOR_SIMPLE_RE = re.compile(br'<(?:<|[\x00\t\n\r\f 0-9a-fA-F]*>?)|>(?:>)?')
   """Matches angle bracket constructs.
 
   Useful for detecting PDF token sequence syntax errors in simple parsing."""
 
-  PDF_HEX_STRING_LITERAL_OR_DICT_RE = re.compile(
-      r'<(?:<|[\x00\t\n\r\f 0-9a-fA-F]*>?)')
+  PDF_HEX_STRING_LITERAL_OR_DICT_RE = re.compile(br'<(?:<|[\x00\t\n\r\f 0-9a-fA-F]*>?)')
   """Matches a << or a PDF hex <...> string literal, without maybe the
   trailing >."""
 
@@ -1065,7 +1060,7 @@ class PdfObj(object):
   """Matches a PDF hex <...> string literal, where the trailing > is optional,
   but then anchored to \Z."""
 
-  PDF_UNSAFE_NAME_IN_SIMPLE_RE = re.compile(r'[!"$&\'*,:;=?@\\^`|~]')
+  PDF_UNSAFE_NAME_IN_SIMPLE_RE = re.compile(br'[!"$&\'*,:;=?@\\^`|~]')
   """Matches a simple character which should be hex-escaped in simple PDF
   token sequence parsing.
 
@@ -1075,8 +1070,8 @@ class PdfObj(object):
   """
 
   PDF_TOKENS_NONSIMPLE_CHAR_RE = re.compile(
-      r'[^-+A-Za-z0-9_.#/\[\]<>\x00\t\n\r\f ' +
-      PDF_UNSAFE_NAME_IN_SIMPLE_RE.pattern[1 : -1] + r']')
+      br'[^-+A-Za-z0-9_.#/\[\]<>\x00\t\n\r\f ' +
+      PDF_UNSAFE_NAME_IN_SIMPLE_RE.pattern[1 : -1] + br']')
   """Matches a non-simple character in a PDF obj, needs the
   PDF_TOKENS_INTERESTING_RE parser.
 
@@ -1092,18 +1087,18 @@ class PdfObj(object):
 
   # !!! Faster regexps by splitting. Do some benchmarks on huge PDFs.
   PDF_TOKENS_INTERESTING_RE = re.compile(
-      PDF_COMMENT_OR_WHITESPACE_RE.pattern + r'(?=([^\x00\t\n\r\f ]|\Z))|'  # 1. Comment or whitespace.
-      r'\(([^\\()\r]*)\)|'  # 2. Simple string: without parens or backslash.
-      r'(\()|'  # 3. Beginning of a complicated string.
-      r'(/[-+A-Za-z0-9_.]*[^<>(){}\[\]/\x00\t\n\r\f %\-+A-Za-z0-9_.][^<>(){}\[\]/\x00\t\n\r\f %]*)|' +  # 4. Name with explicit hex (#AB) escape or name which needs hex-escaping. !!! Reuse PDF_SAFE_KEEP_HEX_ESCAPED_RE.
-      r'(/(?=[<>(){}\[\]/\x00\t\n\r\f %]|\Z))|' +  # 5. An empty name token.
-      r'(#[0-9a-fA-F]{0,2})|' +  # 6. A hex-escape (usually in a name or a keyword).
-      r'(' + PDF_HEX_STRING_LITERAL_OR_DICT_RE.pattern + ')|'  # 7. Hex string literal or stray <.
-      r'([{}\\\v\)]|>>?)|'  # 8. Invalid PDF tokens (except for >>). (At least invalid outside name tokens.)
-      + PDF_STREAM_OR_ENDOBJ_RE.pattern[:-1] + '|startxref[\0\t\n\r\f ]|xref[\0\t\n\r\f ])' )  # 9. stream or endobj or startxref or xref.
+      PDF_COMMENT_OR_WHITESPACE_RE.pattern + br'(?=([^\x00\t\n\r\f ]|\Z))|'  # 1. Comment or whitespace.
+      br'\(([^\\()\r]*)\)|'  # 2. Simple string: without parens or backslash.
+      br'(\()|'  # 3. Beginning of a complicated string.
+      br'(/[-+A-Za-z0-9_.]*[^<>(){}\[\]/\x00\t\n\r\f %\-+A-Za-z0-9_.][^<>(){}\[\]/\x00\t\n\r\f %]*)|' +  # 4. Name with explicit hex (#AB) escape or name which needs hex-escaping. !!! Reuse PDF_SAFE_KEEP_HEX_ESCAPED_RE.
+      br'(/(?=[<>(){}\[\]/\x00\t\n\r\f %]|\Z))|' +  # 5. An empty name token.
+      br'(#[0-9a-fA-F]{0,2})|' +  # 6. A hex-escape (usually in a name or a keyword).
+      br'(' + PDF_HEX_STRING_LITERAL_OR_DICT_RE.pattern + br')|'  # 7. Hex string literal or stray <.
+      br'([{}\\\v\)]|>>?)|'  # 8. Invalid PDF tokens (except for >>). (At least invalid outside name tokens.)
+      + PDF_STREAM_OR_ENDOBJ_RE.pattern[:-1] + b'|startxref[\0\t\n\r\f ]|xref[\0\t\n\r\f ])' )  # 9. stream or endobj or startxref or xref.
   """Matches interesting parts of a non-simple obj head."""
 
-  PDF_EMPTY_NAME_TOKEN_RE = re.compile('/(?:[<>(){}\[\]/\0\t\n\r\f %]|\Z)')
+  PDF_EMPTY_NAME_TOKEN_RE = re.compile(b'/(?:[<>(){}\[\]/\0\t\n\r\f %]|\Z)')
 
   PDF_WHITESPACE_IN_SIMPLE_RE = re.compile(
       r'([^\x00\t\n\r\f ])[\x00\t\n\r\f ]+(?=([^\x00\t\n\r\f ]|\Z))')
@@ -1128,10 +1123,9 @@ class PdfObj(object):
   """Matches a PDF keyword (e.g. true, false, null, obj) or number."""
 
   PDF_STARTXREF_EOF_RE = re.compile(
-      r'[>\x00\t\n\r\f ]startxref[\x00\t\n\r\f ]+(\d+)(?:[\x00\t\n\r\f ]+'
-      r'%%EOF[\x00\t\n\r\f ]*)?')
-  PDF_STARTXREF_EOF_AT_EOS_RE = re.compile(
-      PDF_STARTXREF_EOF_RE.pattern + r'\Z')
+      br'[>\x00\t\n\r\f ]startxref[\x00\t\n\r\f ]+(\d+)(?:[\x00\t\n\r\f ]+'
+      br'%%EOF[\x00\t\n\r\f ]*)?')
+  PDF_STARTXREF_EOF_AT_EOS_RE = re.compile(PDF_STARTXREF_EOF_RE.pattern + br'\Z')
   """Matches whitespace (or >), startxref, offset, then EOF at EOS."""
 
   PDF_VERSION_HEADER_RE = re.compile(
@@ -1139,9 +1133,9 @@ class PdfObj(object):
   """Matches the header with the version at the beginning of the PDF."""
 
   PDF_TRAILER_RE = re.compile(
-      r'(?s)trailer[\x00\t\n\r\f ]*(<<.*?>>)' +
+      br'(?s)trailer[\x00\t\n\r\f ]*(<<.*?>>)' +
       PDF_COMMENTS_OR_WHITESPACE_RE.pattern +
-      r'(?:startxref|xref)[\x00\t\n\r\f ]')
+      br'(?:startxref|xref)[\x00\t\n\r\f ]')
   """Matches from 'trailer' to 'startxref' or 'xref'.
 
   TODO(pts): Match more generally, see multiple trailers for testing in:
@@ -1149,12 +1143,11 @@ class PdfObj(object):
   """
 
   PDF_PREFIXED_STARTXREF_RE = re.compile(
-      '>>' + PDF_COMMENTS_OR_WHITESPACE_RE.pattern +
-      r'(startxref|xref)[\x00\t\n\r\f ]')
+      b'>>' + PDF_COMMENTS_OR_WHITESPACE_RE.pattern +
+      br'(startxref|xref)[\x00\t\n\r\f ]')
   """Matches startxref or xref in a PDF trailer, prefixed with >>."""
 
-  PDF_XREF_SECTION_RE = re.compile(
-      r'[\x00\t\n\r\f ]*(xref[\x00\t\n\r\f ]+)\d+[\x00\t\n\r\f ]+\d+[\x00\t\n\r\f ]+')
+  PDF_XREF_SECTION_RE = re.compile(br'[\x00\t\n\r\f ]*(xref[\x00\t\n\r\f ]+)\d+[\x00\t\n\r\f ]+\d+[\x00\t\n\r\f ]+')
   """Matches the start of a PDF xref section.
 
   Some broken PDFs have whitespace in front the xref, so we accept that.
@@ -1162,13 +1155,13 @@ class PdfObj(object):
   """
 
   PDF_XREF_SUBSECTION_OR_TRAILER_RE = re.compile(
-      r'(\d+)[\x00\t\n\r\f ]+(\d+)[\x00\t\n\r\f ]+|'
-      r'[\x00\t\n\r\f ]*(xref[\x00\t\n\r\f ]|trailer(?:[\x00\t\n\r\f ]|<<))')
+      br'(\d+)[\x00\t\n\r\f ]+(\d+)[\x00\t\n\r\f ]+|'
+      br'[\x00\t\n\r\f ]*(xref[\x00\t\n\r\f ]|trailer(?:[\x00\t\n\r\f ]|<<))')
   """Matches a PDF xref entry, or the 'xref' or 'trailer' keyword."""
 
   PDF_XREF_ENTRY_RE = re.compile(
-      r'(\d{10})[\x00\t\n\r\f ](\d{5})[\x00\t\n\r\f ]([nf])'
-      r'[\x00\t\n\r\f ]{2}')
+      br'(\d{10})[\x00\t\n\r\f ](\d{5})[\x00\t\n\r\f ]([nf])'
+      br'[\x00\t\n\r\f ]{2}')
   """Matches a single PDF xref entry: obj_num, offset and slot type."""
 
   PDF_OBJ_OR_TRAILER_RE = re.compile(
@@ -1526,8 +1519,7 @@ class PdfObj(object):
     _whitespace_re = cls.PDF_WHITESPACE_RE
     _unsafe_string_char_re = cls.PDF_STRING_UNSAFE_CHAR_RE
     _escape_hex = cls._EscapePdfNamesInHexTokensSafe
-    if (not is_simple_ok or
-        cls.PDF_TOKENS_NONSIMPLE_CHAR_RE.search(data, start, end_for_simple)):
+    if not is_simple_ok or cls.PDF_TOKENS_NONSIMPLE_CHAR_RE.search(data, start, end_for_simple):
       # Our simple parsing approach has failed, maybe because we've
       # found the wrong (early) 'endobj' in e.g. '(endobj rest) endobj'.
       output, i = [], start
