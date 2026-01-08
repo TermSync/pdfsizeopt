@@ -736,7 +736,7 @@ def IsCffValueEqual(a, b):
 CFF_TOP_OP_DEFAULTS = [
     (op_name, op_default)
     for op, (op_name, op_type, op_default) in
-       sorted(CFF_TOP_OP_MAP.iteritems())
+       sorted(CFF_TOP_OP_MAP.items())
     if op_name not in ('charset', 'Encoding', 'CharStrings', 'Private') and
         op_default is not None]
 del op, op_name, op_type, op_default
@@ -744,7 +744,7 @@ del op, op_name, op_type, op_default
 CFF_PRIVATE_OP_DEFAULTS = [
     (op_name, op_default)
     for op, (op_name, op_type, op_default) in
-       sorted(CFF_PRIVATE_OP_MAP.iteritems())
+       sorted(CFF_PRIVATE_OP_MAP.items())
     if op_name not in ('Subrs', 'GlobalSubrs') and op_default is not None]
 del op, op_name, op_type, op_default
 
@@ -836,7 +836,7 @@ def GetParsedCffDifferences(a, b):
     if type(a) != dict or type(b) != dict:
       return false
     # !! Better compare floats etc.
-    return sorted(a.iteritems()) == sorted(b.iteritems())
+    return sorted(a.items()) == sorted(b.items())
 
   diff = []
   if type(a.get('Private')) != dict or type(b.get('Private')) != dict:
@@ -858,14 +858,14 @@ def GetParsedCffDifferences(a, b):
     print(b['FontName'])
     diff.append('/FontName')
 
-  for op, (op_name, op_type, op_default) in sorted(CFF_TOP_OP_MAP.iteritems()):
+  for op, (op_name, op_type, op_default) in sorted(CFF_TOP_OP_MAP.items()):
     if op_name not in ('charset', 'Encoding', 'CharStrings', 'Private'):
       if not IsCffValueEqual(a.get(op_name), b.get(op_name)):
         print('-- /%s' % op_name)
         print(a.get(op_name))
         print(b.get(op_name))
         diff.append('/%s' % op_name)
-  for op, (op_name, op_type, op_default) in sorted(CFF_PRIVATE_OP_MAP.iteritems()):
+  for op, (op_name, op_type, op_default) in sorted(CFF_PRIVATE_OP_MAP.items()):
     if op_name not in ('Subrs', 'GlobalSubrs'):
       if not IsCffValueEqual(a['Private'].get(op_name), b['Private'].get(op_name)):
         print('-- /Private.%s' % op_name)
@@ -1379,7 +1379,7 @@ def ParseCff1(data, is_careful=False):
   cff_all_string_bufs.extend(cff_string_bufs)
   string_index_limit = len(cff_all_string_bufs)
   del cff_string_bufs
-  for op, op_value in sorted(top_dict.iteritems()):
+  for op, op_value in sorted(top_dict.items()):
     if op in _CFF_TOP_CIDFONT_OPERATORS:
       # First such operator must be /ROS in the top dict, but we don't care
       # about the order.
@@ -1438,7 +1438,7 @@ def ParseCff1(data, is_careful=False):
       private_dict2 = ParseCffDict(private_dict_ser)
       assert private_dict == private_dict2, (private_dict, private_dict2)
       del private_dict_ser, private_dict2
-    for op, op_value in sorted(private_dict.iteritems()):
+    for op, op_value in sorted(private_dict.items()):
       op_entry = _CFF_PRIVATE_OP_MAP.get(op)
       op_name = op_entry[0]
       if op_entry is None:

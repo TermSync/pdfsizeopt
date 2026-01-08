@@ -10,8 +10,7 @@
 #   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #   GNU General Public License for more details.
 #
-# pdfsizeopt works with Python 2.4, 2.5, 2.6 and 2.7. It doesn't work with
-# Python 3.x.
+# pdfsizeopt works with Python 3.10+. It doesn't work with Python 2.x.
 #
 # This Python script implements some techniques for making PDF files smaller
 # without any visual quality or interactivity loss.
