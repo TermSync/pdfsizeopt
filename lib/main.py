@@ -1135,7 +1135,7 @@ class PdfObj(object):
   """Matches whitespace (or >), startxref, offset, then EOF at EOS."""
 
   PDF_VERSION_HEADER_RE = re.compile(
-      r'%PDF-(1[.]\d)%?(\r?\n%[\x80-\xff]{1,4}\r?\n|[\x00\t\n\r\f ])')
+      br'%PDF-(1[.]\d)%?(\r?\n%[\x80-\xff]{1,4}\r?\n|[\x00\t\n\r\f ])')
   """Matches the header with the version at the beginning of the PDF."""
 
   PDF_TRAILER_RE = re.compile(
@@ -1315,7 +1315,7 @@ class PdfObj(object):
     This method doesn't implement a validating PDF parser.
 
     Args:
-      other: PdfObj, or str or buffer (with full obj, stream, endstream, endobj
+      other: PdfObj, or str or memoryview (with full obj, stream, endstream, endobj
         + garbage) or None
       objs: A dictionary mapping object numbers to existing PdfObj objects.
         These can be used for resolving `R's to build self.
@@ -1336,7 +1336,7 @@ class PdfObj(object):
       Exception: Many others.
     """
     self._cache = None
-    if not isinstance(other, (str, buffer)):
+    if not isinstance(other, (str, memoryview)):
       if isinstance(other, PdfObj):
         self._head = other.head
         self.stream = other.stream
@@ -1347,7 +1347,7 @@ class PdfObj(object):
         raise TypeError(type(other))
       return
 
-    # --- Parse the rest as a buffer (byte string).
+    # --- Parse the rest as a memoryview (byte string).
 
     # Also matches and strips leading whitespace and comments after 'obj'.
     match = self.PDF_OBJ_DEF_RE.match(other, start)
@@ -1446,7 +1446,7 @@ class PdfObj(object):
     if not match:
       # TODO(pts): Find the last match.
       for match in self.PDF_ENDSTREAM_ENDOBJ_RE.finditer(
-          buffer(other, stream_start_idx, len(other) - stream_start_idx)):
+          memoryview(other[stream_start_idx:len(other)])):
         pass
       if match is None:
         raise PdfTokenParseError(
@@ -1473,7 +1473,7 @@ class PdfObj(object):
     """Parses a PDF token sequence to a safe PDF token sequence.
 
     Args:
-      data: str or buffer containing a PDF token sequence.
+      data: str or memoryview containing a PDF token sequence.
       start: Offset in data to start parsing.
       end_ofs_out: None or an empty array output parameter for the end offset
         `endobj' + single whitespace or for the start offset of 'startxref'
@@ -1588,8 +1588,7 @@ class PdfObj(object):
                 raise PdfTokenTruncated('Truncated hex string.')
               else:
                 raise PdfTokenParseError('Invalid < token.')
-            strdata = _whitespace_re.sub('', buffer(
-                data, match.start() + 1, match.end() - 2 - match.start()))
+            strdata = _whitespace_re.sub('', memoryview(data[match.start() + 1: match.end() - 1]))
             if len(strdata) & 1 != 0:
               strdata += '0'
             strdata_dec = strdata.decode('hex')
@@ -1657,7 +1656,7 @@ class PdfObj(object):
             raise PdfTokenTruncated('Truncated hex string.')
           else:
             raise PdfTokenParseError('Invalid < token.')
-        data = _whitespace_re.sub('', buffer(data, 1, len(data) - 2))
+        data = _whitespace_re.sub('', memoryview(data[1:len(data) - 1]))
         if len(data) & 1 != 0:
           data += '0'
         data_dec = data.decode('hex')
@@ -1666,7 +1665,7 @@ class PdfObj(object):
         else:
           return '(%s)' % data_dec
 
-      data = buffer(data, start, end_for_simple - start)
+      data = memoryview(data[start:end_for_simple])
       # !!! Benchmark this relatively to complicated implementation.
       #     (token_parsing_speed.txt)
       #     Seems to be tolerable for pdf_reference_1-7.pdf with >100000 objs.
@@ -1722,7 +1721,7 @@ class PdfObj(object):
     can contain non-ASCII string literals, e.g. '(\200)'.
 
     Args:
-      data: str or buffer containing a PDF token sequence.
+      data: str or memoryview containing a PDF token sequence.
     Raises:
       PdfTokenParseError: If data isn't a safe PDF token sequence.
     """
@@ -2086,7 +2085,7 @@ class PdfObj(object):
     """Parses a PDF string literal (hex or non-hex).
 
     Args:
-      data: str or buffer in which to parse.
+      data: str or memoryview in which to parse.
       start: Offset in data to start parsing.
       end: End (first excluded) offset in data, to end parsing at. The value
         None means len(data).
@@ -2115,7 +2114,7 @@ class PdfObj(object):
     #   a literal string without a preceding backslash, the result is
     #   equivalent to \n (regardless of whether the end-of-line marker
     #   was a carriage return, a line feed, or both).''
-    if not isinstance(data, (buffer, str)):
+    if not isinstance(data, (memoryview, str)):
       raise TypeError
     if end is None:
       end = len(data)
@@ -2130,8 +2129,7 @@ class PdfObj(object):
           raise PdfTokenTruncated('Truncated hex string.')
         raise PdfTokenParseError('Bad hex string.')
       i = match.end()
-      data = cls.PDF_WHITESPACE_RE.sub(
-          '', buffer(data, start + 1, match.end() - 2 - start))
+      data = cls.PDF_WHITESPACE_RE.sub('', memoryview(data[start + 1:match.end()-1]))
       if (len(data) & 1) != 0:
         data += '0'
       data = data.decode('hex')
@@ -2400,7 +2398,7 @@ class PdfObj(object):
         ) for i in range(256)
       ]
     """Data is a PDF token sequence containing all strings as <hex>."""
-    if '#' in data:  # Works for both strings and buffers.
+    if '#' in data:  # Works for both strings and memoryviews.
       # This unescapes e.g. #41 to A, and keeps e.g. #20 escaped. It doesn't
       # touch unescaped chars (e.g. * or A).
       try:
@@ -2422,7 +2420,7 @@ class PdfObj(object):
         ) for i in range(256)
       ]
     """Data is a PDF token sequence containing all strings as <hex>."""
-    if '#' not in data:  # Works for both strings and buffers.
+    if '#' not in data:  # Works for both strings and memoryviews.
       return str(data)
     # This unescapes e.g. #41 to A, and keeps e.g. #20 escaped. It doesn't
     # touch unescaped chars (e.g. * or A).
@@ -3372,7 +3370,7 @@ class PdfObj(object):
     http://en.wiktionary.org/wiki/parsable .
 
     Args:
-      data: str or buffer containing a PDF token sequence.
+      data: str or memoryview containing a PDF token sequence.
       start: Offset in data to start the parsing at.
       end_ofs_out: None or a list for the first output byte
         (which is unparsed) offset to be appended. Terminating whitespace is
@@ -3531,7 +3529,7 @@ class PdfObj(object):
               raise PdfTokenTruncated('Truncated hex string.')
             raise PdfTokenParseError('Bad hex string.')
           j = match.end()
-          s = cls.PDF_WHITESPACE_RE.sub('', buffer(data, i, j - 1 - i))
+          s = cls.PDF_WHITESPACE_RE.sub('', memoryview(data[i:j-1]))
           output.append(' <%s%s>' % (s.lower(), '0' * (len(s) & 1)))
           i = j
           del s  # Save memory.
@@ -3801,11 +3799,11 @@ class PdfObj(object):
 
   @classmethod
   def PdfRstripBuffer(cls, data, start, end):
-     """Return a buffer of data[start : end] with whitespace rstripped."""
+     """Return a memoryview of data[start : end] with whitespace rstripped."""
      assert start >= 0
      while end > start and data[end - 1] in cls.PDF_WHITESPACE_CHARS:
        end -= 1
-     return buffer(data, start, end - start)
+     return memoryview(data[start:end])
 
   def ParseObjStm(self, obj_num):
     """Parses a /Type/ObjStm trailer_obj.
@@ -4592,7 +4590,7 @@ class PdfData(object):
     # and we assume that offset 0 of the PDF file is where %PDF- starts.
     #
     # Example: https://github.com/pts/pdfsizeopt/issues/76
-    match = PdfObj.PDF_VERSION_HEADER_RE.search(buffer(data, 0, 256))
+    match = PdfObj.PDF_VERSION_HEADER_RE.search(memoryview(data[:256]))
     if not match:
       raise PdfTokenParseError('unrecognized PDF signature %r' % data[: 16])
     data = data[match.start():]
@@ -4674,7 +4672,7 @@ class PdfData(object):
     obj_items2 = []
     for i in range(1, len(obj_items)):
       start_ofs, obj_num = obj_items[i - 1]
-      obj_data = buffer(data, start_ofs, obj_items[i][0] - start_ofs)
+      obj_data = memoryview(data[start_ofs:obj_items[i][0]])
       assert obj_data, 'duplicate object start offset'
       if _pdf_obj_def_re.match(obj_data):
         obj_items2.append((start_ofs, obj_num))
@@ -4689,8 +4687,7 @@ class PdfData(object):
     # Pairs mapping object numbers to strings of format ``X Y obj ...
     # endobj' (+ junk).
     objs_to_parse = sorted(  # Sorted by obj_num.
-        (obj_items[i - 1][1], buffer(
-            data, obj_items[i - 1][0], obj_items[i][0] - obj_items[i - 1][0]))
+        (obj_items[i - 1][1], memoryview(data[obj_items[i - 1][0]:obj_items[i][0]]))
         for i in range(1, len(obj_items2)))
     obj_items = None  # Save memory.
 
@@ -4955,7 +4952,7 @@ class PdfData(object):
               'obj_num_in_objstm=%d objstm_obj_num=%d i=%d' %
               (obj_num, compressed_obj_nums[i], objstm_obj_num, i))
         compressed_obj_nums[i] = None
-        assert isinstance(compressed_obj_headbufs[i], (buffer, str))
+        assert isinstance(compressed_obj_headbufs[i], (memoryview, str))
         obj_starts[obj_num] = compressed_obj_headbufs[i] = PdfObj(
             '%d 0 obj\n%s\nendobj\n' % (obj_num, compressed_obj_headbufs[i]))
     for obj_num in sorted(obj_streams):
@@ -8324,7 +8321,7 @@ class PdfData(object):
     if setitem_callback is None:
       setitem_callback = DefaultSetItem
 
-    match = PdfObj.PDF_VERSION_HEADER_RE.search(buffer(data, 0, 256))
+    match = PdfObj.PDF_VERSION_HEADER_RE.search(memoryview(data[:256]))
     if not match:
       raise PdfTokenParseError('unrecognized PDF signature %r' % data[: 16])
     data = data[match.start():]
