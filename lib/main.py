@@ -2392,12 +2392,13 @@ class PdfObj(object):
     return cls._EscapePdfNamesInHexTokensSafe(name)
 
   @classmethod
-  def _EscapePdfNamesInHexTokensSafe(
-      cls, data,
-      _cache = [PDF_SAFE_KEEP_HEX_ESCAPED_RE.sub(
-          lambda match: '#%02X' % ord(match.group()),
-          chr(i)) for i in range(256)],
-      ):  # !!! Add unit tests.
+  def _EscapePdfNamesInHexTokensSafe(cls, data, _cache = None):  # !!! Add unit tests.
+    if _cache is None:
+      _cache = [
+        cls.PDF_SAFE_KEEP_HEX_ESCAPED_RE.sub(
+          lambda match: '#%02X' % ord(match.group()),chr(i)
+        ) for i in range(256)
+      ]
     """Data is a PDF token sequence containing all strings as <hex>."""
     if '#' in data:  # Works for both strings and buffers.
       # This unescapes e.g. #41 to A, and keeps e.g. #20 escaped. It doesn't
@@ -2413,12 +2414,13 @@ class PdfObj(object):
         lambda match: '#%02X' % ord(match.group()), data)
 
   @classmethod
-  def _EscapePdfNamesInHexTokensOptimized(
-      cls, data, idx=None,
-      _cache = [PDF_OPTIMIZED_KEEP_HEX_ESCAPED_RE.sub(
-          lambda match: '#%02X' % ord(match.group()),
-          chr(i)) for i in range(256)],
-      ):  # !!! Add unit tests.
+  def _EscapePdfNamesInHexTokensOptimized(cls, data, idx=None, _cache = None):  # !!! Add unit tests.
+    if _cache is None:
+      _cache = [
+        cls.PDF_OPTIMIZED_KEEP_HEX_ESCAPED_RE.sub(
+          lambda match: '#%02X' % ord(match.group()), chr(i)
+        ) for i in range(256)
+      ]
     """Data is a PDF token sequence containing all strings as <hex>."""
     if '#' not in data:  # Works for both strings and buffers.
       return str(data)
