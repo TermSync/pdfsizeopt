@@ -1942,7 +1942,7 @@ class PdfObj(object):
           output.append('\x02')  # y-predictor mark
           b = bytearray(data[i : i + predictor_width])
           k = i - predictor_width
-          for j in xrange(predictor_width):  # Implement the y predictor.
+          for j in range(predictor_width):  # Implement the y predictor.
             b[j] = (b[j] - ord(data[k + j])) & 255
           output.append(bytearray_tostring(b))
           i += predictor_width
@@ -1964,7 +1964,7 @@ class PdfObj(object):
         while i < len(data):
           b = bytearray(data[i : i + predictor_width])
           k = i - predictor_width
-          for j in xrange(predictor_width):  # Implement the y predictor.
+          for j in range(predictor_width):  # Implement the y predictor.
             b[j] = (b[j] - ord(data[k + j])) & 255
           output.append(bytearray_tostring(b))
           i += predictor_width
@@ -2311,7 +2311,7 @@ class PdfObj(object):
           count_limit=end)
       if 0 != (len(list_obj) & 1):
         raise PdfTokenParseError('odd item count in dict')
-      for i in xrange(0, len(list_obj), 2):
+      for i in range(0, len(list_obj), 2):
         key = list_obj[i]
         if not isinstance(key, str) or not key.startswith('/'):
           # TODO(pts): Report the offset as well.
@@ -2396,7 +2396,7 @@ class PdfObj(object):
       cls, data,
       _cache = [PDF_SAFE_KEEP_HEX_ESCAPED_RE.sub(
           lambda match: '#%02X' % ord(match.group()),
-          chr(i)) for i in xrange(256)],
+          chr(i)) for i in range(256)],
       ):  # !!! Add unit tests.
     """Data is a PDF token sequence containing all strings as <hex>."""
     if '#' in data:  # Works for both strings and buffers.
@@ -2417,7 +2417,7 @@ class PdfObj(object):
       cls, data, idx=None,
       _cache = [PDF_OPTIMIZED_KEEP_HEX_ESCAPED_RE.sub(
           lambda match: '#%02X' % ord(match.group()),
-          chr(i)) for i in xrange(256)],
+          chr(i)) for i in range(256)],
       ):  # !!! Add unit tests.
     """Data is a PDF token sequence containing all strings as <hex>."""
     if '#' not in data:  # Works for both strings and buffers.
@@ -2639,12 +2639,12 @@ class PdfObj(object):
       index = tuple(PdfObj.ParseArray(index_value))
       if (not index or len(index) % 2 != 0 or
           [1 for item in index if not isinstance(item, int) or item < 0] or
-          [1 for i in xrange(1, len(index), 2) if index[i] <= 0]):
+          [1 for i in range(1, len(index), 2) if index[i] <= 0]):
         raise PdfTokenParseError('bad /Index array: %r' % (index,))
     xref_data = self.GetUncompressedStream()
     if len(xref_data) % sum(widths) != 0:
       raise PdfXrefStreamError('data length does not match /W: %r' % widths)
-    index_item_count = sum(index[i] for i in xrange(1, len(index), 2))
+    index_item_count = sum(index[i] for i in range(1, len(index), 2))
     xref_item_count = len(xref_data) / sum(widths)
     if index_item_count != xref_item_count:
       msg = ('data length does not match /Index: '
@@ -3864,7 +3864,7 @@ class PdfObj(object):
     # string in the respective compressed_obj_nums item.
     compressed_obj_headbufs = []
     prev_offset = -1
-    for i in xrange(0, len(numbers), 2):
+    for i in range(0, len(numbers), 2):
       compressed_obj_num = numbers[i]
       compressed_obj_ofs = numbers[i + 1]
       if not isinstance(compressed_obj_num, int):
@@ -4030,13 +4030,13 @@ class ImageData(object):
       plte = self.plte
       assert plte
       assert len(plte) % 3 == 0
-      for i in xrange(0, len(plte), 3):
+      for i in range(0, len(plte), 3):
         if plte[i] != plte[i + 1] or plte[i] != plte[i + 2]:
           break
       else:
         return '[/Indexed/DeviceGray %d%s]' % (
             len(plte) / 3 - 1, PdfObj.SerializePdfStringSafe(''.join(
-                plte[i] for i in xrange(0, len(plte), 3))))
+                plte[i] for i in range(0, len(plte), 3))))
       return '[/Indexed/DeviceRGB %d%s]' % (
           len(plte) / 3 - 1, PdfObj.SerializePdfStringSafe(plte))
     else:
@@ -4159,7 +4159,7 @@ class ImageData(object):
 
   def CompressToZipPng(
       self, do_try_invert=False, effort=9,
-      _invert_table=''.join(chr(i) for i in xrange(255, -1, -1))):
+      _invert_table=''.join(chr(i) for i in range(255, -1, -1))):
     """Compress self.idat to self.compression == 'zip-png'."""
     assert self
     if self.compression == 'zip-png':
@@ -4188,11 +4188,11 @@ class ImageData(object):
     # For testing: idat_size_mod == 1 in vrabimintest.pdf
     output = []
     if do_try_invert:
-      for i in xrange(0, useful_idat_size, bytes_per_row):
+      for i in range(0, useful_idat_size, bytes_per_row):
         output.append('\0')  # Select PNG None predictor for this row.
         output.append(idat[i : i + bytes_per_row].translate(_invert_table))
     else:
-      for i in xrange(0, useful_idat_size, bytes_per_row):
+      for i in range(0, useful_idat_size, bytes_per_row):
         # We don't want to optimize here (like how libpng does) by picking the
         # best predictor, i.e. the one which probably yields the smallest output.
         # PdfData.OptimizeImages has much better and faster algorithms for that.
@@ -4670,7 +4670,7 @@ class PdfData(object):
     # For testing: irbookonlinereading.pdf
     _pdf_obj_def_re = PdfObj.PDF_OBJ_DEF_RE
     obj_items2 = []
-    for i in xrange(1, len(obj_items)):
+    for i in range(1, len(obj_items)):
       start_ofs, obj_num = obj_items[i - 1]
       obj_data = buffer(data, start_ofs, obj_items[i][0] - start_ofs)
       assert obj_data, 'duplicate object start offset'
@@ -4689,7 +4689,7 @@ class PdfData(object):
     objs_to_parse = sorted(  # Sorted by obj_num.
         (obj_items[i - 1][1], buffer(
             data, obj_items[i - 1][0], obj_items[i][0] - obj_items[i - 1][0]))
-        for i in xrange(1, len(obj_items2)))
+        for i in range(1, len(obj_items2)))
     obj_items = None  # Save memory.
 
     objs_with_ilstream = []
@@ -4789,7 +4789,7 @@ class PdfData(object):
       ii = 0
       obj_num = None
       ii_remaining = 0
-      for i in xrange(0, len(xref_data), w012):
+      for i in range(0, len(xref_data), w012):
         if not ii_remaining:
           # PdfObj.GetAndClearXrefStream() guarantees that we get a positive
           # ii_remaining and we don't exhaust the index array below.
@@ -5243,7 +5243,7 @@ class PdfData(object):
       trailer_obj.Set('Index', None)
       index_size = 0
 
-    for i in xrange(1, len(obj_numbers)):
+    for i in range(1, len(obj_numbers)):
       if obj_numbers[i] - 1 != obj_numbers[i - 1]:
         if not (obj_numbers[i] - 2 == obj_numbers[i - 1] and
                 obj_numbers[i] - 1 == trailer_obj_num):
@@ -5396,7 +5396,7 @@ class PdfData(object):
 
     def GetOutputSize():
       if output_size_idx[0] < len(output):
-        for i in xrange(output_size_idx[0], len(output)):
+        for i in range(output_size_idx[0], len(output)):
           output_size[0] += len(output[i])
         output_size_idx[0] = len(output)
       return output_size[0]
@@ -5795,7 +5795,7 @@ class PdfData(object):
           data = PdfObj.PDF_HEXTOKENS_SAFE_HEX_ESCAPE_RE.sub(
               lambda match: '#%02X' % ord(match.group()), data)
           encoding = PdfObj.ParseArray(data)
-          for i in xrange(len(encoding)):
+          for i in range(len(encoding)):
             char_name = encoding[i]
             if char_name is None:
               encoding[i] = '/.notdef'
@@ -5803,7 +5803,7 @@ class PdfData(object):
               char_name = str(char_name)
               assert char_name.startswith('/'), [char_name]
               encoding[i] = str(char_name)
-          encoding.extend('/.notdef' for i in xrange(len(encoding), 256))
+          encoding.extend('/.notdef' for i in range(len(encoding), 256))
           if len(encoding) > 256:
             raise ValueError('Encoding for obj %d too long.' % obj_num)
           encodings[obj_num] = encoding
@@ -6214,9 +6214,9 @@ class PdfData(object):
     for encoding in encodings:
       cls.CheckEncoding(encoding)
     output_encoding = []
-    for i in xrange(len(encodings[0])):
+    for i in range(len(encodings[0])):
       name = '/.notdef'
-      for j in xrange(len(encodings)):
+      for j in range(len(encodings)):
         ename = encodings[j][i]
         if ename != '/.notdef' and ename != name:
           if name != '/.notdef':
@@ -6634,7 +6634,7 @@ class PdfData(object):
 
       self.objs[group_obj_nums[0]].head = merged_fontdesc_obj.head
       font_group_names[font_group] = [merged_font['FontName']]
-      for i in xrange(1, len(group_obj_nums)):
+      for i in range(1, len(group_obj_nums)):
         group_obj_num = group_obj_nums[i]
         obj = self.objs[group_obj_num]  # /Type/FontDescriptor
         # !! merge /Type/Font objects (including /FirstChar, /LastChar and
@@ -7993,7 +7993,7 @@ class PdfData(object):
           refs_to = desc[3]
           eqlist = [desc]
           nelist = []
-          for i in xrange(1, len(eqclass)):
+          for i in range(1, len(eqclass)):
             descb = eqclass[i]
             refs_tob = descb[3]
             j = 0
@@ -8789,7 +8789,7 @@ class PdfData(object):
     out_ofs_by_num = {}
 
     in_ofs_by_num = {}
-    for offsets_idx in xrange(len(in_offsets) - 1):
+    for offsets_idx in range(len(in_offsets) - 1):
       obj_ofs = in_offsets[offsets_idx]
       obj_num = obj_num_by_in_ofs[obj_ofs]
       if not isinstance(obj_num, int):
@@ -8802,7 +8802,7 @@ class PdfData(object):
     # Process individual objects emitted by Multivalent.
     objstm_objs = {}  # Map object numbers to PdfObj of /Type/ObjStm.
     has_objstm_obj = False
-    for offsets_idx in xrange(in_offsets_limit):
+    for offsets_idx in range(in_offsets_limit):
       obj_ofs = in_offsets[offsets_idx]
       obj_num = obj_num_by_in_ofs[obj_ofs]
       obj_size = in_offsets[offsets_idx + 1] - obj_ofs
@@ -8987,7 +8987,7 @@ class PdfData(object):
           if objstm_items is None:
             compressed_obj_nums, compressed_obj_headbufs = (
                 objstm_objs[f1].ParseObjStm(ref_obj_num))
-            for i in xrange(len(compressed_obj_nums)):
+            for i in range(len(compressed_obj_nums)):
               compressed_obj_num = compressed_obj_nums[i]
               cf12 = compressed_objects.get(compressed_obj_num)
               assert cf12, (

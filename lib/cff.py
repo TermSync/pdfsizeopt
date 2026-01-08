@@ -439,7 +439,7 @@ def SerializeCffDict(cff_dict):
         output.append('\x1e')
         output.append(''.join(
             chr(nibbles[i] << 4 | nibbles[i + 1])
-            for i in xrange(0, len(nibbles), 2)))
+            for i in range(0, len(nibbles), 2)))
       elif isinstance(operand, int):
         # This also covers bool (with False==0 and True==1). Good.
 
@@ -498,7 +498,7 @@ def ParseCffIndex(data):
     j = ((count + 1) << 1) + 2
   elif off_size == 3:
     j, offsets = 3, []
-    for i in xrange(count + 1):
+    for i in range(count + 1):
       a, b = struct.unpack('>BH', buffer(data, j, 3))
       offsets.append(a << 16 | b)
       j += 3
@@ -513,7 +513,7 @@ def ParseCffIndex(data):
   if len(data) < j + offsets[count]:
     raise ValueError('CFF index too short for strings.')
   buffers = []
-  for i in xrange(count):
+  for i in range(count):
     if not (1 <= offsets[i] <= offsets[i + 1]):
       raise ValueError('Invalid CFF index offset: %d' % offsets[i])
     buffers.append(buffer(data, j + offsets[i], offsets[i + 1] - offsets[i]))
@@ -1021,7 +1021,7 @@ CFF_EXPERT_SUBSET_CHARSET = tuple(CffStringToName(CFF_STANDARD_STRINGS[i])
                                   for i in _CFF_EXPERT_SUBSET_CHARSET_SIDS)
 
 
-_CFF_ISO_ADOBE_CHARSET_SIDS = xrange(229)
+_CFF_ISO_ADOBE_CHARSET_SIDS = range(229)
 CFF_ISO_ADOBE_CHARSET = tuple(CffStringToName(CFF_STANDARD_STRINGS[i])
                               for i in _CFF_ISO_ADOBE_CHARSET_SIDS)
 
@@ -1079,7 +1079,7 @@ def ParseCffCharset(charset_value, data, len_charstrings, cff_all_string_bufs):
       if len(charset) + count > len_charstrings:
         raise ValueError('CFF /charset format 1 contains a too long range.')
       charset.extend(str(cff_all_string_bufs[sid]) for sid in
-                     xrange(first_sid, first_sid + count))
+                     range(first_sid, first_sid + count))
   elif format == 2:  # 9/8958; .
     i = 1
     while len(charset) < len_charstrings:
@@ -1091,7 +1091,7 @@ def ParseCffCharset(charset_value, data, len_charstrings, cff_all_string_bufs):
       if len(charset) + count > len_charstrings:
         raise ValueError('CFF /charset format 1 contains a too long range.')
       charset.extend(str(cff_all_string_bufs[sid]) for sid in
-                     xrange(first_sid, first_sid + count))
+                     range(first_sid, first_sid + count))
   else:
     raise ValueError('Invalid CFF /charset format: %d' % format)
   assert len(charset) == len_charstrings
@@ -1196,13 +1196,13 @@ def ParseCffEncoding(encoding_value, data, charset, cff_all_string_bufs):
         raise ValueError('CFF /Encoding too short for format 0 codes.')
       encoding = ['/.notdef'] * 256
       j = 1
-      for _ in xrange(range_count):
+      for _ in range(range_count):
         first_code, count1 = struct.unpack('>BB', buffer(data, i, 2))
         if j + count1 >= len(charset):
           raise ValueError(
               'CFF /Encoding with format 1 longer than /CharStrings.')
         i += 2
-        for code in xrange(first_code, first_code + count1 + 1):
+        for code in range(first_code, first_code + count1 + 1):
           encoding[code] = charset[j]
           j += 1
     else:
@@ -1215,7 +1215,7 @@ def ParseCffEncoding(encoding_value, data, charset, cff_all_string_bufs):
       i += 1
       if i + 3 * count > len(data):
         raise ValueError('CFF /Encoding too short for supplement.')
-      for _ in xrange(count):
+      for _ in range(count):
         code, sid = struct.unpack('>BH', buffer(data, i, 3))
         i += 3
         encoding[code] = _CffStringToName(str(cff_all_string_bufs[sid]))
