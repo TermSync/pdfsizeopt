@@ -1201,7 +1201,7 @@ class PdfObj(object):
       r'[\x00\t\n\r\f ]*/([-+A-Za-z0-9_.]+)(?=[\x00\t\n\r\f /\[(<])'
       r'[\x00\t\n\r\f ]*('
       r'\d+[\x00\t\n\r\f ]+\d+[\x00\t\n\r\f ]+R|'
-      r'\([^()\\]*\)|(?s)<(?!<).*?>|'
+      r'\([^()\\]*\)|<(?!<)(.|\n)*?>|'
       r'\[[^%(\[\]]*\]|<<[^%(<>]*>>|'
       r'/?[-+A-Za-z0-9_.]+(?=[\x00\t\n\r\f /\[(<]|\Z))')
   """Matches a very simple PDF key--value pair, in a most simplistic way."""
@@ -3115,7 +3115,7 @@ class PdfObj(object):
     # !!! TODO(pts): Do proper PDF token sequence parsing (ParseTokensToSafe).
     match = re.match(r'\[[\x00\t\n\r\f ]*/Indexed[\x00\t\n\r\f ]*'
                      r'(/DeviceRGB|/DeviceGray)'
-                     r'[\x00\t\n\r\f ]+\d+[\x00\t\n\r\f ]*(?s)([<(].*)]\Z',
+                     r'[\x00\t\n\r\f ]+\d+[\x00\t\n\r\f ]*([<(](.|\n)*)]\Z',
                      colorspace)
     if not match:
       return False
@@ -3204,7 +3204,7 @@ class PdfObj(object):
   # !!! Do proper PDF token sequence parsing (ParseTokensToSafe).
   PDFDATA_INDEXED_RGB_OR_GRAY_RE = re.compile(
       r'\[[\x00\t\n\r\f ]*/Indexed[\x00\t\n\r\f ]*/Device(RGB|Gray)'
-      r'[\x00\t\n\r\f ]+\d+[\x00\t\n\r\f ]*([<(](?s).*)\]\Z')
+      r'[\x00\t\n\r\f ]+\d+[\x00\t\n\r\f ]*([<(](.|\n)*)\]\Z')
 
   @classmethod
   def ParseRgbOrGrayPalette(cls, colorspace):
@@ -3266,7 +3266,7 @@ class PdfObj(object):
     match = re.match(
         r'q[\x00\t\n\r\f ]+(\d+)[\x00\t\n\r\f ]+0[\x00\t\n\r\f ]+0[\x00\t\n\r\f ]+'
         r'(\d+)[\x00\t\n\r\f ]+0[\x00\t\n\r\f ]+0[\x00\t\n\r\f ]+cm[\x00\t\n\r\f ]+'
-        r'BI[\x00\t\n\r\f ]*(/(?s).*?)ID(?:\r\n|[\x00\t\n\r\f ])', stream)
+        r'BI[\x00\t\n\r\f ]*(/(.|\n)*?)ID(?:\r\n|[\x00\t\n\r\f ])', stream)
     if not match:
       return None
     if int(match.group(1)) != width or int(match.group(2)) != height:
@@ -7194,7 +7194,7 @@ class PdfData(object):
   # !!! Do proper PDF token sequence parsing (ParseTokensToSafe).
   PDFDATA_INDEXED_COLORSPACE_FOR_SUB_RE = re.compile(
       r'\A\[[\x00\t\n\r\f ]*/Indexed[\x00\t\n\r\f ]*'
-      r'/([^\x00\t\n\r\f /<(]+)(?s).*')
+      r'/([^\x00\t\n\r\f /<(]+)(.|\n)*')
 
   @classmethod
   def _IsSlowCmdName(cls, cmd_name):
@@ -9444,7 +9444,7 @@ class Flags(object):
   """Class for parsing the command-line of pdfsizeopt."""
 
   BOOL_FLAG_WITH_DEFAULT_RE = re.compile(
-      r'(--\w[-\w]*)=YES_NO;(?: default: (yes|no)|(?s).*)\Z')
+      r'(--\w[-\w]*)=YES_NO;(?: default: (yes|no)|(.|\n)*)\Z')
 
   FLAG_PREFIX_RE = re.compile(r'--(\w[-\w]*=?)')
 
