@@ -863,10 +863,10 @@ class PdfObj(object):
   """
   __slots__ = ['_head', 'stream', '_cache']
 
-  PDF_WHITESPACE_CHARS = '\0\t\n\r\f '
+  PDF_WHITESPACE_CHARS = b'\0\t\n\r\f '
   """String containing all PDF whitespace characters."""
 
-  PDF_WHITESPACES_RE = re.compile('[' + PDF_WHITESPACE_CHARS + ']+')
+  PDF_WHITESPACES_RE = re.compile(b'[' + PDF_WHITESPACE_CHARS + b']+')
   """Matches one or more PDF whitespace characters."""
 
   PDF_STREAM_OR_ENDOBJ_RE = re.compile(br'(stream(?:[\x00\t\f ]*\r?\n|[\x00\t\f ])|endobj(?:\r\n|[\x00\t\n\r\f /%]|\Z))')
@@ -892,13 +892,12 @@ class PdfObj(object):
   """Matches a whitespace char and an R at the end of the string."""
 
   PDF_REF_AT_EOS_RE = re.compile(
-      r'([-+]?\d+)'
-      r'(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+([-+]?\d+)'
-      r'(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+R\Z')
+      br'([-+]?\d+)'
+      br'(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+([-+]?\d+)'
+      br'(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+R\Z')
   """Matches an <x> <y> R at end-of-string."""
 
-  PDF_REF_RE = re.compile(
-      PDF_REF_AT_EOS_RE.pattern[:-2] + r'(?=[\x00\t\n\r\f /%(<>\[\]]|\Z)')
+  PDF_REF_RE = re.compile(PDF_REF_AT_EOS_RE.pattern[:-2] + br'(?=[\x00\t\n\r\f /%(<>\[\]]|\Z)')
   """Matches an <x> <y> R."""
 
   PDF_NUMBER_OR_REF_RE = re.compile(
@@ -2146,26 +2145,26 @@ class PdfObj(object):
       PdfTokenParseError: .
       PdfTokenTruncated: .
     """
-    if not isinstance(data, str):
+    if type(data) not in (bytes, memoryview):
       raise TypeError
     data = data.strip(cls.PDF_WHITESPACE_CHARS)
-    if data in ('true', 'false'):
-      return data == 'true'
-    elif data == 'null':
+    if data in (b'true', b'false'):
+      return data == b'true'
+    elif data == b'null':
       return None
     elif cls.PDF_INT_AT_EOS_RE.match(data):
       return int(data)
-    elif data.startswith('('):
+    elif data.startswith(b'('):
       return '<%s>' % cls.ParsePdfString(data)[0].encode('hex')
-    elif data.startswith('<<'):
-      if not data.endswith('>>'):
+    elif data.startswith(b'<<'):
+      if not data.endswith(b'>>'):
         raise PdfTokenParseError('Unclosed dict in %r' % data)
       return data
-    elif data.startswith('['):
-      if not data.endswith(']'):
+    elif data.startswith(b'['):
+      if not data.endswith(b']'):
         raise PdfTokenParseError('Unclosed array in %r' % data)
       return data
-    elif data.startswith('<'):  # See also data.startswith('<<') above.
+    elif data.startswith(b'<'):  # See also data.startswith('<<') above.
       # This would also work here, but it contains an unnecessary
       # .decode('hex').encode('hex'):
       # return '<%s>' % cls.ParsePdfString(data)[0].encode('hex')
@@ -2179,12 +2178,12 @@ class PdfObj(object):
         return data[:-1] + '0>'
       else:
         return data
-    elif data.startswith('/'):
+    elif data.startswith(b'/'):
       if len(data) == 1 or cls.PDF_NONNAME_CHAR_RE.search(data, 1):
         raise PdfTokenParseError('Bad PDF name token %r' % str(data))
       # Like NormalizePdfName, but we don't need the extra check.
       return cls._EscapePdfNamesInHexTokensSafe(data)
-    elif data.endswith('R'):
+    elif data.endswith(b'R'):
       match = cls.PDF_REF_AT_EOS_RE.match(data)
       if not match:
         raise PdfTokenParseError('Bad reference %r' % data)
@@ -2273,14 +2272,14 @@ class PdfObj(object):
       PdfTokenParseError:
     """
     # TODO(pts): Integate this with Get(), Set() and output optimization
-    if not data.startswith('<<'):
+    if not data.startswith(b'<<'):
       raise PdfTokenParseError('dict should start with <<')
-    if not data.endswith('>>'):
+    if not data.endswith(b'>>'):
       raise PdfTokenParseError('dict should end with >>')
     start = 2
     end = len(data) - 2
 
-    dict_obj = {}
+    dict_obj = dict()
     scanner = cls.PDF_SIMPLEST_KEY_VALUE_RE.scanner(data, start, end)
     while 1:
       match = scanner.match()
@@ -2291,18 +2290,14 @@ class PdfObj(object):
 
     # Continue with non-simplest keys.
     if not cls.PDF_WHITESPACE_AT_EOS_RE.match(data, start, end):
-      list_obj = cls._ParseTokens(
-          data=data, start=start, end=end,
-          count_limit=end)
+      list_obj = cls._ParseTokens(data=data, start=start, end=end, count_limit=end)
       if 0 != (len(list_obj) & 1):
         raise PdfTokenParseError('odd item count in dict')
       for i in range(0, len(list_obj), 2):
         key = list_obj[i]
         if not isinstance(key, str) or not key.startswith('/'):
           # TODO(pts): Report the offset as well.
-          raise PdfTokenParseError(
-              'dict key expected, got %r... ' %
-              (str(key)[0 : 16]))
+          raise PdfTokenParseError('dict key expected, got %r... ' % (str(key)[0 : 16]))
         dict_obj[key[1:]] = list_obj[i + 1]
 
     return dict_obj
