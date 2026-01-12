@@ -1178,10 +1178,10 @@ class PdfObj(object):
   """Matches a bad (unparsable) number."""
 
   PDF_SIMPLE_VALUE_RE = re.compile(
-      r'(?s)[\x00\t\n\r\f ]*('
-      r'\[.*?\]|<<.*?>>|<[^>]*>|\(.*?\)|%[^\n\r]*|'
-      + PDF_REF_RE.pattern + '|'
-      r'/?[^\[\]()<>{}/\x00\t\n\r\f %]+)')
+      br'(?s)[\x00\t\n\r\f ]*('
+      br'\[.*?\]|<<.*?>>|<[^>]*>|\(.*?\)|%[^\n\r]*|'
+      + PDF_REF_RE.pattern + b'|'
+      br'/?[^\[\]()<>{}/\x00\t\n\r\f %]+)')
   """Matches a single PDF token or comment in a simplistic way.
 
   For [...], <<...>> and (...) which contain nested delimiters, only a prefix
@@ -1198,7 +1198,7 @@ class PdfObj(object):
   """Matches a very simple PDF key--value pair, in a most simplistic way."""
   # TODO(pts): How to prevent backtracking if the regexp doesn't match?
 
-  PDF_WHITESPACE_AT_EOS_RE = re.compile(r'[\x00\t\n\r\f ]*\Z')
+  PDF_WHITESPACE_AT_EOS_RE = re.compile(br'[\x00\t\n\r\f ]*\Z')
   """Matches whitespace (0 or more) at end of string."""
 
   PDF_WHITESPACE_RE = re.compile(r'[\x00\t\n\r\f ]+')
