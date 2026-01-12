@@ -1100,8 +1100,7 @@ class PdfObj(object):
 
   PDF_EMPTY_NAME_TOKEN_RE = re.compile(b'/(?:[<>(){}\[\]/\0\t\n\r\f %]|\Z)')
 
-  PDF_WHITESPACE_IN_SIMPLE_RE = re.compile(
-      r'([^\x00\t\n\r\f ])[\x00\t\n\r\f ]+(?=([^\x00\t\n\r\f ]|\Z))')
+  PDF_WHITESPACE_IN_SIMPLE_RE = re.compile(br'([^\x00\t\n\r\f ])[\x00\t\n\r\f ]+(?=([^\x00\t\n\r\f ]|\Z))')
   """Matches whitespace in a simple obj head."""
 
   PDF_NUMBER_AT_EOS_RE = re.compile(r'(?:([-])|[+]?)0*(\d*(?:[.]\d*)?)\Z')
@@ -1191,12 +1190,12 @@ class PdfObj(object):
   """
 
   PDF_SIMPLEST_KEY_VALUE_RE = re.compile(
-      r'[\x00\t\n\r\f ]*/([-+A-Za-z0-9_.]+)(?=[\x00\t\n\r\f /\[(<])'
-      r'[\x00\t\n\r\f ]*('
-      r'\d+[\x00\t\n\r\f ]+\d+[\x00\t\n\r\f ]+R|'
-      r'\([^()\\]*\)|<(?!<)(.|\n)*?>|'
-      r'\[[^%(\[\]]*\]|<<[^%(<>]*>>|'
-      r'/?[-+A-Za-z0-9_.]+(?=[\x00\t\n\r\f /\[(<]|\Z))')
+      br'[\x00\t\n\r\f ]*/([-+A-Za-z0-9_.]+)(?=[\x00\t\n\r\f /\[(<])'
+      br'[\x00\t\n\r\f ]*('
+      br'\d+[\x00\t\n\r\f ]+\d+[\x00\t\n\r\f ]+R|'
+      br'\([^()\\]*\)|<(?!<)(.|\n)*?>|'
+      br'\[[^%(\[\]]*\]|<<[^%(<>]*>>|'
+      br'/?[-+A-Za-z0-9_.]+(?=[\x00\t\n\r\f /\[(<]|\Z))')
   """Matches a very simple PDF key--value pair, in a most simplistic way."""
   # TODO(pts): How to prevent backtracking if the regexp doesn't match?
 
@@ -1228,7 +1227,7 @@ class PdfObj(object):
   PDF_INT_RE = re.compile(r'([-+]?\d+)')
   """Matches and captures an integer integer."""
 
-  PDF_INT_AT_EOS_RE = re.compile(r'[-+]?\d+\Z')
+  PDF_INT_AT_EOS_RE = re.compile(br'[-+]?\d+\Z')
   """Matches a PDF integer token."""
 
   PDF_STRING_NONSIMPLE_CHAR_RE = re.compile(r'([()\\\r])')
@@ -1635,9 +1634,9 @@ class PdfObj(object):
       def ReplacementWhiteSpace(match):
         # It's OK that match.group(2) is empty.
         a, b = match.group(1), match.group(2)
-        if a in '<>[]/' or b in '<>[]/':
+        if a in b'<>[]/' or b in b'<>[]/':
           return a
-        return a + ' '
+        return a + b' '
 
       def ReplacementAngle(match):
         data = match.group()
@@ -1669,8 +1668,8 @@ class PdfObj(object):
       # to '<<' etc.
       for match in cls.PDF_ANGLE_BRACKET_FOR_SIMPLE_RE.finditer(data):
         a = match.group()
-        if len(a) < 2 or a[-1] not in '<>':
-          if (a[0] == '<' and a[1 : 2] != '<' and end == match.end() and
+        if len(a) < 2 or chr(a[-1]) not in '<>':
+          if (chr(a[0]) == '<' and chr(a[1]) != '<' and end == match.end() and
               not (do_expect_endobj or do_expect_startxref)):
             raise PdfTokenTruncated('Truncated hex string.')
           else:
@@ -1680,16 +1679,13 @@ class PdfObj(object):
       # changed to '<5c>>>'.
       # This changes '< <' to '<<' and '> >' to '>>'. It's OK here.
       data = cls.PDF_WHITESPACE_IN_SIMPLE_RE.sub(ReplacementWhiteSpace, data)
-      if '#' in data:
+      if b'#' in data:
         data = _escape_hex(data)
       else:
-        data = cls.PDF_UNSAFE_NAME_IN_SIMPLE_RE.sub(
-            lambda match: '#%02X' % ord(match.group()), data)
-      if not ((data.startswith('<<') and data.find('<', 2) < 0) or
-              data.find('<') < 0):  # The `if' is just a shortcut for speed.
+        data = cls.PDF_UNSAFE_NAME_IN_SIMPLE_RE.sub(lambda match: '#%02X' % ord(match.group()), data)
+      if not ((data.startswith(b'<<') and data.find(b'<', 2) < 0) or data.find(b'<') < 0):  # The `if' is just a shortcut for speed.
         end = len(data)  # Recompute it, len(data) has changed.
-        data = cls.PDF_HEX_STRING_LITERAL_OR_DICT_RE.sub(
-            ReplacementAngle, data)
+        data = cls.PDF_HEX_STRING_LITERAL_OR_DICT_RE.sub(ReplacementAngle, data)
 
     # !!! Add everything what RewriteToParsable supports, e.g. integer normalization.
     # !!! Remove RewriteToParsable. Not so easy, RewriteToParsable also checks balancing of << and [.
