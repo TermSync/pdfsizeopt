@@ -1816,12 +1816,11 @@ class PdfObj(object):
   @classmethod
   def _CheckDictHead(self, head):
     """Check syntax of a head of a dict or stream obj."""
-    if not head.startswith('<<'):
-      raise PdfTokenParseError(
-         'expected a dict or stream obj: %r')
-    if not head.endswith('>>'):
-      if '>>' in head:
-        if 'endobj' in head or 'endstream' in head:
+    if not head.startswith(b'<<'):
+      raise PdfTokenParseError('expected a dict or stream obj: %r')
+    if not head.endswith(b'>>'):
+      if b'>>' in head:
+        if b'endobj' in head or b'endstream' in head:
           raise PdfTokenParseError('syntax error in endobj/endstream')
         else:
           raise PdfTokenParseError('missing endobj/endstream')
