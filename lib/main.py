@@ -4538,31 +4538,24 @@ class PdfData(object):
     # /Root ref.
     self.trailer = None
     # PDF version string.
-    # TODO(pts): Bump the version number to 1.2. if #AB hex escapes are used
-    #            in names.
+    # TODO(pts): Bump the version number to 1.2. if #AB hex escapes are used in names.
     self.version = '1.0'
     self.file_name = None
     self.file_size = None
 
-  def Load(self, file_data, is_no_objs_ok=False, is_parse_error_ok=True,
-           is_proportional=False):
+  def Load(self, filename, is_no_objs_ok=False, is_parse_error_ok=True, is_proportional=False):
     """Load PDF from file_name to self, return self."""
-    if isinstance(file_data, str):
+    if isinstance(filename, str):
       # Treat file_data as file name.
-      LogInfo('loading PDF from: %s' % (file_data,), is_proportional)
+      LogInfo('loading PDF from: %s' % (filename,), is_proportional)
       try:
-        f = open(file_data, 'rb')
+        f = open(filename, 'rb')
       except IOError as e:
-        LogFatal('error opening PDF (%s): %s' % (e, file_data))
+        LogFatal('error opening PDF (%s): %s' % (e, filename))
       try:
         data = f.read()
       finally:
         f.close()
-    elif isinstance(file_data, file):
-      f = file_data
-      LogInfo('loading PDF from: %s' % (f.name,), is_proportional)
-      f.seek(0, 0)
-      data = f.read()  # Don't close.
     LogInfo('loaded PDF of %s bytes' % len(data), is_proportional)
     self.has_generational_objs = False
     self.file_name = f.name
@@ -4589,8 +4582,7 @@ class PdfData(object):
         raise
       except PdfXrefError as exc:
         LogWarning('problem with xref table: %s' % exc)
-        LogWarning(
-            'trying to load objs without the xref table')
+        LogWarning('trying to load objs without the xref table')
         obj_starts, self.has_generational_objs = self.ParseWithoutXref(
             data,
             do_ignore_generation_numbers=self.do_ignore_generation_numbers)
@@ -4605,8 +4597,7 @@ class PdfData(object):
       if 'trailer' in obj_starts:
         obj_count_extra += ' + trailer'
         obj_count -= 1
-      LogInfo('separated to %s objs%s' % (obj_count, obj_count_extra),
-              is_proportional)
+      LogInfo('separated to %s objs%s' % (obj_count, obj_count_extra), is_proportional)
       last_ofs = trailer_ofs = obj_starts.pop('trailer')
       if isinstance(trailer_ofs, PdfObj):
         self.trailer = trailer_ofs
@@ -4627,7 +4618,7 @@ class PdfData(object):
           (ShellQuoteFileName(self.file_name),
            ShellQuoteFileName(os.path.splitext(self.file_name)[0] +
            '.decrypted.pdf')))
-
+    print(self.trailer.Get(b'Root'))
     if not (self.trailer.Get('Root') or '').endswith('R'):
       raise PdfMissingRootError('/Root reference not found in trailer.')
 
