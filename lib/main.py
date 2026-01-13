@@ -4618,12 +4618,8 @@ class PdfData(object):
           (ShellQuoteFileName(self.file_name),
            ShellQuoteFileName(os.path.splitext(self.file_name)[0] +
            '.decrypted.pdf')))
-    print(self.trailer.Get(b'Root'))
     if not (self.trailer.Get(b'Root') or '').endswith('R'):
       raise PdfMissingRootError('/Root reference not found in trailer.')
-
-    def ComparePair(a, b):
-      return a[0].__cmp__(b[0]) or a[1].__cmp__(b[1])
 
     obj_items = []
     for obj_num in obj_starts:
@@ -4632,7 +4628,7 @@ class PdfData(object):
         objs[obj_num] = obj_ofs  # Updates self.objs.
       else:
         obj_items.append((obj_ofs, obj_num))
-    obj_items.sort(ComparePair)
+    obj_items.sort(key=lambda pair: (pair[0], pair[1]))
 
     if last_ofs <= obj_items[-1][0]:
       last_ofs = len(data)
