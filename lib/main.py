@@ -1394,7 +1394,7 @@ class PdfObj(object):
     if scanner.search():
       # Duplicate /Length found. We need a full parsing to figure out
       # which one we need.
-      stream_length = self.Get('Length')
+      stream_length = self.Get(b'Length')
       if stream_length is None:
         raise PdfTokenParseError(
             'proper stream /Length not found at ofs=%s' % file_ofs)
@@ -1454,8 +1454,8 @@ class PdfObj(object):
       if end_ofs_out is not None:
         end_ofs_out.append(stream_end_idx + match.end())
     self.stream = other[stream_start_idx : stream_end_idx]
-    if isinstance(self.Get('Filter'), str):
-      self.Set('Filter', self.ExpandAbbreviations(self.Get('Filter')))
+    if isinstance(self.Get(b'Filter'), str):
+      self.Set('Filter', self.ExpandAbbreviations(self.Get(b'Filter')))
 
   @classmethod
   def ParseTokensToSafe(cls, data, start=0, end_ofs_out=None,
@@ -1734,7 +1734,7 @@ class PdfObj(object):
     #sys.stdout.write('%sendobj\n' % space)
     if self.stream is not None:
       if self._cache:
-        assert self.Get('Length') == len(self.stream)
+        assert self.Get(b'Length') == len(self.stream)
       else:
         # Don't waste time on the proper check.
         assert '/Length' in head
@@ -1838,12 +1838,12 @@ class PdfObj(object):
       An str, bool, int, or None value, as returned by
       self.ParseSimpleValue, default, if key was not found.
     """
-    if key.startswith('/'):
+    if key.startswith(b'/'):
       raise TypeError('slash in the key= argument')
     if self._cache is None:
       assert self._head is not None
       self._CheckDictHead(self.head)
-      if ('/' + key) not in self._head:
+      if (b'/' + key) not in self._head:
         # Quick return False, without having to parse.
         # TODO(pts): Special casing for /Length, we don't want to parse that.
         return None
@@ -1976,8 +1976,8 @@ class PdfObj(object):
     if items[0][2] is not self:
       self.stream = items[0][2].stream
       self.Set('Length', len(self.stream))
-      self.Set('Filter', items[0][2].Get('Filter'))
-      self.Set('DecodeParms', items[0][2].Get('DecodeParms'))
+      self.Set('Filter', items[0][2].Get(b'Filter'))
+      self.Set('DecodeParms', items[0][2].Get(b'DecodeParms'))
       if (pdf and items[0][1] == 'zip-pred2' and predictor_width > 4 and
           pdf.version < '1.3'):
         pdf.version = '1.3'
@@ -2572,7 +2572,7 @@ class PdfObj(object):
     """Parse the /W key of a PDF cross-reference stream.
 
     Args:
-      w_value: Result of trailer_obj.Get('W').
+      w_value: Result of trailer_obj.Get(b'W').
     Returns:
       A tuple of 3 integers.
     Raises:
@@ -2606,12 +2606,12 @@ class PdfObj(object):
     Raises:
       PdfXrefStreamError:
     """
-    if self.Get('Type') != '/XRef':
+    if self.Get(b'Type') != '/XRef':
       raise PdfXrefStreamError('expected /Type/XRef for xref stream')
-    widths = list(self.ParseXrefStreamWidths(self.Get('W')))
-    index_value = self.Get('Index')
+    widths = list(self.ParseXrefStreamWidths(self.Get(b'W')))
+    index_value = self.Get(b'Index')
     if index_value is None:
-      size = self.Get('Size')
+      size = self.Get(b'Size')
       if not isinstance(size, int) or size < 0:
         raise PdfXrefStreamError('bad or missing /Size for xref stream')
       index = [0, size]
@@ -3082,9 +3082,9 @@ class PdfObj(object):
           '/Image' not in head or
           '/Filter' not in head):
         return False
-    if self.Get('Subtype') != '/Image':
+    if self.Get(b'Subtype') != '/Image':
       return False
-    filter_value = self.Get('Filter')
+    filter_value = self.Get(b'Filter')
     return isinstance(filter_value, str) and filter_value[0] in '[/'
 
   @classmethod
@@ -3117,7 +3117,7 @@ class PdfObj(object):
     """Classifies the /Decode value of an image.
 
     Args:
-      decode: obj.Get('Decode'), typically str or None.
+      decode: obj.Get(b'Decode'), typically str or None.
       indexed_bpc: BitsPerComponent int for an indexed image, or a false value.
     """
     if decode is None:
@@ -3226,15 +3226,15 @@ class PdfObj(object):
     if (not re.search(r'/Subtype[\x00\t\n\r\f ]*/Form\b', self.head) or
         not self.head.startswith('<<') or
         not self.stream is not None or
-        self.Get('Subtype') != '/Form' or
-        self.Get('FormType', 1) != 1 or
+        self.Get(b'Subtype') != '/Form' or
+        self.Get(b'FormType', 1) != 1 or
         # !! get rid of these checks once we can decompress anything
-        self.Get('Filter') not in (None, '/FlateDecode') or
-        self.Get('DecodeParms') is not None or
-        not str(self.Get('BBox')).startswith('[')):
+        self.Get(b'Filter') not in (None, '/FlateDecode') or
+        self.Get(b'DecodeParms') is not None or
+        not str(self.Get(b'BBox')).startswith('[')):
       return None
 
-    bbox = map(PdfObj.GetNumber, PdfObj.ParseArray(self.Get('BBox')))
+    bbox = map(PdfObj.GetNumber, PdfObj.ParseArray(self.Get(b'BBox')))
     if (len(bbox) != 4 or bbox[0] != 0 or bbox[1] != 0 or
         bbox[2] is None or bbox[2] < 1 or bbox[2] != int(bbox[2]) or
         bbox[3] is None or bbox[3] < 1 or bbox[3] != int(bbox[3])):
@@ -3270,8 +3270,8 @@ class PdfObj(object):
 
     image_obj = PdfObj('0 0 obj<</Length 0 %s>>stream endstream endobj' %
                        self.ExpandAbbreviations(inline_dict))
-    if (image_obj.Get('Width') != width or
-        image_obj.Get('Height') != height):
+    if (image_obj.Get(b'Width') != width or
+        image_obj.Get(b'Height') != height):
       return None
     image_obj.Set('Length', len(stream))
     image_obj.stream = stream
@@ -3542,7 +3542,7 @@ class PdfObj(object):
   def HasUncompressedStream(self):  # !!! Add unit tests.
     """Returns a bool indicating whether this obj has an uncompressed stream."""
     return (self.stream is not None and
-            ('/Filter' not in self.head or self.Get('Filter') in (None, '[]')))
+            ('/Filter' not in self.head or self.Get(b'Filter') in (None, '[]')))
 
   def GetUncompressedStream(self, objs=None):
     """Returns the uncompressed stream data in this obj.
@@ -3559,8 +3559,8 @@ class PdfObj(object):
     if self.HasUncompressedStream():
       assert self.stream is not None
       return self.stream
-    filter_value = self.Get('Filter')
-    decodeparms = self.Get('DecodeParms') or ''
+    filter_value = self.Get(b'Filter')
+    decodeparms = self.Get(b'DecodeParms') or ''
     if objs is None:
       objs = {}
     filter_value = self.ResolveReferences(filter_value, objs)
@@ -3765,7 +3765,7 @@ class PdfObj(object):
         passed to ResolveReferences.
       len_deltas_out: Output list of len_delta values applied, or None.
     """
-    assert self.Get('Subtype') == '/Type1C'
+    assert self.Get(b'Subtype') == '/Type1C'
     data = self.GetUncompressedStream(objs=objs)
     new_data = cff.FixFontNameInCff(data, new_font_name, len_deltas_out)
     # Since in Ghostscript 6.54 it is not possible to specify the ZIP
@@ -3773,7 +3773,7 @@ class PdfObj(object):
     # effort here.
     # TODO(pts): Add generic recompression of all /FlateDecode filters
     #            (because Ghostscript is suboptimal everywhere).
-    if self.Get('Filter') != '/FlateDecode' or new_data != data:
+    if self.Get(b'Filter') != '/FlateDecode' or new_data != data:
       self.stream = zlib.compress(new_data, 9)
       self.Set('Filter', '/FlateDecode')
       self.Set('DecodeParms', None)
@@ -3800,15 +3800,15 @@ class PdfObj(object):
       PdfXrefStreamError:
       NotImplementedError:
     """
-    if self.Get('Type') != '/ObjStm':
+    if self.Get(b'Type') != '/ObjStm':
       raise PdfXrefStreamError(
           'expected /Type/ObjStm for obj %d' % obj_num)
-    n = self.Get('N')  # Number of objects in self.
+    n = self.Get(b'N')  # Number of objects in self.
     if n is None:
       raise PdfXrefStreamError('missing /N in objstm obj %d' % obj_num)
     if not isinstance(n, int) or n < 1:
       raise PdfXrefStreamError('invalid /N in objstm obj %d %r' % obj_num)
-    first = self.Get('First')  # Offset of the first object.
+    first = self.Get(b'First')  # Offset of the first object.
     if first is None:
       raise PdfXrefStreamError('missing /First in objstm obj %d' % obj_num)
     if not isinstance(first, int) or first <= 0:
@@ -3817,7 +3817,7 @@ class PdfObj(object):
     # Probably we can just ignore /Extends, at least we can do it for
     # http://www.oreilly.com/web-platform/free/files/python-web-frameworks.pdf
     # Commenting out the check below proactively.
-    #if self.Get('Extends') is not None:
+    #if self.Get(b'Extends') is not None:
     #  raise NotImplementedError('/Extends in /Type/ObjStm not implemented')
 
     # TODO(pts): Handle the various exceptions raised by
@@ -4098,15 +4098,15 @@ class ImageData(object):
     pdf_image_data = self.GetPdfImageData()
     is_inverted = self.is_inverted
     if do_check_dimensions:
-      assert pdf_obj.Get('Width') == pdf_image_data['Width'], (
+      assert pdf_obj.Get(b'Width') == pdf_image_data['Width'], (
           'image Width mismatch: %r vs %r' % (pdf_obj.head, pdf_image_data))
-      assert pdf_obj.Get('Height') == pdf_image_data['Height'], (
+      assert pdf_obj.Get(b'Height') == pdf_image_data['Height'], (
           'image Height mismatch: %r vs %r' % (pdf_obj.head, pdf_image_data))
     else:
       pdf_obj.Set('Width', pdf_image_data['Width'])
       pdf_obj.Set('Height', pdf_image_data['Height'])
 
-    if pdf_obj.Get('ImageMask'):
+    if pdf_obj.Get(b'ImageMask'):
       assert self.CanUpdateImageMask()
       assert pdf_image_data['BitsPerComponent'] == 1
       assert pdf_image_data['ColorSpace'] == '/DeviceGray'
@@ -4296,17 +4296,17 @@ class ImageData(object):
         'no single image XObject in PDF, got %r' % image_obj_nums)
     obj = pdf.objs[image_obj_nums[0]]
     assert obj.head.startswith('<<'), [obj.head]
-    assert obj.Get('Subtype') == '/Image'
-    if obj.Get('ImageMask'):
+    assert obj.Get(b'Subtype') == '/Image'
+    if obj.Get(b'ImageMask'):
       colorspace = None
       # Convert imagemask generated by sam2p to indexed1
       page_objs = [pdf.objs[obj_num] for obj_num in sorted(pdf.objs) if
                    re.search(r'/Type[\x00\t\n\r\f ]*/Page\b',
                              pdf.objs[obj_num].head) and
                    pdf.objs[obj_num].head.startswith('<<') and
-                   pdf.objs[obj_num].Get('Type') == '/Page']
+                   pdf.objs[obj_num].Get(b'Type') == '/Page']
       assert len(page_objs) == 1, 'Page object not found for sam2p ImageMask'
-      contents = page_objs[0].Get('Contents')
+      contents = page_objs[0].Get(b'Contents')
       match = PdfObj.PDF_REF_AT_EOS_RE.match(contents)
       assert match, [contents]
       content_obj = pdf.objs[int(match.group(1))]
@@ -4314,8 +4314,8 @@ class ImageData(object):
       content_stream = ' '.join(
           content_stream.strip(PdfObj.PDF_WHITESPACE_CHARS).split())
       number_re = r'\d+(?:[.]\d*)?'  # TODO(pts): Exact PDF number regexp.
-      width = obj.Get('Width')
-      height = obj.Get('Height')
+      width = obj.Get(b'Width')
+      height = obj.Get(b'Height')
       # !! TODO(pts): Precompile content_re.
       # !! TODO(pts): Do proper PDF content stream token sequence parsing.
       # Example content_stream, as emitted by sam2p-0.46:
@@ -4338,7 +4338,7 @@ class ImageData(object):
                 chr(int(float(match.group(6)) * 255 + 0.5)))
       # For testing: ./pdfsizeopt.py --use-jbig2=false --use-pngout=false \
       #   pts3.pdf
-      if (obj.Get('Decode') or '[0 1]').startswith('[0'):
+      if (obj.Get(b'Decode') or '[0 1]').startswith('[0'):
         palette = color2 + color1
       else:
         palette = color1 + color2
@@ -4352,18 +4352,18 @@ class ImageData(object):
 
   def LoadPdfImageObj(self, obj, do_zip, decode_kind=None):
     """Load image from PDF obj to self. Doesn't modify `obj'."""
-    assert obj.Get('Subtype') == '/Image'
+    assert obj.Get(b'Subtype') == '/Image'
     assert isinstance(obj.stream, str)
     idat = obj.stream
-    filter_value = obj.Get('Filter')
+    filter_value = obj.Get(b'Filter')
     if filter_value not in ('/FlateDecode', None):
       raise FormatUnsupported('image in PDF is not ZIP-compressed')
-    width = int(obj.Get('Width'))
-    height = int(obj.Get('Height'))
+    width = int(obj.Get(b'Width'))
+    height = int(obj.Get(b'Height'))
     palette = None
-    if obj.Get('ImageMask'):
+    if obj.Get(b'ImageMask'):
       raise FormatUnsupported('unsupported /ImageMask')
-    colorspace = obj.Get('ColorSpace')
+    colorspace = obj.Get(b'ColorSpace')
     assert colorspace
     if colorspace in ('/DeviceRGB', '/DeviceGray'):
       pass
@@ -4374,12 +4374,12 @@ class ImageData(object):
       raise FormatUnsupported('unsupported /ColorSpace %r' % colorspace)
 
     decodeparms = PdfObj(None)
-    decodeparms.head = obj.Get('DecodeParms') or '<<\n>>'
+    decodeparms.head = obj.Get(b'DecodeParms') or '<<\n>>'
     # Since we support only /FlateDecode, we don't have to support DecodeParms
     # being an array.
     assert not decodeparms.head.startswith('[')
 
-    predictor = decodeparms.Get('Predictor')
+    predictor = decodeparms.Get(b'Predictor')
     assert predictor is None or isinstance(predictor, int), (
         'expected integer predictor, got %r' % predictor)
     if filter_value is None:
@@ -4399,24 +4399,24 @@ class ImageData(object):
     else:
       assert False, 'expected valid predictor, got %r' % predictor
     if compression in ('zip-tiff', 'zip-png'):
-      pr_bpc_ok = [obj.Get('BitsPerComponent')]
+      pr_bpc_ok = [obj.Get(b'BitsPerComponent')]
       if pr_bpc_ok[-1] == 8:
         pr_bpc_ok.append(None)
-      if decodeparms.Get('BitsPerComponent') not in pr_bpc_ok:
+      if decodeparms.Get(b'BitsPerComponent') not in pr_bpc_ok:
         raise FormatUnsupported('unsupported predictor /BitsPerComponent')
-      if decodeparms.Get('Columns') != obj.Get('Width'):
+      if decodeparms.Get(b'Columns') != obj.Get(b'Width'):
         raise FormatUnsupported('unsupported predictor /Columns')
       if colorspace == '/DeviceRGB':
         pr_colors_ok = [3]
       else:
         pr_colors_ok = [1, None]
-      if decodeparms.Get('Colors') not in pr_colors_ok:
+      if decodeparms.Get(b'Colors') not in pr_colors_ok:
         raise FormatUnsupported('unsupported predictor /Colors')
-    bpc = int(obj.Get('BitsPerComponent'))
+    bpc = int(obj.Get(b'BitsPerComponent'))
 
     if decode_kind is None:
       decode_kind = PdfObj.ClassifyImageDecode(
-          obj.Get('Decode'),
+          obj.Get(b'Decode'),
           int(palette is not None and bpc))
       if decode_kind not in ('normal', 'inverted'):
         raise FormatUnsupported('unsupported /Decode')
@@ -4619,7 +4619,7 @@ class PdfData(object):
            ShellQuoteFileName(os.path.splitext(self.file_name)[0] +
            '.decrypted.pdf')))
     print(self.trailer.Get(b'Root'))
-    if not (self.trailer.Get('Root') or '').endswith('R'):
+    if not (self.trailer.Get(b'Root') or '').endswith('R'):
       raise PdfMissingRootError('/Root reference not found in trailer.')
 
     def ComparePair(a, b):
@@ -4699,7 +4699,7 @@ class PdfData(object):
   @classmethod
   def CheckNotEncrypted(cls, trailer_obj):
     """Raises an exception if the PDF file is encrypted."""
-    if trailer_obj.Get('Encrypt') is not None:
+    if trailer_obj.Get(b'Encrypt') is not None:
       raise PdfFileEncryptedError
 
   @classmethod
@@ -4833,7 +4833,7 @@ class PdfData(object):
         # main trailer has to be used. This behavior is consistent with
         # self.ParseUsingXref.
 
-      prev = xref_obj.Get('Prev')
+      prev = xref_obj.Get(b'Prev')
       if prev is None:
         break
       trailer_obj.Set('Prev', None)
@@ -5062,7 +5062,7 @@ class PdfData(object):
 
       # TODO(pts): How to test this?
       try:
-        xref_ofs = PdfObj.ParseTrailer(data, start=xref_ofs).Get('Prev')
+        xref_ofs = PdfObj.ParseTrailer(data, start=xref_ofs).Get(b'Prev')
       except PdfTokenParseError as exc:
         raise PdfXrefError(str(exc))
       if xref_ofs is None:
@@ -5487,14 +5487,14 @@ class PdfData(object):
         # to /FilteR and /DecodeParms to /DecodeParmS. This way we force
         # Multivalent not to treat the obj as image, i.e. not to recompress
         # it (suboptimally).
-        assert pdf_obj.Get('FilteR') is None
-        assert pdf_obj.Get('DecodeParmS') is None
+        assert pdf_obj.Get(b'FilteR') is None
+        assert pdf_obj.Get(b'DecodeParmS') is None
         pdf_obj.Set('Subtype', '/ImagE')
-        filter_value = pdf_obj.Get('Filter')
+        filter_value = pdf_obj.Get(b'Filter')
         if filter_value is not None:
           pdf_obj.Set('FilteR', filter_value)
           pdf_obj.Set('Filter', None)
-        decodeparms = pdf_obj.Get('DecodeParms')
+        decodeparms = pdf_obj.Get(b'DecodeParms')
         if decodeparms is not None:
           pdf_obj.Set('DecodeParmS', decodeparms)
           pdf_obj.Set('DecodeParms', None)
@@ -5609,9 +5609,9 @@ class PdfData(object):
         # TODO(pts): Do only Type1 fonts have /FontFile ?
         # What about Type3 fonts?
         font_file_dict = {
-            'FontFile': obj.Get('FontFile'),
-            'FontFile2': obj.Get('FontFile2'),
-            'FontFile3': obj.Get('FontFile3'),
+            'FontFile': obj.Get(b'FontFile'),
+            'FontFile2': obj.Get(b'FontFile2'),
+            'FontFile3': obj.Get(b'FontFile3'),
         }
         font_file_count = sum(
             1 for v in font_file_dict.itervalues() if v is not None)
@@ -5629,7 +5629,7 @@ class PdfData(object):
         font_obj_num = int(match.group(1))
         font_obj = self.objs[font_obj_num]
         # Known values: /Type1, /Type1C, /CIDFontType0C.
-        subtype = font_obj.Get('Subtype')
+        subtype = font_obj.Get(b'Subtype')
         if subtype is not None:
           pass
         elif font_file_tag == 'FontFile':
@@ -5642,7 +5642,7 @@ class PdfData(object):
         if font_type is not None and font_type != subtype[1:]:
           pass
         elif do_obj_num_from_font_name:
-          font_name = obj.Get('FontName')
+          font_name = obj.Get(b'FontName')
           assert font_name is not None
           match = re.match(r'/(?:[A-Z]{6}[+])?Obj(\d+)\Z', font_name)
           assert match, 'GS generated non-Obj FontName: %s' % font_name
@@ -5721,7 +5721,7 @@ class PdfData(object):
 
       # We don't need it, and if we kept it, it may do harm if it
       # contains indirect references.
-      if obj.Get('Metadata') is not None:
+      if obj.Get(b'Metadata') is not None:
         if not new_obj:
           new_obj = obj = PdfObj(obj)
         obj.Set('Metadata', None)
@@ -5816,7 +5816,7 @@ class PdfData(object):
     type1c_size = 0
     for obj_num in type1c_objs:
       # TODO(pts): Also cross-check /FontFile3 with pdf.GetFonts.
-      if type1c_objs[obj_num].Get('Subtype') != '/Type1C':
+      if type1c_objs[obj_num].Get(b'Subtype') != '/Type1C':
         raise ValueError('Could not convert font obj %d to Type1C.' % obj_num)
       type1c_size += type1c_objs[obj_num].size
       if obj_num not in encodings:
@@ -5974,11 +5974,11 @@ class PdfData(object):
         TMP_PREFIX + 'conv.tmp.ps', TMP_PREFIX + 'conv.tmp.pdf')
     for obj_num in type1c_objs:
       obj = self.objs[obj_num]  # obj.get('Type') == 'FontDescriptor'.
-      assert str(obj.Get('FontName')).startswith('/')
+      assert str(obj.Get(b'FontName')).startswith('/')
       type1c_obj = type1c_objs[obj_num]
       type1c_obj.FixFontNameInType1C(objs=self.objs)
-      match = PdfObj.PDF_REF_AT_EOS_RE.match(str(obj.Get('FontFile')))
-      assert match, obj.Get('FontFile')
+      match = PdfObj.PDF_REF_AT_EOS_RE.match(str(obj.Get(b'FontFile')))
+      assert match, obj.Get(b'FontFile')
       font_file_obj_num = int(match.group(1))
       new_obj = PdfObj(obj)
       new_obj.Set('FontFile', None)
@@ -6010,9 +6010,9 @@ class PdfData(object):
             '/Font' in head and '/Type' in head and
             '/Type1' in head and '/Subtype' in head and
             '/FontDescriptor' in head and
-            obj.Get('Type') == '/Font' and
-            obj.Get('Subtype') == '/Type1'):
-          match = obj.PDF_REF_AT_EOS_RE.match(str(obj.Get('FontDescriptor')))
+            obj.Get(b'Type') == '/Font' and
+            obj.Get(b'Subtype') == '/Type1'):
+          match = obj.PDF_REF_AT_EOS_RE.match(str(obj.Get(b'FontDescriptor')))
           if match:
             fd_obj_num = int(match.group(1))  # /Type/FontDescriptor.
             if fd_obj_num in encodings:
@@ -6044,8 +6044,8 @@ class PdfData(object):
             'different /%s values: target=%s source=%s' %
             (key, target_value, source_value))
 
-    source_bbox_str = PdfObj.ParseArray(source_fd.Get('FontBBox'))
-    target_bbox_str = PdfObj.ParseArray(target_fd.Get('FontBBox'))
+    source_bbox_str = PdfObj.ParseArray(source_fd.Get(b'FontBBox'))
+    target_bbox_str = PdfObj.ParseArray(target_fd.Get(b'FontBBox'))
     if source_bbox_str != target_bbox_str:
       source_bbox = map(PdfObj.GetNumber, source_bbox_str)
       target_bbox = map(PdfObj.GetNumber, target_bbox_str)
@@ -6267,7 +6267,7 @@ class PdfData(object):
     # font_obj: /Type/Font /Subtype/Type1 /Encoding
     #     <</Type/Encoding/Differences[40/parenleft/parenright 44/comma/]>>
     encoding_value = font_obj.ResolveReferences(
-        font_obj.Get('Encoding'), objs=objs)
+        font_obj.Get(b'Encoding'), objs=objs)
     if cls.IsFontBuiltInEncodingUsed(encoding_value):
       if isinstance(encoding_value, str) and encoding_value.startswith('<<'):
         encoding_dict = PdfObj.ParseDict(encoding_value)
@@ -6384,7 +6384,7 @@ class PdfData(object):
     for obj_num in sorted(parsed_fonts):
       loaded_obj = loaded_objs[obj_num]
       # TODO(pts): Cross-check /FontFile3 with pdf.GetFonts.
-      assert loaded_obj.Get('Subtype') == '/Type1C', (
+      assert loaded_obj.Get(b'Subtype') == '/Type1C', (
           'Cannot serialize font %s to Type1C' % obj_num)
       target_obj = target_objs.get(obj_num)
       if target_obj is None:
@@ -6416,7 +6416,7 @@ class PdfData(object):
         assert not set(cs2).difference(cs)
         assert cs == cs2, (
             'missing glyphs from font %s: %r --> %r' %
-            (objs[obj_num].Get('FontName'), cs, cs2))
+            (objs[obj_num].Get(b'FontName'), cs, cs2))
 
     # TODO(pts): Don't remove if command-line flag.
     os.remove(ps_tmp_file_name)
@@ -6443,11 +6443,11 @@ class PdfData(object):
           '/Font' in head and '/Type' in head and
           '/Type1' in head and '/Subtype' in head and
           '/FontDescriptor' in head and
-          obj.Get('Type') == '/Font' and
-          obj.Get('Subtype') == '/Type1' and
+          obj.Get(b'Type') == '/Font' and
+          obj.Get(b'Subtype') == '/Type1' and
           self.IsFontBuiltInEncodingUsed(
-              obj.ResolveReferences(obj.Get('Encoding'), objs=self.objs))):
-        match = obj.PDF_REF_AT_EOS_RE.match(str(obj.Get('FontDescriptor')))
+              obj.ResolveReferences(obj.Get(b'Encoding'), objs=self.objs))):
+        match = obj.PDF_REF_AT_EOS_RE.match(str(obj.Get(b'FontDescriptor')))
         if match:
           fd_obj_num = int(match.group(1))  # /Type/FontDescriptor.
           if fd_obj_num in type1c_objs:
@@ -6493,7 +6493,7 @@ class PdfData(object):
       if encoding is not None and obj_num in copy_encoding_dict:
         copy_encoding_dict[obj_num][0] = self.CheckEncoding(encoding)
       encoding = None
-      parsed_font['FontName'] = obj.Get('FontName')
+      parsed_font['FontName'] = obj.Get(b'FontName')
       # Extra, not checked: 'UniqueID'
       if 'FontBBox' in parsed_font:
         # This is part of the /FontDescriptor, we don't need it in the Type1C
@@ -6633,7 +6633,7 @@ class PdfData(object):
       encoding_obj_nums = [obj_num for obj_num in group_obj_nums
            if obj_num in copy_encoding_dict and
            not [1 for font_obj_num in copy_encoding_dict[obj_num][1]
-                if self.objs[font_obj_num].Get('Encoding') is not None]]
+                if self.objs[font_obj_num].Get(b'Encoding') is not None]]
       encoding = self.MergeEncodings(
           [copy_encoding_dict[obj_num][0] for obj_num in encoding_obj_nums])
       if encoding is not None:  # Some encodings could be merged.
@@ -6721,18 +6721,18 @@ class PdfData(object):
     for obj_num in sorted(type1c_objs):
       obj = self.objs[obj_num]  # /Type/FontDescriptor
       assert obj.stream is None
-      assert obj.Get('Flags') is not None
-      if obj.Get('StemV') is None:
+      assert obj.Get(b'Flags') is not None
+      if obj.Get(b'StemV') is None:
         # According to pdf_reference_1-7.pdf, /StemV is required.
         # Counterexample: W16-36.pdf in https://github.com/pts/pdfsizeopt/issues/78
         LogWarning('missing /StemV in Type1C font obj %d' % obj_num)
-      assert str(obj.Get('FontName')).startswith('/')
+      assert str(obj.Get(b'FontName')).startswith('/')
       # For testing when ResolveReferences is needed:
       # combinatorics-of-compositions-and-words.pdf
       #
       # TODO(pts): Find and fix more mossing-reference-resolving bugs.
       fontbbox, fontbbox_has_changed = PdfObj.ResolveReferencesChanged(
-          obj.Get('FontBBox'), objs=self.objs)
+          obj.Get(b'FontBBox'), objs=self.objs)
       assert str(fontbbox).startswith('['), fontbbox
       if fontbbox_has_changed:
         obj.Set('FontBBox', fontbbox)  # Resolve the reference.
@@ -6784,7 +6784,7 @@ class PdfData(object):
       master_obj_num = None
       for data_len, obj_num in same_type1c_objs:
         obj = self.objs[obj_num]
-        target_obj_num = PdfObj.GetReferenceTarget(obj.Get('FontFile3'))
+        target_obj_num = PdfObj.GetReferenceTarget(obj.Get(b'FontFile3'))
         assert (
             target_obj_num is not None and
             self.objs[target_obj_num] is type1c_objs[obj_num]), (
@@ -6956,11 +6956,11 @@ class PdfData(object):
       width, height, image_obj = detect_ret
       # For testing: test_pts2e.pdf
       uninline_count += 1
-      colorspace = image_obj.Get('ColorSpace')
+      colorspace = image_obj.Get(b'ColorSpace')
       assert colorspace is not None
-      assert (image_obj.Get('BitsPerComponent') is not None or
-              image_obj.Get('ImageMask', False) is True)
-      #if image_obj.Get('Filter') == '/FlateDecode':
+      assert (image_obj.Get(b'BitsPerComponent') is not None or
+              image_obj.Get(b'ImageMask', False) is True)
+      #if image_obj.Get(b'Filter') == '/FlateDecode':
       # If we do a zlib.decompress(stream) now, it will succeed even if stream
       # has trailing garbage. But zlib.decompress(stream[:-1]) would fail. In
       # Python, there is no way to get te real end on the compressed zlib
@@ -6979,8 +6979,8 @@ class PdfData(object):
       # (with the `cm' operator).
       image_obj_num = self.AddObj(image_obj)
       resources_obj = PdfObj(
-          '0 0 obj %s endobj' % obj.Get('Resources', '<<>>'))
-      assert resources_obj.Get('XObject') is None
+          '0 0 obj %s endobj' % obj.Get(b'Resources', '<<>>'))
+      assert resources_obj.Get(b'XObject') is None
       # Currently, typically resources_obj.head ==
       # '<</ProcSet[/PDF/ImageB]>>'. /ProcSet is optional since PDF 1.2.
       # TODO(pts): Remove /ProcSet from resources_obj.
@@ -7032,14 +7032,14 @@ class PdfData(object):
       # We can assume that OptimizeImages has simplified /ColorSpace and
       # /BitsPerComponent for us.
 
-      if ('/JBIG2Decode' in str(obj.Get('Filter')) and
-          '/JBIG2Globals' in str(obj.Get('DecodeParms'))):
+      if ('/JBIG2Decode' in str(obj.Get(b'Filter')) and
+          '/JBIG2Globals' in str(obj.Get(b'DecodeParms'))):
         # TODO(pts): Add support for /JBIG2Globals, also elsewhere in main.py.
         # TODO(pts): At least skip the image.
         raise NotImplementedError('/JBIG2Globals not supported.')
-      if ('/CCITTFaxDecode' in str(obj.Get('Filter')) and
-          '/BlackIs1' in str(obj.Get('DecodeParms'))):
-        decodeparms = obj.Get('DecodeParms')
+      if ('/CCITTFaxDecode' in str(obj.Get(b'Filter')) and
+          '/BlackIs1' in str(obj.Get(b'DecodeParms'))):
+        decodeparms = obj.Get(b'DecodeParms')
         if decodeparms.startswith('['):
           decodeparms = PdfObj.ParseArray(decodeparms)
         else:
@@ -7055,31 +7055,31 @@ class PdfData(object):
             obj.Set('DecodeParms', decodeparms[0])
           else:
             obj.Set('DecodeParms', '[%s]' % ' '.join(decodeparms))
-          if '/Indexed' in str(obj.Get('ColorSpace')):
-            indexed_bpc = obj.Get('BitsPerComponent')
+          if '/Indexed' in str(obj.Get(b'ColorSpace')):
+            indexed_bpc = obj.Get(b'BitsPerComponent')
             assert isinstance(indexed_bpc, int)
           else:
             indexed_bpc = 0
-          if str(obj.Get('ColorSpace')) == '/DeviceRGB':
+          if str(obj.Get(b'ColorSpace')) == '/DeviceRGB':
             samples_per_pixel = 3
           else:
             samples_per_pixel = 1
           decode_kind = PdfObj.ClassifyImageDecode(
-              obj.Get('Decode'), indexed_bpc)
+              obj.Get(b'Decode'), indexed_bpc)
           if decode_kind == 'inverted':
             obj.Set('Decode', None)
           else:
             obj.Set('Decode', PdfObj.GenerateImageDecode(
                 True, samples_per_pixel, indexed_bpc))
-      if (obj.Get('Decode') is None and
-          '/Indexed' in str(obj.Get('ColorSpace'))):
+      if (obj.Get(b'Decode') is None and
+          '/Indexed' in str(obj.Get(b'ColorSpace'))):
         obj = PdfObj(obj)
-        assert isinstance(obj.Get('BitsPerComponent'), int)
+        assert isinstance(obj.Get(b'BitsPerComponent'), int)
         # We need to set `/Decode [0 255]', otherwise Ghostscript 9.05
         # misinterprets colors in `/ColorSpace [/Indexed/DeviceGray ...]'.
         # Example: pa8.pdf in https://github.com/pts/pdfsizeopt/issues/29 .
         obj.Set('Decode', PdfObj.GenerateImageDecode(
-            False, 1, obj.Get('BitsPerComponent')))
+            False, 1, obj.Get(b'BitsPerComponent')))
 
       # ImageRenderer does the inversion, image won't be inverted after
       # rendering.
@@ -7218,10 +7218,10 @@ class PdfData(object):
       if (not obj.head.startswith('<<') or '/Image' not in obj.head or
           not re.search(r'/Subtype[\x00\t\n\r\f ]*/Image\b', obj.head) or
           not obj.stream is not None or
-          obj.Get('Subtype') != '/Image'):
+          obj.Get(b'Subtype') != '/Image'):
         continue
 
-      smask = obj.Get('SMask')
+      smask = obj.Get(b'SMask')
       if isinstance(smask, str):
         try:
           smask = PdfObj.ParseSimpleValue(smask)
@@ -7233,16 +7233,16 @@ class PdfData(object):
           # The target image of an /SMask must be /ColorSpace /DeviceGray.
           force_grayscale_obj_nums.add(int(match.group(1)))
 
-      if obj.Get('Type') is not None:
-        if obj.Get('Type') != '/XObject':
+      if obj.Get(b'Type') is not None:
+        if obj.Get(b'Type') != '/XObject':
           continue  # Something is wrong with this object, don't touch it.
         obj.Set('Type', None)  # Remove explicit default.
 
       filter_value, filter_has_changed = PdfObj.ResolveReferencesChanged(
-          obj.Get('Filter'), objs=self.objs)
+          obj.Get(b'Filter'), objs=self.objs)
       filter2 = (filter_value or '').replace(']', ' ]') + ' '
 
-      if not obj.Get('Interpolate'):
+      if not obj.Get(b'Interpolate'):
         obj.Set('Interpolate', None)  # Remove explicit default.
 
       # Don't touch lossy-compressed images.
@@ -7257,7 +7257,7 @@ class PdfData(object):
       # differences as well.
       # TODO(pts): Support an image mask (with /Mask x 0 R pointing to
       # an obj << /Subtype/Image /ImageMask true >>).
-      mask = obj.Get('Mask')
+      mask = obj.Get(b'Mask')
       do_remove_mask = False
       try:
         mask = PdfObj.ResolveReferences(mask, objs=self.objs)
@@ -7272,15 +7272,15 @@ class PdfData(object):
         continue
 
       bpc, bpc_has_changed = PdfObj.ResolveReferencesChanged(
-          obj.Get('BitsPerComponent'), objs=self.objs)
-      if obj.Get('ImageMask'):
+          obj.Get(b'BitsPerComponent'), objs=self.objs)
+      if obj.Get(b'ImageMask'):
         if bpc != 1:
           bpc_has_changed = True
           bpc = 1
       if bpc not in (1, 2, 4, 8):
         continue
 
-      decodeparms = obj.Get('DecodeParms') or ''
+      decodeparms = obj.Get(b'DecodeParms') or ''
       if isinstance(decodeparms, str) and '/JBIG2Globals' in decodeparms:
         # We don't support optimizing JBIG2 images with global references.
         # For testing: /mnt/mandel/warez/tmp/linux.pdf
@@ -7307,8 +7307,8 @@ class PdfData(object):
       # TODO(pts): Inline this to reduce PDF size.
       # pdftex emits: /ColorSpace [/Indexed /DeviceRGB <n> <obj_num> 0 R]
       colorspace, colorspace_has_changed = PdfObj.ResolveReferencesChanged(
-          obj.Get('ColorSpace'), objs=self.objs, do_strings=True)
-      if obj.Get('ImageMask'):
+          obj.Get(b'ColorSpace'), objs=self.objs, do_strings=True)
+      if obj.Get(b'ImageMask'):
         if colorspace != '/DeviceGray':  # can be None
           colorspace = '/DeviceGray'
           colorspace_has_changed = True
@@ -7330,7 +7330,7 @@ class PdfData(object):
         if obj is obj0:
           obj = PdfObj(obj)
         obj.Set('ColorSpace', colorspace)
-      if obj.Get('Mask') and do_remove_mask:
+      if obj.Get(b'Mask') and do_remove_mask:
         if obj is obj0:
           obj = PdfObj(obj)
         obj.Set('Mask', None)
@@ -7343,11 +7343,11 @@ class PdfData(object):
             obj = PdfObj(obj)
           obj.Set(name, value)
 
-      if obj.Get('ImageMask'):
+      if obj.Get(b'ImageMask'):
         if obj is obj0:
           obj = PdfObj(obj)
         assert colorspace == '/DeviceGray'  # Set above.
-        assert obj.Get('ColorSpace') == '/DeviceGray'  # Set above.
+        assert obj.Get(b'ColorSpace') == '/DeviceGray'  # Set above.
         obj.Set('ImageMask', None)
         # We don't remove /Decode here, because /Decode [1 0] signals inversion.
         obj.Set('BitsPerComponent', 1)
@@ -7376,10 +7376,10 @@ class PdfData(object):
       if 'R' in obj.head and PdfObj.PDF_REF_RE.search(obj.head):
         continue
 
-      width = obj.Get('Width')
+      width = obj.Get(b'Width')
       assert isinstance(width, int)
       assert width > 0
-      height = obj.Get('Height')
+      height = obj.Get(b'Height')
       assert isinstance(height, int)
       assert height > 0
 
@@ -7392,12 +7392,12 @@ class PdfData(object):
         gs_device = 'pngmono'
 
       decode_kind = PdfObj.ClassifyImageDecode(
-          obj.Get('Decode'),
+          obj.Get(b'Decode'),
           int('/Indexed' in colorspace and bpc))
       if decode_kind not in ('normal', 'inverted'):
         LogWarning(
             'ignoring image XObject %d with %s /Decode value: %s' %
-            (obj_num, decode_kind, obj.Get('Decode')))
+            (obj_num, decode_kind, obj.Get(b'Decode')))
         continue
 
       image_count += 1
@@ -7409,9 +7409,9 @@ class PdfData(object):
           'will optimize image XObject %s; orig width=%s height=%s '
           'colorspace=%s bpc=%s inv=%s filter=%s dp=%s size=%s '
           'gs_device=%s' %
-          (obj_num, obj.Get('Width'), obj.Get('Height'),
-           colorspace_short, bpc, decode_kind == 'inverted', obj.Get('Filter'),
-           int(bool(obj.Get('DecodeParms'))), obj.size, gs_device))
+          (obj_num, obj.Get(b'Width'), obj.Get(b'Height'),
+           colorspace_short, bpc, decode_kind == 'inverted', obj.Get(b'Filter'),
+           int(bool(obj.Get(b'DecodeParms'))), obj.size, gs_device))
 
       # TODO(pts): Is this necessary? If so, add it back.
       #obj = PdfObj(obj)
@@ -7445,8 +7445,8 @@ class PdfData(object):
         obj2 = PdfObj(None)
         obj2.head = '<<>>'
         obj2.stream = obj.stream
-        if len(obj2.stream) > int(obj.Get('Length')):
-           obj2.stream = obj2.stream[:int(obj.Get('Length'))]
+        if len(obj2.stream) > int(obj.Get(b'Length')):
+           obj2.stream = obj2.stream[:int(obj.Get(b'Length'))]
         obj2.Set('Length', len(obj2.stream))
         obj2.Set('Subtype', '/Image')
         for name in ('Width', 'Height', 'ColorSpace', 'Decode', 'Filter',
@@ -7533,8 +7533,8 @@ class PdfData(object):
       #   image optimizers are tried: img_cmd_patterns. It's essential that
       #   each image optimizer can read PNG files, because oi_image is a PNG.
       obj_images = images[obj_num]
-      obj_width = PdfObj.ResolveReferences(obj.Get('Width'), self.objs)
-      obj_height = PdfObj.ResolveReferences(obj.Get('Height'), self.objs)
+      obj_width = PdfObj.ResolveReferences(obj.Get(b'Width'), self.objs)
+      obj_height = PdfObj.ResolveReferences(obj.Get(b'Height'), self.objs)
       for method, image in obj_images:
         wd_ht = (obj_width, obj_height)
         i_wd_ht = (image.width, image.height)
@@ -7736,7 +7736,7 @@ class PdfData(object):
       obj_infos = [(obj.size, '#orig', '', obj, None)]
       # Populate obj_infos from obj_images.
       for cmd_name, image_data in obj_images:
-        if obj.Get('ImageMask') and not image_data.CanUpdateImageMask():
+        if obj.Get(b'ImageMask') and not image_data.CanUpdateImageMask():
           # We can't use this optimized image, so we skip it.
           # No warning for what was rendered by Ghostscript.
           if cmd_name != 'gs':
@@ -7807,17 +7807,17 @@ class PdfData(object):
             (obj_num, obj_infos[0][2], obj_infos[0][0],
              FormatPercent(obj_infos[0][0], obj.size), method_sizes))
         bytes_saved += self.objs[obj_num].size - obj_infos[0][0]
-        if ('/JBIG2Decode' in (obj_infos[0][3].Get('Filter') or '') and
+        if ('/JBIG2Decode' in (obj_infos[0][3].Get(b'Filter') or '') and
             self.version < '1.4'):
           self.version = '1.4'
-        assert obj_infos[0][3].Get('Width') == obj_width
-        assert obj_infos[0][3].Get('Height') == obj_height
+        assert obj_infos[0][3].Get(b'Width') == obj_width
+        assert obj_infos[0][3].Get(b'Height') == obj_height
         self.objs[obj_num] = obj = obj_infos[0][3]
         if (obj_num in force_grayscale_obj_nums and
-            obj.Get('ColorSpace') != '/DeviceGray'):
+            obj.Get(b'ColorSpace') != '/DeviceGray'):
           raise AssertionError(
               'SMask image %d must have /ColorSpace /DeviceGray.' % obj_num)
-        # At this point, obj.Get('Mask') contains `x y R' if it contained it
+        # At this point, obj.Get(b'Mask') contains `x y R' if it contained it
         # before.
 
       if obj_infos[0][4] is not None:
@@ -7849,11 +7849,11 @@ class PdfData(object):
       if (obj.head.startswith('<<') and
           # !!! TODO(pts): Do proper PDF token sequence parsing.
           re.search(r'/Subtype[\x00\t\n\r\f ]*/Form\b', obj.head) and
-          obj.Get('Subtype') == '/Form'):
-        matrix = obj.Get('Matrix')
+          obj.Get(b'Subtype') == '/Form'):
+        matrix = obj.Get(b'Matrix')
         if isinstance(matrix, str):
           obj.Set('Matrix', obj.GetBadNumbersFixed(matrix))
-        bbox = obj.Get('BBox')
+        bbox = obj.Get(b'BBox')
         if isinstance(bbox, str):
           obj.Set('BBox', obj.GetBadNumbersFixed(bbox))
     return self
@@ -7930,7 +7930,7 @@ class PdfData(object):
           search_todo.append(desc)
       elif (not do_unify_pages and
             stream is None and head_minus.startswith('<<') and
-            objs[obj_num].Get('Type') == '/Page'):
+            objs[obj_num].Get(b'Type') == '/Page'):
         # Make sure that /Page objects are not unified. xpdf and evince
         # display the error message `Loop in Pages tree' (but still display
         # the PDF) if we unify equivalent pages, but since the PDF spec
@@ -8088,7 +8088,7 @@ class PdfData(object):
         skipped_count += 1
         continue
       if ('/Subtype' in obj.head and '/Image' in obj.head and
-          obj.Get('Subtype') == '/Image'):
+          obj.Get(b'Subtype') == '/Image'):
         # Force regeneration from obj._cache, give self.OptimizeObjs a better
         # chance to find duplicates.
         #
@@ -8106,7 +8106,7 @@ class PdfData(object):
         # '#' has a small ASCII code, so prefer '#orig' to 'zip'.
         obj_infos.append((obj.size, '#orig', obj))
       else:
-        filter_value = str(obj.Get('Filter'))
+        filter_value = str(obj.Get(b'Filter'))
         # Keep objects with lossy filters untouched.
         if ('/DCTDecode' in filter_value or '/JPXDecode' in filter_value):
           skipped_count += 1
@@ -8182,7 +8182,7 @@ class PdfData(object):
       msg_word = 'streams'
     for pdf_obj in self.objs.itervalues():
       if pdf_obj.head.startswith('<<') and substring in pdf_obj.head:
-        filter_value = pdf_obj.Get('Filter')
+        filter_value = pdf_obj.Get(b'Filter')
         if isinstance(filter_value, str):  # Should always be true (except None).
           if is_flate_only:
             do_decompress = '/FlateDecode' in filter_value
@@ -8209,10 +8209,10 @@ class PdfData(object):
     for pdf_obj in self.objs.itervalues():
       if (pdf_obj.stream is not None and
           pdf_obj.head.startswith('<<') and
-          pdf_obj.Get('Filter') in (None, '[]')):
+          pdf_obj.Get(b'Filter') in (None, '[]')):
         pdf_obj.SetStreamAndCompress(
             pdf_obj.GetUncompressedStream(self.objs), pdf=self)
-        if pdf_obj.Get('Filter'):
+        if pdf_obj.Get(b'Filter'):
           uncompressed_count += 1
         compress_count += 1
     LogInfo(
@@ -8367,9 +8367,9 @@ class PdfData(object):
         # TODO(pts): What if there are multiple trailers (linearized)?
         self.trailer = PdfObj.ParseTrailer(
             data, start=i, end_ofs_out=end_ofs_out)
-        if self.trailer.Get('Type') is not None:
+        if self.trailer.Get(b'Type') is not None:
           raise PdfTokenParseError(
-              'unexpected trailer obj type: %s' % self.trailer.Get('Type'))
+              'unexpected trailer obj type: %s' % self.trailer.Get(b'Type'))
         self.trailer.Set('Prev', None)  # Why?
         i = end_ofs_out[-1]
         if data[i : i + 1] in ws:
@@ -8424,9 +8424,9 @@ class PdfData(object):
       obj_num_by_ofs_out[i] = obj_num
       if xref_ofs == i:
         self.trailer = pdf_obj
-        if self.trailer.Get('Type') != '/XRef':
+        if self.trailer.Get(b'Type') != '/XRef':
           raise PdfTokenParseError(
-              'unexpected trailer obj type: %s' % self.trailer.Get('Type'))
+              'unexpected trailer obj type: %s' % self.trailer.Get(b'Type'))
       assert end_ofs_out[-1] > i
       i = end_ofs_out[-1]
       setitem_callback(obj_num, pdf_obj, i)  # self.objs[obj_num] = pdf_obj
@@ -8444,7 +8444,7 @@ class PdfData(object):
     if self.trailer is None:
       raise PdfTokenParseError('trailer/xref obj not found')
     # Postcondition of the code above.
-    assert self.trailer.Get('Type') in ('/XRef', None)
+    assert self.trailer.Get(b'Type') in ('/XRef', None)
     return self
 
   @classmethod
@@ -8541,12 +8541,12 @@ class PdfData(object):
         stats['trailer'] += obj_size - xref_size
         return
       if (pdf_obj.stream is None or
-          (pdf_obj.head.startswith('<<') and pdf_obj.Get('Type') == '/ObjStm')):
+          (pdf_obj.head.startswith('<<') and pdf_obj.Get(b'Type') == '/ObjStm')):
         other_nonstream_obj_nums.add(obj_num)
       else:
         other_stream_obj_nums.add(obj_num)
       if pdf_obj.head.startswith('<<'):
-        if pdf_obj.Get('Type') == '/ObjStm':
+        if pdf_obj.Get(b'Type') == '/ObjStm':
           # We have to parse this to find /Contents and /FontFile*
           # references.
 
@@ -8572,15 +8572,15 @@ class PdfData(object):
                       AddRefToSet(ref_data, font_data_obj_nums)
                     except PdfTokenParseError:
                       pass
-        elif (pdf_obj.Get('Type') == '/Page' and
-              pdf_obj.Get('Contents') is not None):
-          AddRefToSet(pdf_obj.Get('Contents'), drawing_obj_nums)
-        elif pdf_obj.Get('Subtype') == '/Form':
+        elif (pdf_obj.Get(b'Type') == '/Page' and
+              pdf_obj.Get(b'Contents') is not None):
+          AddRefToSet(pdf_obj.Get(b'Contents'), drawing_obj_nums)
+        elif pdf_obj.Get(b'Subtype') == '/Form':
           drawing_obj_nums.add(obj_num)
 
         # Some PDFs generated by early pdftexs have /Type/FontDescriptor
         # missing.
-        if pdf_obj.Get('Type') in ('/FontDescriptor', None):
+        if pdf_obj.Get(b'Type') in ('/FontDescriptor', None):
           for key in PdfObj.PDF_FONT_FILE_KEYS:
             ref_data = pdf_obj.Get(key)
             if isinstance(ref_data, str):
@@ -8591,11 +8591,11 @@ class PdfData(object):
 
         # TODO(pts): reorder parsing to resolve future objects in
         # objs=pdf.objs below.
-        if (pdf_obj.Get('Subtype') == '/Image' or
+        if (pdf_obj.Get(b'Subtype') == '/Image' or
             pdf_obj.DetectInlineImage(objs=pdf.objs)):
           if obj_num in drawing_obj_nums:
             drawing_obj_nums.remove(obj_num)
-          if '/DCTDecode' in str(pdf_obj.Get('Filter')):
+          if '/DCTDecode' in str(pdf_obj.Get(b'Filter')):
             jpeg_image_obj_nums.add(obj_num)
           else:
             nonjpeg_image_obj_nums.add(obj_num)
@@ -8739,18 +8739,18 @@ class PdfData(object):
         'The /Type/XRef trailer must be the last object.')
     if trailer_obj.stream is None:
       raise PdfTokenParseError('expected xref stream from Multivalent')
-    if trailer_obj.Get('Type') != '/XRef':
+    if trailer_obj.Get(b'Type') != '/XRef':
       raise PdfTokenParseError('expected /Type/XRef from Multivalent')
     in_offsets_limit = len(in_offsets) - 2  # No `startxref', no trailer_obj.
 
     trailer_obj.Set('ID', None)
     trailer_obj.Set('XRefStm', None)
     trailer_obj.Set('Compress', None)  # Specific to Multivalent.
-    if trailer_obj.Get('Index') is not None:
+    if trailer_obj.Get(b'Index') is not None:
       # Multivalent doesn't generate /Index. It would be easy to add support
       # here though.
       raise NotImplementedError('Unexpected /Index in xref object.')
-    if trailer_obj.Get('Prev') is not None:
+    if trailer_obj.Get(b'Prev') is not None:
       raise NotImplementedError('Unexpected /Prev in xref object.')
     trailer_obj.Set('Prev', None)  # Superfluous, just to emphasise it.
 
@@ -8787,18 +8787,18 @@ class PdfData(object):
         head = pdf_obj.head
         if ('/Subtype/ImagE' in head and
             ('/FilteR/' in head or '/FilteR[' in head)):
-          subtype = pdf_obj.Get('Subtype')
-          filtercap = pdf_obj.Get('FilteR')
-          decodeparmscap = pdf_obj.Get('DecodeParmS')
+          subtype = pdf_obj.Get(b'Subtype')
+          filtercap = pdf_obj.Get(b'FilteR')
+          decodeparmscap = pdf_obj.Get(b'DecodeParmS')
           if subtype == '/ImagE' and isinstance(filtercap, str):
             pdf_obj.Set('Subtype', '/Image')
-            assert pdf_obj.Get('Filter') == '/JPXDecode'
+            assert pdf_obj.Get(b'Filter') == '/JPXDecode'
             pdf_obj.Set('Filter', filtercap)
             pdf_obj.Set('FilteR', None)
             pdf_obj.Set('DecodeParms', decodeparmscap)
             pdf_obj.Set('DecodeParmS', None)
         if '/Type/ObjStm' in head:
-          obj_type = pdf_obj.Get('Type')
+          obj_type = pdf_obj.Get(b'Type')
           if obj_type == '/ObjStm':
             has_objstm_obj = True
             if not do_generate_object_stream:
@@ -9644,9 +9644,7 @@ def main(argv, script_dir=None, zip_file=None):
 
   # It's OK that file_name == output_file_name: we don't read and write them
   # at the same time.
-  pdf = PdfData(
-      do_ignore_generation_numbers=f.do_ignore_generation_numbers,
-      ).Load(file_name)
+  pdf = PdfData(do_ignore_generation_numbers=f.do_ignore_generation_numbers).Load(file_name)
   pdf.RemoveUnusedObjs()
   pdf.FixAllBadNumbers()
   if f.do_optimize_fonts:
