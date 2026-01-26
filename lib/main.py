@@ -979,7 +979,7 @@ class PdfObj(object):
   PDF_SAFE_KEEP_HEX_ESCAPED_RE = cff.NAME_CHAR_TO_HEX_KEEP_ESCAPED_RE
   """Matches a single character to be kept escaped internally to pdfsizeopt."""
 
-  PDF_STRING_UNSAFE_CHARS = '<>(){}[]\\\v/\0\t\n\r\f %#'
+  PDF_STRING_UNSAFE_CHARS = b'<>(){}[]\\\v/\0\t\n\r\f %#'
   """Contains all characters prohibited in a safe PDF string literal.
 
   * \v is considered unsafe because it's a Python whitespace (not PDF
@@ -1003,9 +1003,9 @@ class PdfObj(object):
   """Matches a single character prohibited in a safe PDF string literal."""
 
   PDF_TOKENS_SAFE_STRING_RE = re.compile(
-      r'([-+A-Za-z0-9_./#\[\] ]+|>>|'
-      r'<(?:<|[0-9a-f]*>)|'
-      r'\([^' + re.escape(PDF_STRING_UNSAFE_CHARS) + ']*\))+')
+      br'([-+A-Za-z0-9_./#\[\] ]+|>>|'
+      br'<(?:<|[0-9a-f]*>)|'
+      br'\([^' + re.escape(PDF_STRING_UNSAFE_CHARS) + b']*\))+')
   """Matches a safe prefix of a PDF token sequence.
 
   This regexp accepts 'foo' and 'fooBar' and '<> <> R' as safe, and it also
@@ -1369,18 +1369,17 @@ class PdfObj(object):
 
     if stream_start_idx is None:
       self.stream = None
-      if head.startswith('<<'):
-        if '/Filter' in head:
-          self.Set('Filter', None)
-        if '/DecodeParms' in head:
-          self.Set('DecodeParms', None)
-        if '/Length' in head:
-          self.Set('Length', None)
+      if head.startswith(b'<<'):
+        if b'/Filter' in head:
+          self.Set(b'Filter', None)
+        if b'/DecodeParms' in head:
+          self.Set(b'DecodeParms', None)
+        if b'/Length' in head:
+          self.Set(b'Length', None)
       return
 
-    if not head.startswith('<<') and head.endswith('>>'):
-      raise PdfTokenParseError(
-          'stream must have a dict head at ofs=%s' % file_ofs)
+    if not head.startswith(b'<<') and head.endswith(b'>>'):
+      raise PdfTokenParseError('stream must have a dict head at ofs=%s' % file_ofs)
     scanner = self.LENGTH_OF_STREAM_RE.scanner(head)
     match = scanner.search()
     if not match:
@@ -1389,15 +1388,13 @@ class PdfObj(object):
       # we don't implement a validating PDF parser.
       # !!! Do this with proper scanning, now that it's normalized.
       # !!! Do everything below in __init__ simpler.
-      raise PdfTokenParseError(
-          'stream /Length not found at ofs=%s' % file_ofs)
+      raise PdfTokenParseError('stream /Length not found at ofs=%s' % file_ofs)
     if scanner.search():
       # Duplicate /Length found. We need a full parsing to figure out
       # which one we need.
       stream_length = self.Get(b'Length')
       if stream_length is None:
-        raise PdfTokenParseError(
-            'proper stream /Length not found at ofs=%s' % file_ofs)
+        raise PdfTokenParseError('proper stream /Length not found at ofs=%s' % file_ofs)
       match = self.LENGTH_OF_STREAM_RE.match('/Length %s ' % stream_length)
       assert match
     if match.group(2) is None:
@@ -1578,7 +1575,7 @@ class PdfObj(object):
                 raise PdfTokenTruncated('Truncated hex string.')
               else:
                 raise PdfTokenParseError('Invalid < token.')
-            strdata = _whitespace_re.sub('', memoryview(data[match.start() + 1: match.end() - 1]))
+            strdata = _whitespace_re.sub(b'', memoryview(data[match.start() + 1: match.end() - 1]))
             if len(strdata) & 1 != 0:
               strdata += '0'
             strdata_dec = strdata.decode('hex')
@@ -1599,16 +1596,16 @@ class PdfObj(object):
           i = match.start() + 1
           continue
         elif (do_expect_endobj and
-              (match.group().startswith('stream') or
-               match.group().startswith('endobj'))):
-          if match.group().startswith('stream'):
+              (match.group().startswith(b'stream') or
+               match.group().startswith(b'endobj'))):
+          if match.group().startswith(b'stream'):
             stream_start_idx = match.end(9)
           if end_ofs_out is not None:
             end_ofs_out.append(match.end())
           break
         elif (do_expect_startxref and
-              (match.group().startswith('startxref') or
-               match.group().startswith('xref'))):
+              (match.group().startswith(b'startxref') or
+               match.group().startswith(b'xref'))):
           if end_ofs_out is not None:
             end_ofs_out.append(match.start())
           break
@@ -1622,7 +1619,7 @@ class PdfObj(object):
         output.pop()
       data = ''.join(output)
     else:  # A simple processing.
-      if match and match.group(1).startswith('stream'):
+      if match and match.group(1).startswith(b'stream'):
         stream_start_idx = match.end()
       if end_ofs_out is not None:
         if match:
@@ -1646,7 +1643,7 @@ class PdfObj(object):
             raise PdfTokenTruncated('Truncated hex string.')
           else:
             raise PdfTokenParseError('Invalid < token.')
-        data = _whitespace_re.sub('', memoryview(data[1:len(data) - 1]))
+        data = _whitespace_re.sub(b'', memoryview(data[1:len(data) - 1]))
         if len(data) & 1 != 0:
           data += '0'
         data_dec = data.decode('hex')
@@ -1681,7 +1678,7 @@ class PdfObj(object):
       if b'#' in data:
         data = _escape_hex(data)
       else:
-        data = cls.PDF_UNSAFE_NAME_IN_SIMPLE_RE.sub(lambda match: '#%02X' % ord(match.group()), data)
+        data = cls.PDF_UNSAFE_NAME_IN_SIMPLE_RE.sub(lambda match: b'#%02X' % ord(match.group()), data)
       if not ((data.startswith(b'<<') and data.find(b'<', 2) < 0) or data.find(b'<') < 0):  # The `if' is just a shortcut for speed.
         end = len(data)  # Recompute it, len(data) has changed.
         data = cls.PDF_HEX_STRING_LITERAL_OR_DICT_RE.sub(ReplacementAngle, data)
@@ -5019,7 +5016,7 @@ class PdfData(object):
           match = _xref_entry_re.match(data, xref_ofs)
           if not match:
             raise PdfXrefError('syntax error in xref entry at %s' % xref_ofs)
-          if match.group(3) == 'n':
+          if match.group(3) == b'n':
             generation = int(match.group(2))
             if generation != 0:
               if not do_ignore_generation_numbers:
@@ -5049,7 +5046,7 @@ class PdfData(object):
           obj_num += 1
           obj_count -= 1
           xref_ofs += 20
-      if match.group(2) == 'xref':
+      if match.group(2) == b'xref':
         # TODO(pts): Test this.
         raise NotImplementedError(
             'multiple xref sections (with generation numbers) not implemented')
