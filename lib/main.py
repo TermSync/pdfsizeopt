@@ -1543,9 +1543,9 @@ class PdfObj(object):
           # Here match.group(1) can be the empty string, if
           # do_expect_endobj=False and there is a comment or whitespace at the
           # end of the string. The condition works correctly.
-          if not (output[-1][-1] in '<>[](){}/' or
-                  match.group(1) in '<>[](){}/'):
-            output.append(' ')
+          if not (output[-1][-1] in b'<>[](){}/' or
+                  match.group(1) in b'<>[](){}/'):
+            output.append(b' ')
         elif match.group(2) is not None:  # Simple string.
           if _unsafe_string_char_re.search(match.group(2)):
             output.append('<%s>' % match.group(2).encode('hex'))
@@ -1567,10 +1567,10 @@ class PdfObj(object):
         elif match.group(6):  # A hex-escape (usually in a name or a keyword).
           output.append(_escape_hex(match.group(6)))
         elif match.group(7):  # A hex string literal or <<.
-          if match.group() == '<<':
-            output.append('<<')
+          if match.group() == b'<<':
+            output.append(b'<<')
           else:
-            if data[match.end() - 1] != '>':
+            if chr(data[match.end() - 1]) != '>':
               if match.end() == end:
                 raise PdfTokenTruncated('Truncated hex string.')
               else:
@@ -1585,12 +1585,12 @@ class PdfObj(object):
               output.append('(%s)' % strdata_dec)
             strdata = strdata_dec = ()  # Save memory.
         elif match.group(8):
-          if match.group() == '>>':
-            output.append('>>')
+          if match.group() == b'>>':
+            output.append(b'>>')
           else:
             raise PdfTokenParseError('Invalid PDF token: %r' % match.group())
         elif (not match.start() or
-             data[match.start() - 1] not in '<>[](){}/\0\t\n\r\f '):
+             chr(data[match.start() - 1]) not in '<>[](){}/\0\t\n\r\f '):
           # `endobj' in the middle of a name token.
           output.append(match.group()[0])
           i = match.start() + 1
@@ -1617,7 +1617,7 @@ class PdfObj(object):
         i = match.end()
       if output and output[-1] == ' ':
         output.pop()
-      data = ''.join(output)
+      data = b''.join(output)
     else:  # A simple processing.
       if match and match.group(1).startswith(b'stream'):
         stream_start_idx = match.end()
