@@ -2,15 +2,15 @@
 
 """:" # pdfsizeopt_test: Tests for pdfsizeopt.
 
-type -p python2.7 >/dev/null 2>&1 && exec python2.7 -- "$0" ${1+"$@"}
-type -p python2.6 >/dev/null 2>&1 && exec python2.6 -- "$0" ${1+"$@"}
-type -p python2.5 >/dev/null 2>&1 && exec python2.5 -- "$0" ${1+"$@"}
-type -p python2.4 >/dev/null 2>&1 && exec python2.4 -- "$0" ${1+"$@"}
+type -p python3.13 >/dev/null 2>&1 && exec python3.13 -- "$0" ${1+"$@"}
+type -p python3.12 >/dev/null 2>&1 && exec python3.12 -- "$0" ${1+"$@"}
+type -p python3.11 >/dev/null 2>&1 && exec python3.11 -- "$0" ${1+"$@"}
+type -p python3.10 >/dev/null 2>&1 && exec python3.10 -- "$0" ${1+"$@"}
 exec python -- "$0" ${1+"$@"}
 
-This is a Python 2.x script, it works with Python 2.4, 2.5, 2.6 and 2.7. It
-doesn't work with Python 3.x. Feel free to replace the #! line with
-`#! /usr/bin/python', `#! /usr/bin/env python' or whatever suits you best.
+This is a Python 3.x script. It doesn't work with Python 2.x. Feel free
+to replace the #! line with `#! /usr/bin/python', `#! /usr/bin/env python'
+or whatever suits you best.
 """
 
 #
@@ -51,7 +51,7 @@ class PdfSizeOptTest(unittest.TestCase):
     """Like assertRaises, but rejects subclasses."""
     try:
       callable_obj(*args, **kwargs)
-    except exc_class, e:
+    except exc_class as e:
       # type(e) doesn't work instead of e.__class__ in Python 2.4. In Python
       # >=2.5 they work equivalently.
       if e.__class__ != exc_class:  # True if exc_class is a superclass.
@@ -82,9 +82,9 @@ class PdfSizeOptTest(unittest.TestCase):
     p = lambda *args: main.PdfObj.ParsePdfString(*args)[0]
     def Check(pdf_string_literal, data):
       self.assertEqual(pdf_string_literal, e(data))
-      self.assertEqual(data, p(buffer(pdf_string_literal)))
+      self.assertEqual(data, p(memoryview(pdf_string_literal)))
     def CheckParse(pdf_string_literal, data):
-      self.assertEqual(data, p(buffer(pdf_string_literal)))
+      self.assertEqual(data, p(memoryview(pdf_string_literal)))
     Check('()', '')
     Check('(Hello, World!)', 'Hello, World!')
     Check('(\\\\Hello, \\(World!)', '\\Hello, (World!')
@@ -109,7 +109,7 @@ class PdfSizeOptTest(unittest.TestCase):
     CheckParse('<\t\f>', '')
     CheckParse('<fA3>', '\xfa\x30')
     CheckParse('(\\0576\\057)', '/6/')
-    s = ''.join([c for c in map(chr, xrange(255, -1, -1)) if c not in '()\\\r'])
+    s = ''.join([c for c in map(chr, range(255, -1, -1)) if c not in '()\\\r'])
     Check('(%s)' % s, s)
     Check('(Hello, \\)\\(Wo\\\\rld!)', 'Hello, )(Wo\\rld!')
     Check('((((foo\\\\))))', '(((foo\\)))')
@@ -193,8 +193,8 @@ class PdfSizeOptTest(unittest.TestCase):
     self.assertEqual(' <466f6f42617242617a>', e('(Foo\\\nBar\\\rBaz)'))
     self.assertEqual(' <466f6f4261720a42617a>', e('(Foo\\\r\nBar\\\n\rBaz)'))
     self.assertEqual(' <2829%s>' % ''.join(['%02x' % {13: 10}.get(i, i)
-                                            for i in xrange(33)]),
-                     e('(()%s)' % ''.join(map(chr, xrange(33)))))
+                                            for i in range(33)]),
+                     e('(()%s)' % ''.join(map(chr, range(33)))))
     self.assertEqual(' <face422829>', e('(\xfa\xCE\x42())'))
     self.assertEqual(' <00210023>', e('(\0!\\0#)'))
     self.assertEqual(' <073839380a>', e('(\78\98\12)'))
@@ -807,7 +807,7 @@ class PdfSizeOptTest(unittest.TestCase):
   def testParseTokensToSafeSimple(self, is_simple_ok=True):
     def F(data, **kwargs):
       return main.PdfObj.ParseTokensToSafe(
-          buffer(data), is_simple_ok=is_simple_ok, **kwargs)[0]
+          memoryview(data), is_simple_ok=is_simple_ok, **kwargs)[0]
 
     self.assertEqual('hello world', F('hello  world'))
     self.assertEqual('foo', F('foo\t\f\0\r \n'))
@@ -940,8 +940,8 @@ class PdfSizeOptTest(unittest.TestCase):
     self.assertEqual('(FooBarBaz)', F('(Foo\\\nBar\\\rBa\\\r\nz)'))
     self.assertEqual('<466f6f4261720a42617a>', F('(Foo\\\r\nBar\\\n\rBaz)'))
     self.assertEqual('<2829%s>' % ''.join(['%02x' % {13: 10}.get(i, i)
-                                            for i in xrange(33)]),
-                     F('(()%s)' % ''.join(map(chr, xrange(33)))))
+                                            for i in range(33)]),
+                     F('(()%s)' % ''.join(map(chr, range(33)))))
     self.assertEqual('<face422829>', F('(\xfa\xCE\x42())'))
     self.assertEqual('<00210023>', F('(\0!\\0#)'))
     self.assertEqual('<073839380a>', F('(\78\98\12)'))
@@ -1103,21 +1103,21 @@ class PdfSizeOptTest(unittest.TestCase):
     b_re = main.PdfObj.PDF_SAFE_KEEP_HEX_ESCAPED_RE
     self.assertFalse(a_re.match('*'))
     self.assertTrue(b_re.match('*'))
-    for i in xrange(256):  # Test that b_re is a subset of a_re.
+    for i in range(256):  # Test that b_re is a subset of a_re.
       self.assertTrue(not a_re.match(chr(i)) or b_re.match(chr(i)), i)
 
     a_re = main.PdfObj.PDF_STRING_UNSAFE_CHAR_RE
     b_re = main.PdfObj.PDF_SAFE_KEEP_HEX_ESCAPED_RE
     self.assertFalse(a_re.match('*'))
     self.assertTrue(b_re.match('*'))
-    for i in xrange(256):  # Test that b_re is a subset of a_re.
+    for i in range(256):  # Test that b_re is a subset of a_re.
       self.assertTrue(not a_re.match(chr(i)) or b_re.match(chr(i)), i)
 
     a_re = main.PdfObj.PDF_TOKENS_UNSAFE_CHARS_RE
     b_re = main.PdfObj.PDF_STRING_UNSAFE_CHAR_RE
     self.assertFalse(a_re.match('('))
     self.assertTrue(b_re.match('('))
-    for i in xrange(256):  # Test that b_re is a subset of a_re.
+    for i in range(256):  # Test that b_re is a subset of a_re.
       self.assertTrue(not a_re.match(chr(i)) or b_re.match(chr(i)), i)
 
   def testPdfObjGetSet(self):
@@ -1837,9 +1837,9 @@ class PdfSizeOptTest(unittest.TestCase):
     self.assertRaises(main.PdfTokenParseError, f2, 'a')
     self.assertEqual('ab', f1('ab'))
     self.assertRaises(main.PdfTokenParseError, f2, 'ab')
-    self.assertEqual('/a', f1(buffer('/a')))
-    self.assertEqual('/a', f2(buffer('/a')))
-    for i in xrange(256):
+    self.assertEqual('/a', f1(memoryview('/a')))
+    self.assertEqual('/a', f2(memoryview('/a')))
+    for i in range(256):
       c = '/#%02x' % i
       e1 = f1(c)
       e2 = f2(c)
@@ -2102,7 +2102,7 @@ class PdfSizeOptTest(unittest.TestCase):
       # font has CharStrings at offset 181 in the file, but the op says 182.
       # Nothing else (other than the string index) looks like an index.
       _, charstring_bufs = cff.ParseCffIndex(
-          buffer(font_program, cff_top_dict[charstrings_op][-1] - 1))
+          memoryview(font_program, cff_top_dict[charstrings_op][-1] - 1))
       self.assertEqual(25, len(charstring_bufs))
 
     def Check(new_font_name, expected_len_deltas):
