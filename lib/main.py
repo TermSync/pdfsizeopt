@@ -1727,7 +1727,7 @@ class PdfObj(object):
       head = self.CompressValue(
           head, do_emit_safe_names=False, do_emit_safe_strings=False)
     output.append(head)  # Implicit whitespace later.
-    space = ' ' * int(head[-1] not in '>])}')
+    space = b' ' * int(head[-1:] not in b'>])}')
     #sys.stdout.write(output[-2][:-1] + ' ')
     #sys.stdout.write(output[-1])
     #sys.stdout.write('%sendobj\n' % space)
@@ -1895,23 +1895,23 @@ class PdfObj(object):
     with the PNG y-predictor, ZIP with the TIFF predictor acting as an
     y-predictor.
     """
-    if not isinstance(data, str):
+    if not isinstance(data, bytearray):
       raise TypeError
 
     items = [[None, 'uncompressed', PdfObj(self)]]
     items[-1][2].stream = data
-    items[-1][2].Set('Length', len(items[-1][2].stream))
-    items[-1][2].Set('Filter', None)
-    items[-1][2].Set('DecodeParms', None)
+    items[-1][2].Set(b'Length', len(items[-1][2].stream))
+    items[-1][2].Set(b'Filter', None)
+    items[-1][2].Set(b'DecodeParms', None)
     items[-1][0] = items[-1][2].size
 
     if data:
       if is_flate_ok:
         items.append([None, 'zip', PdfObj(self)])
         items[-1][2].stream = zlib.compress(data, 9)
-        items[-1][2].Set('Length', len(items[-1][2].stream))
-        items[-1][2].Set('Filter', '/FlateDecode')
-        items[-1][2].Set('DecodeParms', None)
+        items[-1][2].Set(b'Length', len(items[-1][2].stream))
+        items[-1][2].Set(b'Filter', b'/FlateDecode')
+        items[-1][2].Set(b'DecodeParms', None)
         items[-1][0] = items[-1][2].size
 
       if predictor_width is not None and is_flate_ok:
@@ -1919,27 +1919,27 @@ class PdfObj(object):
         assert len(data) % predictor_width == 0
 
         output = []
-        output.append('\x00')  # no-predictor mark
+        output.append(b'\x00')  # no-predictor mark
         output.append(data[:predictor_width])
         i = predictor_width
         while i < len(data):
-          output.append('\x02')  # y-predictor mark
+          output.append(b'\x02')  # y-predictor mark
           b = bytearray(data[i : i + predictor_width])
           k = i - predictor_width
           for j in range(predictor_width):  # Implement the y predictor.
-            b[j] = (b[j] - ord(data[k + j])) & 255
-          output.append(bytearray_tostring(b))
+            b[j] = (b[j] - data[k + j]) & 255
+          output.append(b)
           i += predictor_width
         items.append([None, 'zip-pred10', PdfObj(self)])
-        items[-1][2].stream = zlib.compress(''.join(output), 9)
-        items[-1][2].Set('Length', len(items[-1][2].stream))
-        items[-1][2].Set('Filter', '/FlateDecode')
+        items[-1][2].stream = zlib.compress(b''.join(output), 9)
+        items[-1][2].Set(b'Length', len(items[-1][2].stream))
+        items[-1][2].Set(b'Filter', b'/FlateDecode')
         # Oddly enough, Multivalent fails if /Predictor 10 or /Predictor 11
         # is specified for the /Type /XRef obj; but it succeeds with
         # /Predictor 12. See https://github.com/pts/pdfsizeopt/issues/56
         # for example PDF 1206.3686v1.pdf .
-        items[-1][2].Set('DecodeParms',
-                         '<</Predictor 12/Columns %d>>' % predictor_width)
+        items[-1][2].Set(b'DecodeParms',
+                         b'<</Predictor 12/Columns %d>>' % predictor_width)
         items[-1][0] = items[-1][2].size
 
         output = []
@@ -1949,34 +1949,28 @@ class PdfObj(object):
           b = bytearray(data[i : i + predictor_width])
           k = i - predictor_width
           for j in range(predictor_width):  # Implement the y predictor.
-            b[j] = (b[j] - ord(data[k + j])) & 255
-          output.append(bytearray_tostring(b))
+            b[j] = (b[j] - data[k + j]) & 255
+          output.append(b)
           i += predictor_width
         items.append([None, 'zip-pred2', PdfObj(self)])
-        items[-1][2].stream = zlib.compress(''.join(output), 9)
-        items[-1][2].Set('Length', len(items[-1][2].stream))
-        items[-1][2].Set('Filter', '/FlateDecode')
-        items[-1][2].Set('DecodeParms',
-                         '<</Predictor 2/Colors %d/Columns %d>>' %
+        items[-1][2].stream = zlib.compress(b''.join(output), 9)
+        items[-1][2].Set(b'Length', len(items[-1][2].stream))
+        items[-1][2].Set(b'Filter', b'/FlateDecode')
+        items[-1][2].Set(b'DecodeParms',
+                         b'<</Predictor 2/Colors %d/Columns %d>>' %
                          (predictor_width, len(data) / predictor_width))
         items[-1][0] = items[-1][2].size
 
       if may_keep_old:
         items.append([self.size, '0old', self])
 
-    def CompareStr(a, b):
-      return (a < b and -1) or (a > b and 1) or 0
-
-    def CompareSize(a, b):
-      # Compare first by byte size, then by command name.
-      return a[0].__cmp__(b[0]) or CompareStr(a[1], b[1])
-
-    items.sort(CompareSize)
+    # Sort first by byte size, then by command name.
+    items.sort(key=lambda item: (item[0], item[1]))
     if items[0][2] is not self:
       self.stream = items[0][2].stream
-      self.Set('Length', len(self.stream))
-      self.Set('Filter', items[0][2].Get(b'Filter'))
-      self.Set('DecodeParms', items[0][2].Get(b'DecodeParms'))
+      self.Set(b'Length', len(self.stream))
+      self.Set(b'Filter', items[0][2].Get(b'Filter'))
+      self.Set(b'DecodeParms', items[0][2].Get(b'DecodeParms'))
       if (pdf and items[0][1] == 'zip-pred2' and predictor_width > 4 and
           pdf.version < '1.3'):
         pdf.version = '1.3'
@@ -2581,7 +2575,7 @@ class PdfObj(object):
     """
     if w_value is None:
       raise PdfTokenParseError('missing /W in xref object')
-    if not isinstance(w_value, str) or not w_value.startswith('['):
+    if not isinstance(w_value, (bytes, memoryview)) or not w_value.startswith(b'['):
       raise PdfTokenParseError('item /W in xref object is not an array')
     widths = PdfObj.ParseArray(w_value)
     if (len(widths) != 3 or
@@ -2607,7 +2601,7 @@ class PdfObj(object):
     Raises:
       PdfXrefStreamError:
     """
-    if self.Get(b'Type') != '/XRef':
+    if self.Get(b'Type') != b'/XRef':
       raise PdfXrefStreamError('expected /Type/XRef for xref stream')
     widths = list(self.ParseXrefStreamWidths(self.Get(b'W')))
     index_value = self.Get(b'Index')
@@ -3547,7 +3541,7 @@ class PdfObj(object):
   def HasUncompressedStream(self):  # !!! Add unit tests.
     """Returns a bool indicating whether this obj has an uncompressed stream."""
     return (self.stream is not None and
-            ('/Filter' not in self.head or self.Get(b'Filter') in (None, '[]')))
+            (b'/Filter' not in self.head or self.Get(b'Filter') in (None, b'[]')))
 
   def GetUncompressedStream(self, objs=None):
     """Returns the uncompressed stream data in this obj.
@@ -8292,12 +8286,12 @@ class PdfData(object):
     data = data[match.start():]
     version = match.group(1)
     header_end_ofs = match.end()
-    setitem_callback(None, match.group(), 'header')
+    setitem_callback(None, match.group(), b'header')
 
     # We set xref_ofs if available. It is not an error not to have it
     # (e.g. with a broken PDF with xref + trailer).
     xref_ofs = None
-    i = data.rfind('startxref')
+    i = data.rfind(b'startxref')
     if i >= 0:
       match = PdfObj.PDF_STARTXREF_EOF_AT_EOS_RE.match(data, i - 1)
       if match:
@@ -8336,9 +8330,9 @@ class PdfData(object):
         setitem_callback(None, data[i0 : i], 'wasted')
 
       prefix = data[i : i + 16]
-      if prefix.startswith('startxref'):
+      if prefix.startswith(b'startxref'):
         break
-      if prefix.startswith('xref'):
+      if prefix.startswith(b'xref'):
         i0 = i
         match = PdfObj.PDF_TRAILER_WORD_RE.search(data, i)
         if not match:
@@ -8385,12 +8379,12 @@ class PdfData(object):
         match = PdfObj.PDF_STARTXREF_EOF_RE.match(data, i - 1)
         if match:
           i = match.end()
-        elif data[i : i + 9].startswith('startxref'):  # Fallback.
+        elif data[i : i + 9].startswith(b'startxref'):  # Fallback.
           i += 9
         # This contains 'xref ... trailer ... startxref ... %%EOF\n'.
         setitem_callback(None, data[i0 : i], 'linearized_xref')
         continue
-      if prefix.startswith('trailer'):
+      if prefix.startswith(b'trailer'):
         raise PdfTokenParseError(
             'unexpected trailer at ofs=%d' % i)
       del end_ofs_out[:]  # Save memory.
@@ -8416,7 +8410,7 @@ class PdfData(object):
       obj_num_by_ofs_out[i] = obj_num
       if xref_ofs == i:
         self.trailer = pdf_obj
-        if self.trailer.Get(b'Type') != '/XRef':
+        if self.trailer.Get(b'Type') != b'/XRef':
           raise PdfTokenParseError(
               'unexpected trailer obj type: %s' % self.trailer.Get(b'Type'))
       assert end_ofs_out[-1] > i
@@ -8426,7 +8420,7 @@ class PdfData(object):
     # Parse and check the startxref number.
     #
     # Postcondition of the loop above.
-    assert data[i : i + 9].startswith('startxref')
+    assert data[i : i + 9].startswith(b'startxref')
     offsets_out.append(i)  # startxref
     match = PdfObj.PDF_STARTXREF_EOF_AT_EOS_RE.match(data, i - 1)
     if not match:
@@ -8436,7 +8430,7 @@ class PdfData(object):
     if self.trailer is None:
       raise PdfTokenParseError('trailer/xref obj not found')
     # Postcondition of the code above.
-    assert self.trailer.Get(b'Type') in ('/XRef', None)
+    assert self.trailer.Get(b'Type') in (b'/XRef', None)
     return self
 
   @classmethod
@@ -8657,7 +8651,7 @@ class PdfData(object):
   def MSBFirstToInteger(cls, s):
     """Convert a string containing a base-256 MSBFirst number to an integer."""
     # TODO(pts): Optimize this, including calls.
-    assert isinstance(s, str)
+    assert isinstance(s, (bytes, memoryview))
     assert s
     if len(s) == 1:
       return ord(s)
@@ -8716,7 +8710,7 @@ class PdfData(object):
     pdf_objs = pdf.objs
     trailer_obj = pdf.trailer  # An object.
     if do_generate_xref_stream:
-      version = max(pdf.version, '1.5')
+      version = max(pdf.version, b'1.5')
     else:
       version = pdf.version
     del pdf
@@ -8731,23 +8725,23 @@ class PdfData(object):
         'The /Type/XRef trailer must be the last object.')
     if trailer_obj.stream is None:
       raise PdfTokenParseError('expected xref stream from Multivalent')
-    if trailer_obj.Get(b'Type') != '/XRef':
+    if trailer_obj.Get(b'Type') != b'/XRef':
       raise PdfTokenParseError('expected /Type/XRef from Multivalent')
     in_offsets_limit = len(in_offsets) - 2  # No `startxref', no trailer_obj.
 
-    trailer_obj.Set('ID', None)
-    trailer_obj.Set('XRefStm', None)
-    trailer_obj.Set('Compress', None)  # Specific to Multivalent.
+    trailer_obj.Set(b'ID', None)
+    trailer_obj.Set(b'XRefStm', None)
+    trailer_obj.Set(b'Compress', None)  # Specific to Multivalent.
     if trailer_obj.Get(b'Index') is not None:
       # Multivalent doesn't generate /Index. It would be easy to add support
       # here though.
       raise NotImplementedError('Unexpected /Index in xref object.')
     if trailer_obj.Get(b'Prev') is not None:
       raise NotImplementedError('Unexpected /Prev in xref object.')
-    trailer_obj.Set('Prev', None)  # Superfluous, just to emphasise it.
+    trailer_obj.Set(b'Prev', None)  # Superfluous, just to emphasise it.
 
     # Keep initial comments, including the '%PDF-' header.
-    output.extend(('%PDF-', version, '\n%\xD0\xD4\xC5\xD0\n',))
+    output.extend((b'%PDF-', version, b'\n%\xD0\xD4\xC5\xD0\n',))
     output_size = 0
     output_size_idx = 0
     out_ofs_by_num = {}
@@ -8775,23 +8769,23 @@ class PdfData(object):
       old_obj = PdfObj(pdf_obj)
 
       # We use substring search only to speed up the real match with Get.
-      if pdf_obj.head.startswith('<<'):
+      if pdf_obj.head.startswith(b'<<'):
         head = pdf_obj.head
-        if ('/Subtype/ImagE' in head and
-            ('/FilteR/' in head or '/FilteR[' in head)):
+        if (b'/Subtype/ImagE' in head and
+            (b'/FilteR/' in head or b'/FilteR[' in head)):
           subtype = pdf_obj.Get(b'Subtype')
           filtercap = pdf_obj.Get(b'FilteR')
           decodeparmscap = pdf_obj.Get(b'DecodeParmS')
-          if subtype == '/ImagE' and isinstance(filtercap, str):
-            pdf_obj.Set('Subtype', '/Image')
-            assert pdf_obj.Get(b'Filter') == '/JPXDecode'
-            pdf_obj.Set('Filter', filtercap)
-            pdf_obj.Set('FilteR', None)
-            pdf_obj.Set('DecodeParms', decodeparmscap)
-            pdf_obj.Set('DecodeParmS', None)
-        if '/Type/ObjStm' in head:
+          if subtype == b'/ImagE' and isinstance(filtercap, (bytes, memoryview)):
+            pdf_obj.Set(b'Subtype', b'/Image')
+            assert pdf_obj.Get(b'Filter') == b'/JPXDecode'
+            pdf_obj.Set(b'Filter', filtercap)
+            pdf_obj.Set(b'FilteR', None)
+            pdf_obj.Set(b'DecodeParms', decodeparmscap)
+            pdf_obj.Set(b'DecodeParmS', None)
+        if b'/Type/ObjStm' in head:
           obj_type = pdf_obj.Get(b'Type')
-          if obj_type == '/ObjStm':
+          if obj_type == b'/ObjStm':
             has_objstm_obj = True
             if not do_generate_object_stream:
               objstm_objs[obj_num] = pdf_obj
@@ -8909,13 +8903,13 @@ class PdfData(object):
       # anyway.
       #
       # For testing: issue57.pdf.
-      trailer_obj.Set('Type', None)
-      trailer_obj.Set('W', None)
-      trailer_obj.Set('Filter', None)
-      trailer_obj.Set('Length', None)
-      trailer_obj.Set('DecodeParms', None)
-      trailer_obj.Set('Index', None)
-      trailer_obj.Set('Size', None)
+      trailer_obj.Set(b'Type', None)
+      trailer_obj.Set(b'W', None)
+      trailer_obj.Set(b'Filter', None)
+      trailer_obj.Set(b'Length', None)
+      trailer_obj.Set(b'DecodeParms', None)
+      trailer_obj.Set(b'Index', None)
+      trailer_obj.Set(b'Size', None)
       trailer_obj.stream = None
       pdf = cls()  # PdfData().
       pdf.version = version
@@ -8998,7 +8992,7 @@ class PdfData(object):
               obj_ofs=out_ofs_by_num, objstm_obj_num=None,
               objstm_obj_numbers=None, is_flate_ok=is_flate_ok)
         else:
-          xref_out = bytearray_tostring(xref_out)
+          # xref_out = bytearray_tostring(xref_out)
           # For testing: Multivalent generates
           # /DecodeParms<</Predictor 12/Columns 5>>
           # for agilerails3.pdf, which is 9K, instead of 22K without predictor.
@@ -9022,27 +9016,27 @@ class PdfData(object):
           output_size_idx += 1
       else:
         xref_idx = len(output)
-        output.append('xref\n0 ?\n')  # Placeholder, will be modified below.
+        output.append(b'xref\n0 ?\n')  # Placeholder, will be modified below.
         done_obj_num = 0
         for ref_obj_num in sorted(out_ofs_by_num):
           while done_obj_num < ref_obj_num:
-            output.append('0000000000 65535 f \n')
+            output.append(b'0000000000 65535 f \n')
             done_obj_num += 1
-          output.append('%010d 00000 n \n' % out_ofs_by_num[ref_obj_num])
+          output.append(b'%010d 00000 n \n' % out_ofs_by_num[ref_obj_num])
           done_obj_num += 1
         # done_obj_num is now max_obj_num + 1.
-        output[xref_idx] = 'xref\n0 %d\n' % done_obj_num
-        trailer_obj.Set('Type', None)
-        trailer_obj.Set('W', None)
-        trailer_obj.Set('Filter', None)
-        trailer_obj.Set('Length', None)
-        trailer_obj.Set('DecodeParms', None)
-        trailer_obj.Set('Index', None)
-        trailer_obj.Set('Size', done_obj_num)
-        output.append('trailer\n%s\n' % trailer_obj.head)
+        output[xref_idx] = b'xref\n0 %d\n' % done_obj_num
+        trailer_obj.Set(b'Type', None)
+        trailer_obj.Set(b'W', None)
+        trailer_obj.Set(b'Filter', None)
+        trailer_obj.Set(b'Length', None)
+        trailer_obj.Set(b'DecodeParms', None)
+        trailer_obj.Set(b'Index', None)
+        trailer_obj.Set(b'Size', done_obj_num)
+        output.append(b'trailer\n%s\n' % trailer_obj.head)
 
-      output.append('startxref\n%d\n' % xref_ofs)
-      output.append('%%EOF\n')
+      output.append(b'startxref\n%d\n' % xref_ofs)
+      output.append(b'%%EOF\n')
 
     # Report statistics and return `output'.
     while output_size_idx < len(output):
