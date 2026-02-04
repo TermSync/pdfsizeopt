@@ -3116,33 +3116,33 @@ class PdfObj(object):
       indexed_bpc: BitsPerComponent int for an indexed image, or a false value.
     """
     if decode is None:
-      return 'normal'
-    if not isinstance(decode, str) or decode[:1] != '[' or decode[-1:] != ']':
-      return 'non-array'
-    short_decode = filter(None, cls.PDF_WHITESPACES_RE.split(decode[1 : -1]))
+      return b'normal'
+    if not isinstance(decode, bytes) or decode[:1] != b'[' or decode[-1:] != b']':
+      return b'non-array'
+    short_decode = list(filter(None, cls.PDF_WHITESPACES_RE.split(decode[1 : -1])))
     s = len(short_decode) >> 1
     if indexed_bpc:
       high = (1 << indexed_bpc) - 1
     else:
       high = 1
-    high_str = str(high)
+    high_str = bytes(str(high), 'ascii')
     if short_decode:
-      if short_decode == ['0', high_str] * s:
-        return 'normal'
-      if short_decode == [high_str, '0'] * s:
-        return 'inverted'
+      if short_decode == [b'0', high_str] * s:
+        return b'normal'
+      if short_decode == [high_str, b'0'] * s:
+        return b'inverted'
     parsed_decode = cls.ParseArray(decode)  # Slow.
     if not parsed_decode:
-      return 'empty'
+      return b'empty'
     try:
-      float_decode = map(float, parsed_decode)
+      float_decode = list(map(float, parsed_decode))
     except ValueError:
-      return 'non-float'
+      return b'non-float'
     if float_decode == [0, high] * s:  # Matches ints and floats.
-      return 'normal'
+      return b'normal'
     if float_decode == [high, 0] * s:  # Matches ints and floats.
-      return 'inverted'
-    return 'strange'
+      return b'inverted'
+    return b'strange'
 
   @classmethod
   def GenerateImageDecode(cls, is_inverted, samples_per_pixel, indexed_bpc):
