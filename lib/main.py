@@ -970,7 +970,7 @@ class PdfObj(object):
   members of PDF_SAFE_KEEP_HEX_ESCAPED_RE,. """
 
   PDF_OPTIMIZED_KEEP_HEX_ESCAPED_RE = re.compile(
-      r'[/#\[\]()<>{}\x00\t\n\r\f %]')
+      br'[/#\[\]()<>{}\x00\t\n\r\f %]')
   """Like PDF_SAFE_KEEP_HEX_ESCAPED_RE, but contains only a minimum set of
   characters so that the PDF is still valid.
 
@@ -1000,7 +1000,7 @@ class PdfObj(object):
   """
 
   PDF_STRING_UNSAFE_CHAR_RE = re.compile(
-      '[%s]' % re.escape(PDF_STRING_UNSAFE_CHARS))
+      b'[' + re.escape(PDF_STRING_UNSAFE_CHARS) + b']')
   """Matches a single character prohibited in a safe PDF string literal."""
 
   PDF_TOKENS_SAFE_STRING_RE = re.compile(
@@ -1241,7 +1241,7 @@ class PdfObj(object):
   PDF_COMMENT_RE = re.compile(br'%[^\r\n]*')
   """Matches a single comment line without a terminator."""
 
-  PDF_SIMPLE2_REF_RE = re.compile(r'(\d+)[\x00\t\n\r\f ]+(\d+)[\x00\t\n\r\f ]+R\b')
+  PDF_SIMPLE2_REF_RE = re.compile(br'(\d+)[\x00\t\n\r\f ]+(\d+)[\x00\t\n\r\f ]+R\b')
   """Matches `<obj> 0 R', not allowing comments.
 
   TODO(pts): Remove this, in favor of PDF_SIMPLE_REF_RE.
@@ -2396,12 +2396,12 @@ class PdfObj(object):
     if _cache is None:
       _cache = [
         cls.PDF_OPTIMIZED_KEEP_HEX_ESCAPED_RE.sub(
-          lambda match: '#%02X' % ord(match.group()), chr(i)
+          lambda match: b'#%02X' % ord(match.group()), bytes([i])
         ) for i in range(256)
       ]
     """Data is a PDF token sequence containing all strings as <hex>."""
-    if '#' not in data:  # Works for both strings and memoryviews.
-      return str(data)
+    if b'#' not in data:  # Works for both bytestrings and memoryviews.
+      return data
     # This unescapes e.g. #41 to A, and keeps e.g. #20 escaped. It doesn't
     # touch unescaped chars (e.g. * or A).
     try:
@@ -2747,7 +2747,7 @@ class PdfObj(object):
           scanner = cls.PDF_COMMENT_OR_STRING_RE.scanner(
               data, i, len(data))
         else:  # comment
-          output.append(' ')
+          output.append(b' ')
         match = scanner.search()
       output.append(data[i:])
       data = b''.join(output)
@@ -2766,7 +2766,7 @@ class PdfObj(object):
        data = cls._EscapePdfNamesInHexTokensSafe(data)
     else:
       if do_expect_postscript_name_input:
-        data = data.replace('#', '#23')
+        data = data.replace(b'#', b'#23')
       else:
         data = cls._EscapePdfNamesInHexTokensOptimized(data)
 
@@ -2783,10 +2783,10 @@ class PdfObj(object):
         else:
           obj_num = obj_num_map.get(obj_num, obj_num)
         if obj_num is None:
-          return 'null'
+          return b'null'
         else:
           # TODO(pts): Keep the original generation number (match.group(2))
-          return '%s 0 R' % obj_num
+          return b'%d 0 R' % obj_num
 
       data = cls.PDF_SIMPLE2_REF_RE.sub(ReplacementRef, data)
     elif old_obj_nums_ret is not None:
@@ -2799,7 +2799,7 @@ class PdfObj(object):
       This function assumes that match is in data.
       """
       if match.group(2) is not None:  # hex string
-        s = cls.PDF_WHITESPACE_RE.sub('', match.group(2))
+        s = cls.PDF_WHITESPACE_RE.sub(b'', match.group(2))
         if len(s) % 2 != 0:
           s += b'0'
         try:
@@ -2883,9 +2883,9 @@ class PdfObj(object):
   def SerializePdfStringSafe(cls, data):
     """Serializes a string as a PDF string: (...) if safe, otherwise <...>."""
     if cls.PDF_STRING_UNSAFE_CHAR_RE.search(data):
-      return '<%s>' % data.encode('hex')
+      return b'<' + bytes(ord(c) for c in data.hex()) + b'>'
     else:
-      return '(%s)' % data
+      return b'(' + data + b')'
 
   @classmethod
   def SerializePdfStringUnsafe(cls, data):

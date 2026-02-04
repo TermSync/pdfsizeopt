@@ -527,43 +527,43 @@ class PdfSizeOptTest(unittest.TestCase):
 
   def testCompressValue(self):
     e = main.PdfObj.CompressValue
-    self.assertEqual('', e('\t\f\0\r \n'))
-    self.assertEqual('foo bar', e('   foo\n\t  bar\f'))
-    self.assertEqual('foo 123', e('foo%bar\r123'))
-    self.assertEqual('foo 123', e('foo%bar\n123'))
-    self.assertEqual(']foo/bar(\xba\xd0)>>', e(' ]  foo\n\t  /bar\f <bAd>>>'))
-    self.assertEqual('<<bAd CAFE>>', e('<<bAd  CAFE>>'))
-    self.assertEqual('<<(\xba\xdc\xaf\xe0)>>', e('<<<bad CAFE>>>'))
-    self.assertEqual('()', e('()'))
-    self.assertEqual('<>', e('()', do_emit_strings_as_hex=True))
-    self.assertEqual('<fa>', e('(\xFa)', do_emit_strings_as_hex=True))
-    self.assertEqual('<7e>', e('(\\176)', do_emit_strings_as_hex=True))
-    self.assertEqual('(())', e(' <2829>\t', do_emit_safe_strings=False))
-    self.assertEqual('<2829>', e(' <2829>\t'))
-    self.assertEqual('<2829>', e(' (())\t'))
-    self.assertEqual('(\\)\\()', e(' <2928>\t', do_emit_safe_strings=False))
-    self.assertEqual('<2928>', e(' <2928>\t'))
-    self.assertEqual('[12 34]', e('[12%\n34]'))
-    self.assertEqual('[12 34]', e('[ 12 34 ]'))
-    self.assertEqual('<</A[12 34]>>', e(' << \t/A\f[12%\n34]>>\r'))
-    self.assertEqual('<2068656c6c6f090a>world', e(' ( hello\\t\n)world'))
-    self.assertEqual('( hello\t\n)world',
-                     e(' ( hello\\t\n)world', do_emit_safe_strings=False))
-    self.assertEqual('<292828686929295c>world', e(' (\\)(\\(hi\\))\\\\)world'))
-    self.assertEqual('(\\)((hi))\\\\)world',
-                     e(' (\\)(\\(hi\\))\\\\)world', do_emit_safe_strings=False))
-    self.assertEqual('/#FAce#5BB', e('/\xface#5b#42\f'))
-    self.assertEqual('/\xface#5BB', e('/\xface#5b#42\f', do_emit_safe_names=False))
-    self.assertRaisesX(main.PdfTokenParseError, e, '/#')
-    s = '/Kids[041\t 0\rR\f43\n0% 96 0 R\rR 42 0 R 97 0 Rs 42 0 R]( 98 0 R )\f'
-    t = '/Kids[041 0 R 43 0 R 42 0 R 97 0 Rs 42 0 R]<2039382030205220>'
+    self.assertEqual(b'', e(b'\t\f\0\r \n'))
+    self.assertEqual(b'foo bar', e(b'   foo\n\t  bar\f'))
+    self.assertEqual(b'foo 123', e(b'foo%bar\r123'))
+    self.assertEqual(b'foo 123', e(b'foo%bar\n123'))
+    self.assertEqual(b']foo/bar(\xba\xd0)>>', e(b' ]  foo\n\t  /bar\f <bAd>>>'))
+    self.assertEqual(b'<<bAd CAFE>>', e(b'<<bAd  CAFE>>'))
+    self.assertEqual(b'<<(\xba\xdc\xaf\xe0)>>', e(b'<<<bad CAFE>>>'))
+    self.assertEqual(b'()', e(b'()'))
+    self.assertEqual(b'<>', e(b'()', do_emit_strings_as_hex=True))
+    self.assertEqual(b'<fa>', e(b'(\xFa)', do_emit_strings_as_hex=True))
+    self.assertEqual(b'<7e>', e(b'(\\176)', do_emit_strings_as_hex=True))
+    self.assertEqual(b'(())', e(b' <2829>\t', do_emit_safe_strings=False))
+    self.assertEqual(b'<2829>', e(b' <2829>\t'))
+    self.assertEqual(b'<2829>', e(b' (())\t'))
+    self.assertEqual(b'(\\)\\()', e(b' <2928>\t', do_emit_safe_strings=False))
+    self.assertEqual(b'<2928>', e(b' <2928>\t'))
+    self.assertEqual(b'[12 34]', e(b'[12%\n34]'))
+    self.assertEqual(b'[12 34]', e(b'[ 12 34 ]'))
+    self.assertEqual(b'<</A[12 34]>>', e(b' << \t/A\f[12%\n34]>>\r'))
+    self.assertEqual(b'<2068656c6c6f090a>world', e(b' ( hello\\t\n)world'))
+    self.assertEqual(b'( hello\t\n)world',
+                     e(b' ( hello\\t\n)world', do_emit_safe_strings=False))
+    self.assertEqual(b'<292828686929295c>world', e(b' (\\)(\\(hi\\))\\\\)world'))
+    self.assertEqual(b'(\\)((hi))\\\\)world',
+                     e(b' (\\)(\\(hi\\))\\\\)world', do_emit_safe_strings=False))
+    self.assertEqual(b'/#FAce#5BB', e(b'/\xface#5b#42\f'))
+    self.assertEqual(b'/\xface#5BB', e(b'/\xface#5b#42\f', do_emit_safe_names=False))
+    self.assertRaisesX(main.PdfTokenParseError, e, b'/#')
+    s = b'/Kids[041\t 0\rR\f43\n0% 96 0 R\rR 42 0 R 97 0 Rs 42 0 R]( 98 0 R )\f'
+    t = b'/Kids[041 0 R 43 0 R 42 0 R 97 0 Rs 42 0 R]<2039382030205220>'
     self.assertEqual(t, e(s))
     self.assertEqual(t, e(e(s)))
-    old_obj_nums = ['']
+    old_obj_nums = [b'']
     self.assertEqual(t, e(s, old_obj_nums_ret=old_obj_nums))
-    self.assertEqual(['', 41, 43, 42, 42], old_obj_nums)
-    uu = '/Kids[41 0 R 53 0 R 52 0 R 97 0 Rs 52 0 R]( 98 0 R )'
-    u = '/Kids[41 0 R 53 0 R 52 0 R 97 0 Rs 52 0 R]<2039382030205220>'
+    self.assertEqual([b'', 41, 43, 42, 42], old_obj_nums)
+    uu = b'/Kids[41 0 R 53 0 R 52 0 R 97 0 Rs 52 0 R]( 98 0 R )'
+    u = b'/Kids[41 0 R 53 0 R 52 0 R 97 0 Rs 52 0 R]<2039382030205220>'
     self.assertEqual(u, e(s, obj_num_map={43: 53, 42: 52}))
     self.assertEqual(uu, e(s, obj_num_map={43: 53, 42: 52},
                            do_emit_safe_strings=False))
@@ -571,19 +571,19 @@ class PdfSizeOptTest(unittest.TestCase):
     self.assertEqual(
         u, e(s, obj_num_map={43: 53, 42: 52}, old_obj_nums_ret=old_obj_nums))
     self.assertEqual([None, 41, 43, 42, 42], old_obj_nums)
-    self.assertEqual('<</Length 68/Filter/FlateDecode>>',
-                     e('<</Length 68/Filter/FlateDecode >>'))
-    self.assertEqual('<</Type/Catalog/Pages 1 0 R>>',
-                     e('<</Type/Catalog/Pages 1 0 R >>'))
-    self.assertEqual('[/Zoo#3C#3E 1]', e('[/Zoo#3c#3e 1]'))
-    self.assertEqual('[/Zoo#3C#3E(a)/foo#2A/bar#2A#5B/pedal.#2A]',
-                     e('[/Zoo#3c#3e(a\\\n)/foo*/bar#2a#5b/pedal.#2a]'))
-    self.assertEqual('[/Zoo#3C#3E<0a>/foo#2A/bar#2A#5B/pedal.#2A]',
-                     e('[/Zoo#3c#3e(\r\\\n)/foo*/bar#2a#5b/pedal.#2a]'))
-    self.assertEqual('[/Zoo#3C#3E<0d>/foo#2A/bar#2A#5B/pedal.#2A]',
-                     e('[/Zoo#3c#3e(\\r\\\n)/foo*/bar#2a#5b/pedal.#2a]'))
-    self.assertEqual('[/Zoo#3C#3E<0a>/foo*/bar*#5B/pedal.*]',
-                     e('[/Zoo#3c#3e(\n\\\n)/foo*/bar#2a#5b/pedal.#2a]',
+    self.assertEqual(b'<</Length 68/Filter/FlateDecode>>',
+                     e(b'<</Length 68/Filter/FlateDecode >>'))
+    self.assertEqual(b'<</Type/Catalog/Pages 1 0 R>>',
+                     e(b'<</Type/Catalog/Pages 1 0 R >>'))
+    self.assertEqual(b'[/Zoo#3C#3E 1]', e(b'[/Zoo#3c#3e 1]'))
+    self.assertEqual(b'[/Zoo#3C#3E(a)/foo#2A/bar#2A#5B/pedal.#2A]',
+                     e(b'[/Zoo#3c#3e(a\\\n)/foo*/bar#2a#5b/pedal.#2a]'))
+    self.assertEqual(b'[/Zoo#3C#3E<0a>/foo#2A/bar#2A#5B/pedal.#2A]',
+                     e(b'[/Zoo#3c#3e(\r\\\n)/foo*/bar#2a#5b/pedal.#2a]'))
+    self.assertEqual(b'[/Zoo#3C#3E<0d>/foo#2A/bar#2A#5B/pedal.#2A]',
+                     e(b'[/Zoo#3c#3e(\\r\\\n)/foo*/bar#2a#5b/pedal.#2a]'))
+    self.assertEqual(b'[/Zoo#3C#3E<0a>/foo*/bar*#5B/pedal.*]',
+                     e(b'[/Zoo#3c#3e(\n\\\n)/foo*/bar#2a#5b/pedal.#2a]',
                        do_emit_safe_names=False))
 
   def testPdfObjParse(self):
