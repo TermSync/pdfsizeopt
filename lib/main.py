@@ -886,7 +886,7 @@ class PdfObj(object):
   """Matches the generation number and the 'R' (followed by a char)."""
 
   PDF_END_OF_REF_RE = re.compile(
-      r'[\x00\t\n\r\f ]R(?=[\x00\t\n\r\f /%(<>\[\]]|\Z)')
+      br'[\x00\t\n\r\f ]R(?=[\x00\t\n\r\f /%(<>\[\]]|\Z)')
   """Matches the whitespace, the 'R' and looks ahead 1 char."""
 
   PDF_REF_END_RE = re.compile(r'[\x00\t\n\r\f ]R\Z')
@@ -3559,17 +3559,17 @@ class PdfObj(object):
       assert self.stream is not None
       return self.stream
     filter_value = self.Get(b'Filter')
-    decodeparms = self.Get(b'DecodeParms') or ''
+    decodeparms = self.Get(b'DecodeParms') or b''
     if objs is None:
       objs = {}
     filter_value = self.ResolveReferences(filter_value, objs)
     decodeparms = self.ResolveReferences(decodeparms, objs)
-    if not isinstance(filter_value, str):
+    if not isinstance(filter_value, bytes):
       raise FilterError('/Filter is not a str: %r' % (filter_value,))
-    if not isinstance(decodeparms, str):
+    if not isinstance(decodeparms, bytes):
       raise FilterError('/DecodeParms is not a str.')
-    if (filter_value in ('/FlateDecode', '[/FlateDecode]') and
-        '/Predictor' not in decodeparms):
+    if (filter_value in (b'/FlateDecode', b'[/FlateDecode]') and
+        b'/Predictor' not in decodeparms):
       try:
         return PermissiveZlibDecompress(self.stream)
       except zlib.error as e:
@@ -3578,7 +3578,7 @@ class PdfObj(object):
     if not is_gs_ok:
       raise FilterNotImplementedError(
           'filter not implemented: ' + filter_value)
-    if '/JBIG2Decode' in filter_value and '/JBIG2Globals' in decodeparms:
+    if b'/JBIG2Decode' in filter_value and b'/JBIG2Globals' in decodeparms:
       raise FilterNotImplementedError('/JBIG2Globals not supported.')
 
     ps_file_name = None
@@ -3668,9 +3668,9 @@ class PdfObj(object):
       raise TypeError
     if (data is None or isinstance(data, int) or isinstance(data, float) or isinstance(data, bool)):
       return data
-    if not isinstance(data, str):
+    if not isinstance(data, (str, bytes)):
       raise TypeError
-    if not ('R' in data and  # cls.PDF_END_OF_REF_RE.search(data) and
+    if not (b'R' in data and  # cls.PDF_END_OF_REF_RE.search(data) and
             cls.PDF_REF_RE.search(data)):
       # Shortcut if there are no references in data.
       return data
@@ -3690,7 +3690,7 @@ class PdfObj(object):
             'missing object: %d 0 obj' % obj_num)
       if obj.stream is None:
         new_data = obj.head.strip(cls.PDF_WHITESPACE_CHARS)
-        if ('R' in new_data and cls.PDF_END_OF_REF_RE.search(new_data) and
+        if (b'R' in new_data and cls.PDF_END_OF_REF_RE.search(new_data) and
             cls.PDF_REF_RE.search(new_data)):
           # Do the recursive replacement in new_data.
           if obj_num in current_obj_nums:
@@ -3698,14 +3698,14 @@ class PdfObj(object):
             raise PdfReferenceRecursiveError(
                 'recursive reference chain: %r' % current_obj_nums)
           current_obj_nums.append(obj_num)
-          if '%' in new_data or '(' in new_data:  # ')'
+          if b'%' in new_data or b'(' in new_data:  # ')'
             new_data = cls.CompressValue(new_data, do_emit_strings_as_hex=True)
             new_data = cls.PDF_REF_RE.sub(Replacement, new_data)
             new_data = cls.CompressValue(new_data)
           else:
             new_data = cls.PDF_REF_RE.sub(Replacement, new_data)
           current_obj_nums.pop()
-        elif '%' in new_data:
+        elif b'%' in new_data:
           # Remove trailing comment.
           new_data = cls.CompressValue(new_data)
         return new_data
@@ -3721,7 +3721,7 @@ class PdfObj(object):
       return cls.ParseSimpleValue(Replacement(match))
 
     data0 = data
-    if '(' in data or '%' in data:  # ')'
+    if b'(' in data or b'%' in data:  # ')'
       # !!! Is this necessary? Can `data' not be a safe PDF token sequence?
       data = cls.CompressValue(data, do_emit_strings_as_hex=True)
       # Compress strings back to non-hex once the references are
@@ -3747,7 +3747,7 @@ class PdfObj(object):
       (new_data, has_changed). has_changed may be True even if there
       were no references found, but comments were removed.
     """
-    if not isinstance(data, str):
+    if not isinstance(data, (str, bytes)):
       return data, False
     data2 = cls.ResolveReferences(data, objs, do_strings)
     return data2, data2 != data
