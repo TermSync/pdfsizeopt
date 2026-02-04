@@ -2033,17 +2033,17 @@ class PdfSizeOptTest(unittest.TestCase):
 
   def testParsePostScriptDefs(self):
     F = cff.ParsePostScriptDefs
-    self.assertEqual({}, F('\t'))
-    self.assertEqual({'FSType': 14}, F('/FSType 14 def'))
-    self.assertRaisesX(ValueError, F, '/FSType')
-    self.assertRaisesX(ValueError, F, '/FSType 14')
-    self.assertRaisesX(ValueError, F, '/FSType 14 def /OrigFontType')
-    self.assertRaisesX(ValueError, F, '/FSType 14 15')
-    self.assertRaisesX(ValueError, F, '13 14 def')
-    self.assertEqual({'FSType': 8, 'OrigFontType': '/TrueType',
-                      'OrigFontName': '<33307b686a>', 'OrigFontStyle': '<>'},
-                     F('/FSType 8 def\n/OrigFontType /TrueType def\n'
-                       '/OrigFontName <33307B686a> def/OrigFontStyle () def'))
+    self.assertEqual({}, F(b'\t'))
+    self.assertEqual({b'FSType': 14}, F(b'/FSType 14 def'))
+    self.assertRaisesX(ValueError, F, b'/FSType')
+    self.assertRaisesX(ValueError, F, b'/FSType 14')
+    self.assertRaisesX(ValueError, F, b'/FSType 14 def /OrigFontType')
+    self.assertRaisesX(ValueError, F, b'/FSType 14 15')
+    self.assertRaisesX(ValueError, F, b'13 14 def')
+    self.assertEqual({b'FSType': 8, b'OrigFontType': b'/TrueType',
+                      b'OrigFontName': b'<33307b686a>', b'OrigFontStyle': b'<>'},
+                     F(b'/FSType 8 def\n/OrigFontType /TrueType def\n'
+                       b'/OrigFontName <33307B686a> def/OrigFontStyle () def'))
 
   def testFixFontNameInType1C(self):
     new_font_name = 'Hello'

@@ -938,16 +938,16 @@ def YieldParsePostScriptTokenList(data):
 def ParsePostScriptDefs(data):
   """Returns a dict of tokens, similar types as PdfObj token values."""
   result = {}
-  state, key, = 0, ''
+  state, key, = 0, b''
   for token in YieldParsePostScriptTokenList(data):
     if state == 0:
-      if not isinstance(token, str) or not token.startswith('/'):
+      if not isinstance(token, bytes) or not token.startswith(b'/'):
         raise ValueError('Unexpected PostScript key: %r' % token)
       key, state = token[1:], 1
     elif state == 1:
       result[key], state = token, 2
     else:
-      if token != 'def':
+      if token != b'def':
         raise ValueError('Expected def in PostScript, got: %r' % token)
       state = 0
   if state:
