@@ -1356,16 +1356,16 @@ class PdfSizeOptTest(unittest.TestCase):
   def testFindEqclassesString(self):
     pdf = main.PdfData()
     pdf.trailer = main.PdfObj(
-        '0 0 obj<</A[3 0 R]>>endobj')
-    pdf.objs[3] = main.PdfObj('0 0 obj<</A()/B<>/C(:)/D<3a3A4>>>endobj')
-    pdf.objs['trailer'] = pdf.trailer
+        b'0 0 obj<</A[3 0 R]>>endobj')
+    pdf.objs[3] = main.PdfObj(b'0 0 obj<</A()/B<>/C(:)/D<3a3A4>>>endobj')
+    pdf.objs[b'trailer'] = pdf.trailer
     new_objs = main.PdfData.FindEqclasses(
         pdf.objs, do_remove_unused=True, do_renumber=True)
     for obj_num in new_objs:
       new_objs[obj_num] = (new_objs[obj_num].head, new_objs[obj_num].stream)
     self.assertEqual(
-        {'trailer': ('<</A[1 0 R]>>', None),
-         1: ('<</A()/B()/C(:)/D(::@)>>', None)}, new_objs)
+        {b'trailer': (b'<</A[1 0 R]>>', None),
+         1: (b'<</A()/B()/C(:)/D(::@)>>', None)}, new_objs)
 
   def testParseAndSerializeCffDict(self):
     cff_dict = {
