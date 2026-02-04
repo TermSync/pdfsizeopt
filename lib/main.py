@@ -1250,7 +1250,7 @@ class PdfObj(object):
   PDF_SIMPLE_REF_RE = re.compile(r'([-+]?\d+) 0 R\b')
   """Matches an <x> 0 R, separated by a single space."""
 
-  PDF_HEX_STRING_OR_DICT_RE = re.compile(r'<<|<(?!<)([^>]*)>')
+  PDF_HEX_STRING_OR_DICT_RE = re.compile(br'<<|<(?!<)([^>]*)>')
   """Matches a hex string or <<."""
 
   PDF_SIMPLE_TOKEN_RE = re.compile(
@@ -1719,7 +1719,7 @@ class PdfObj(object):
   def AppendTo(self, output, obj_num, do_emit_short_unsafe=False):
     """Append serialized self to output list, using obj_num."""
     # TODO(pts): Test this method.
-    output.append('%s 0 obj\n' % int(obj_num))
+    output.append(b'%d 0 obj\n' % int(obj_num))
     head = self.head.strip(self.PDF_WHITESPACE_CHARS)
     if do_emit_short_unsafe:
       # Also converts strings and names to short but unsafe.
@@ -1736,14 +1736,14 @@ class PdfObj(object):
         assert self.Get(b'Length') == len(self.stream)
       else:
         # Don't waste time on the proper check.
-        assert '/Length' in head
-      output.append('%sstream\n' % space)
+        assert b'/Length' in head
+      output.append(b'%sstream\n' % space)
       output.append(self.stream)
       # We don't need '\nendstream' after a non-compressed content stream,
       # 'Qendstream endobj' is perfectly fine (accepted by gs and xpdf).
-      output.append('endstream endobj\n')
+      output.append(b'endstream endobj\n')
     else:
-      output.append('%sendobj\n' % space)
+      output.append(b'%sendobj\n' % space)
 
   def __GetHead(self):
     if self._head is None and self._cache is not None:
@@ -2781,7 +2781,7 @@ class PdfObj(object):
         obj_num = int(match.group(1))
         if old_obj_nums_ret is not None:
           old_obj_nums_ret.append(obj_num)
-        if isinstance(obj_num_map, str):
+        if isinstance(obj_num_map, (bytes, memoryview)):
           obj_num = obj_num_map
         else:
           obj_num = obj_num_map.get(obj_num, obj_num)
@@ -2789,7 +2789,7 @@ class PdfObj(object):
           return b'null'
         else:
           # TODO(pts): Keep the original generation number (match.group(2))
-          return b'%d 0 R' % obj_num
+          return b'%s 0 R' % obj_num
 
       data = cls.PDF_SIMPLE2_REF_RE.sub(ReplacementRef, data)
     elif old_obj_nums_ret is not None:
@@ -7920,7 +7920,7 @@ class PdfData(object):
       # !! TODO(pts): reorder dicts to canonical order
       # CompressValue changes all generational refs to generation 0.
       head_minus = PdfObj.CompressValue(
-          head, obj_num_map='0', old_obj_nums_ret=refs_to,
+          head, obj_num_map=b'0', old_obj_nums_ret=refs_to,
           do_emit_strings_as_hex=True)
       stream = objs[obj_num].stream
       desc = [obj_num, head_minus, stream, refs_to, 0]
@@ -8053,7 +8053,7 @@ class PdfData(object):
           return 'null'
         else:
           new_obj_num = new_class[0][0]
-          return '%s 0 R' % obj_num_map.get(new_obj_num, new_obj_num)
+          return b'%d 0 R' % obj_num_map.get(new_obj_num, new_obj_num)
 
       head = PdfObj.PDF_SIMPLE2_REF_RE.sub(ReplacementRef, head_minus)
       assert not refs_to_rev
@@ -8063,8 +8063,8 @@ class PdfData(object):
       # binary instead) here.
       head = PdfObj.PDF_HEX_STRING_OR_DICT_RE.sub(
           lambda match: (match.group(1) is not None and
-              PdfObj.SerializePdfStringSafe(match.group(1).decode('hex'))
-              or '<<'), head)
+              PdfObj.SerializePdfStringSafe(bytes.fromhex(str(match.group(1), 'ascii')))
+              or b'<<'), head)
       obj = PdfObj(None)
       obj.head = head
       obj.stream = stream
