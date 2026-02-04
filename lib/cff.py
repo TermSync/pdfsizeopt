@@ -478,7 +478,7 @@ def ParseCffIndex(data):
   Returns:
     (offset_after_the_cff_index, list_of_memoryviews).
   """
-  if data[:2] == '\0\0':  # Empty index. (No need to check len(data).)
+  if data[:2] == b'\0\0':  # Empty index. (No need to check len(data).)
     return 2, []
   if len(data) < 3:
     raise ValueError('CFF index too short for header.')
@@ -621,7 +621,7 @@ def SerializeCffIndexHeader(off_size, buffers):
 
   if off_size == 0:
     assert len(offsets) == 1  # Empty index, guaranteed above.
-    data = '\0\0'
+    data = b'\0\0'
   elif off_size == 1:
     data = struct.pack('>HB%dB' % len(offsets), count, 1, *offsets)
   elif off_size == 2:

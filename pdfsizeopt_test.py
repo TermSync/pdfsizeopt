@@ -1972,26 +1972,26 @@ class PdfSizeOptTest(unittest.TestCase):
   def testParseCffIndex(self):
     def Check(items):
       header = cff.SerializeCffIndexHeader(None, items)[1]
-      eoi = 'EOI'
-      index = header + ''.join(items) + eoi
+      eoi = b'EOI'
+      index = header + b''.join(items) + eoi
       after_index_ofs, items2 = cff.ParseCffIndex(index)
       items_strlist = list(items)
-      items2_strlist = map(str, items2)
+      items2_strlist = list(map(bytes, items2))
       self.assertEqual(items_strlist, items2_strlist)
       self.assertEqual(len(index) - len(eoi), after_index_ofs)
       self.assertEqual(after_index_ofs == 2, len(items) == 0)
       if len(index) < 256 and items:  # True in general.
-        self.assertTrue(ord(header[2]) == 1)
+        self.assertTrue(header[2] == 1)
       if len(index) > 270 and items:  # Not true in general, but true here.
-        self.assertTrue(ord(header[2]) > 1)
+        self.assertTrue(header[2] > 1)
 
     Check(())
-    Check(('foo',))
-    Check(('foo', 'barbaz'))
-    Check(('', 'foo', '', '', 'barbaz', '', '', ''))
-    Check(('', '', ''))
-    Check(('',))
-    Check(('foo', 'barbaz' * 100))
+    Check((b'foo',))
+    Check((b'foo', b'barbaz'))
+    Check((b'', b'foo', b'', b'', b'barbaz', b'', b'', b''))
+    Check((b'', b'', b''))
+    Check((b'',))
+    Check((b'foo', b'barbaz' * 100))
 
   def testYieldParsePostScriptTokenList(self):
     def F(data):
