@@ -1791,12 +1791,12 @@ class PdfSizeOptTest(unittest.TestCase):
 
   def testGetBadNumbersFixed(self):
     F = main.PdfObj.GetBadNumbersFixed
-    self.assertEqual('/Hello/World', F('/Hello/World'))
-    self.assertEqual('0', F('.'))
-    self.assertEqual('1.', F('1.'))
-    self.assertEqual('.2', F('.2'))
-    self.assertEqual('[1. 0 0 1. 0 0]', F('[1. . . 1. . .]'))
-    self.assertEqual('[0 0 612. 792.]', F('[. . 612. 792.]'))
+    self.assertEqual(b'/Hello/World', F(b'/Hello/World'))
+    self.assertEqual(b'0', F(b'.'))
+    self.assertEqual(b'1.', F(b'1.'))
+    self.assertEqual(b'.2', F(b'.2'))
+    self.assertEqual(b'[1. 0 0 1. 0 0]', F(b'[1. . . 1. . .]'))
+    self.assertEqual(b'[0 0 612. 792.]', F(b'[. . 612. 792.]'))
 
   def testEscapePdfNames(self):
     f1 = main.PdfObj._EscapePdfNamesInHexTokensSafe

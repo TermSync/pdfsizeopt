@@ -1173,7 +1173,7 @@ class PdfObj(object):
       br'([\x00\t\n\r\f ]*)endstream[\x00\t\n\r\f ]+endobj(?:[\x00\t\n\r\f /]|\Z)')
   """Matches endstream+endobj."""
 
-  PDF_BAD_NUMBER_RE = re.compile(r'([\x00\t\n\r\f \[])[.](?=[\x00\t\n\r\f \]])')
+  PDF_BAD_NUMBER_RE = re.compile(br'([\x00\t\n\r\f \[])[.](?=[\x00\t\n\r\f \]])')
   """Matches a bad (unparsable) number."""
 
   PDF_SIMPLE_VALUE_RE = re.compile(
@@ -1768,12 +1768,12 @@ class PdfObj(object):
   @classmethod
   def GetBadNumbersFixed(cls, data):
     # !!! Remove this once PdfObj.__init__ does it.
-    if data == '.':
-      return '0'
+    if data == b'.':
+      return b'0'
     # Just convert '.' to '0' in an array.
     # We don't convert `42.' to '42.0' here.
     return cls.PDF_BAD_NUMBER_RE.sub(
-        lambda match: match.group(1) + '0', data)
+        lambda match: match.group(1) + b'0', data)
 
   @classmethod
   def IsSpaceNeeded(cls, data1, data2):
