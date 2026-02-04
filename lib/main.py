@@ -1235,7 +1235,7 @@ class PdfObj(object):
   """Matches a PDF string literal without special chars ( ) \\ \r . No \Z."""
 
   PDF_COMMENT_OR_STRING_RE = re.compile(
-      r'%[^\r\n]*|\(([^()\\]*)\)|(\()')
+      br'%[^\r\n]*|\(([^()\\]*)\)|(\()')
   """Matches a comment, a string simple literal or a string literal opener."""
 
   PDF_COMMENT_RE = re.compile(br'%[^\r\n]*')
@@ -1254,7 +1254,7 @@ class PdfObj(object):
   """Matches a hex string or <<."""
 
   PDF_SIMPLE_TOKEN_RE = re.compile(
-      ' |(/?[^/{}\[\]()<>\0\t\n\r\f %]+)|<<|>>|[\[\]]|<([a-f0-9]*)>')
+      b' |(/?[^/{}\[\]()<>\0\t\n\r\f %]+)|<<|>>|[\[\]]|<([a-f0-9]*)>')
   """Matches a simple PDF token.
 
   PdfObj.CompressValue(data, do_emit_strings_as_hex=True emits) a string of
@@ -2730,7 +2730,7 @@ class PdfObj(object):
           output.append(data[i : match.start()])
         i = match.end()
         if match.group(1) is not None:  # simple string literal
-          output.append('<%s>' % match.group(1).encode('hex'))
+          output.append(b'<' + bytes(ord(c) for c in match.group(1).hex()) + b'>')
         elif match.group(2):  # complicated string literal
           end_ofs_out = []
           try:
@@ -2750,7 +2750,7 @@ class PdfObj(object):
           output.append(' ')
         match = scanner.search()
       output.append(data[i:])
-      data = ''.join(output)
+      data = b''.join(output)
     else:
       # According the the PDF reference, comments are equivalent to whitespace.
       data = cls.PDF_COMMENT_RE.sub(b' ', data)
@@ -2760,7 +2760,7 @@ class PdfObj(object):
        data = data.replace(b'#', b'#23')
        # This escapes eg. * to #2A.
        data = cls.PDF_HEXTOKENS_SAFE_HEX_ESCAPE_RE.sub(
-           lambda match: '#%02X' % ord(match.group()), data)
+           lambda match: b'#%02X' % ord(match.group()), data)
      else:
        # Like NormalizePdfName, but we don't need the extra check.
        data = cls._EscapePdfNamesInHexTokensSafe(data)
@@ -2801,13 +2801,13 @@ class PdfObj(object):
       if match.group(2) is not None:  # hex string
         s = cls.PDF_WHITESPACE_RE.sub('', match.group(2))
         if len(s) % 2 != 0:
-          s += '0'
+          s += b'0'
         try:
-          s = s.decode('hex')
-        except TypeError:
+          s = bytes.fromhex(str(s, 'ascii'))
+        except (ValueError, UnicodeDecodeError):
           raise PdfTokenParseError('invalid hex string %r' % s)
         if do_emit_strings_as_hex:
-          return '<%s>' % s.encode('hex')
+          return b'<' + bytes(ord(c) for c in s.hex()) + b'>'
         elif do_emit_safe_strings:
           return cls.SerializePdfStringSafe(s)
         else:
@@ -3014,32 +3014,32 @@ class PdfObj(object):
     while match:
       last_end = match.end()
       token = match.group()
-      if token == '<<':
+      if token == b'<<':
         stack.append({})
         match = scanner.match()
         continue
-      elif token == '[':
+      elif token == b'[':
         stack.append([])
         match = scanner.match()
         continue
-      elif token == ' ':
+      elif token == b' ':
         match = scanner.match()
         continue
       elif match.group(1):
         try:
           token = int(token)
         except ValueError:
-          if token == 'true':
+          if token == b'true':
             token = True
-          elif token == 'false':
+          elif token == b'false':
             token = False
-          elif token == 'null':
+          elif token == b'null':
             token = None
-      elif token == '>>':
+      elif token == b'>>':
         if not isinstance(stack[-1], dict):
           raise PdfTokenParseError('unexpected dict-close')
         token = stack.pop()
-      elif token == ']':
+      elif token == b']':
         if not isinstance(stack[-1], list):
           raise PdfTokenParseError('unexpected array-close')
         token = stack.pop()
@@ -3051,7 +3051,7 @@ class PdfObj(object):
         stack[-2][stack[-1]] = token
         stack.pop()
       elif isinstance(stack[-1], dict):  # token is a key in a dict
-        if isinstance(token, str) and token[0] == '/':
+        if isinstance(token, bytes) and token[0:1] == b'/':
           stack.append(token[1:])
         else:
           stack.append(token)

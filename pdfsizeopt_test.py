@@ -482,48 +482,48 @@ class PdfSizeOptTest(unittest.TestCase):
 
   def testParseValueRecursive(self):
     e = main.PdfObj.ParseValueRecursive
-    self.assertEqual(None, e('null'))
-    self.assertEqual(True, e('true'))
-    self.assertEqual(False, e('false'))
-    self.assertEqual('foo', e(' foo % true\n\r '))
-    self.assertEqual(42, e('000042'))
-    self.assertEqual('0042.0', e('0042.0'))
-    self.assertEqual('/Font', e('\t/Font\f'))
-    self.assertEqual('<28282929>', e('((()))'))
-    self.assertEqual('<25>', e('(%)'))
-    self.assertEqual('<29282868656c292929296c6f295c>',
-                     e('(\\)((hel\\)\\))\\)lo)\\\\)'))
-    self.assertEqual([], e('[]'))
-    self.assertEqual({}, e('<<>>'))
-    self.assertEqual({1: 2}, e('<<1 2>>'))
-    self.assertEqual({'bar': '/baz', 5: {'A': [67, '<>', 'foo']}},
-                     e('<<5<</A[67()foo]>>bar /baz>>'))
-    self.assertEqual(['/pedal.#2A', '/pedal.#2A'], e('[/pedal.*/pedal.#2a]'))
+    self.assertEqual(None, e(b'null'))
+    self.assertEqual(True, e(b'true'))
+    self.assertEqual(False, e(b'false'))
+    self.assertEqual(b'foo', e(b' foo % true\n\r '))
+    self.assertEqual(42, e(b'000042'))
+    self.assertEqual(b'0042.0', e(b'0042.0'))
+    self.assertEqual(b'/Font', e(b'\t/Font\f'))
+    self.assertEqual(b'<28282929>', e(b'((()))'))
+    self.assertEqual(b'<25>', e(b'(%)'))
+    self.assertEqual(b'<29282868656c292929296c6f295c>',
+                     e(b'(\\)((hel\\)\\))\\)lo)\\\\)'))
+    self.assertEqual([], e(b'[]'))
+    self.assertEqual({}, e(b'<<>>'))
+    self.assertEqual({1: 2}, e(b'<<1 2>>'))
+    self.assertEqual({b'bar': b'/baz', 5: {b'A': [67, b'<>', b'foo']}},
+                     e(b'<<5<</A[67()foo]>>bar /baz>>'))
+    self.assertEqual([b'/pedal.#2A', b'/pedal.#2A'], e(b'[/pedal.*/pedal.#2a]'))
     self.assertEqual(
-        ['/pedal.#2A', '/pedal.#232a'],
-        e('[/pedal.*/pedal.#2a]', do_expect_postscript_name_input=True))
+        [b'/pedal.#2A', b'/pedal.#232a'],
+        e(b'[/pedal.*/pedal.#2a]', do_expect_postscript_name_input=True))
     self.assertEqual(
-        ['/pedal.#2A', '<>', '/pedal.#232a'],
-        e('[/pedal.*()/pedal.#2a]', do_expect_postscript_name_input=True))
-    self.assertRaisesX(main.PdfTokenParseError, e, '1 2')
-    self.assertRaisesX(main.PdfTokenParseError, e, '[')
-    self.assertRaisesX(main.PdfTokenParseError, e, '[[]')
-    self.assertRaisesX(main.PdfTokenParseError, e, ']')
-    self.assertRaisesX(main.PdfTokenParseError, e, '3]')
-    self.assertRaisesX(main.PdfTokenParseError, e, '>>')
-    self.assertRaisesX(main.PdfTokenParseError, e, '<<]')
-    self.assertRaisesX(main.PdfTokenParseError, e, '[>>')
-    self.assertRaisesX(main.PdfTokenParseError, e, '(')
-    self.assertRaisesX(main.PdfTokenParseError, e, '(()')
-    self.assertRaisesX(main.PdfTokenParseError, e, '(()))')
-    self.assertRaisesX(main.PdfTokenParseError, e, '<12')
-    self.assertRaisesX(main.PdfTokenParseError, e, '<12<>>')
-    self.assertRaisesX(main.PdfTokenParseError, e, '<<1>>')
-    self.assertRaisesX(main.PdfTokenParseError, e, '<<%>>')
-    self.assertRaisesX(main.PdfTokenParseError, e, '[%]')
-    self.assertRaisesX(main.PdfTokenParseError, e, '/')
-    self.assertRaisesX(main.PdfTokenParseError, e, '//')
-    self.assertRaisesX(main.PdfTokenParseError, e, '//foo')
+        [b'/pedal.#2A', b'<>', b'/pedal.#232a'],
+        e(b'[/pedal.*()/pedal.#2a]', do_expect_postscript_name_input=True))
+    self.assertRaisesX(main.PdfTokenParseError, e, b'1 2')
+    self.assertRaisesX(main.PdfTokenParseError, e, b'[')
+    self.assertRaisesX(main.PdfTokenParseError, e, b'[[]')
+    self.assertRaisesX(main.PdfTokenParseError, e, b']')
+    self.assertRaisesX(main.PdfTokenParseError, e, b'3]')
+    self.assertRaisesX(main.PdfTokenParseError, e, b'>>')
+    self.assertRaisesX(main.PdfTokenParseError, e, b'<<]')
+    self.assertRaisesX(main.PdfTokenParseError, e, b'[>>')
+    self.assertRaisesX(main.PdfTokenParseError, e, b'(')
+    self.assertRaisesX(main.PdfTokenParseError, e, b'(()')
+    self.assertRaisesX(main.PdfTokenParseError, e, b'(()))')
+    self.assertRaisesX(main.PdfTokenParseError, e, b'<12')
+    self.assertRaisesX(main.PdfTokenParseError, e, b'<12<>>')
+    self.assertRaisesX(main.PdfTokenParseError, e, b'<<1>>')
+    self.assertRaisesX(main.PdfTokenParseError, e, b'<<%>>')
+    self.assertRaisesX(main.PdfTokenParseError, e, b'[%]')
+    self.assertRaisesX(main.PdfTokenParseError, e, b'/')
+    self.assertRaisesX(main.PdfTokenParseError, e, b'//')
+    self.assertRaisesX(main.PdfTokenParseError, e, b'//foo')
 
   def testCompressValue(self):
     e = main.PdfObj.CompressValue
