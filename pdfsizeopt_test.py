@@ -337,17 +337,17 @@ class PdfSizeOptTest(unittest.TestCase):
 
   def testIsGrayColorSpace(self):
     e = main.PdfObj.IsGrayColorSpace
-    self.assertEqual(False, e('/DeviceRGB'))
-    self.assertEqual(False, e('/DeviceCMYK'))
-    self.assertEqual(False, e('/DeviceN'))
-    self.assertEqual(True, e('  /DeviceGray  \r'))
-    self.assertEqual(False, e('\t[ /Indexed /DeviceGray'))
-    self.assertEqual(True, e('\t[ /Indexed /DeviceGray 5 <]'))
+    self.assertEqual(False, e(b'/DeviceRGB'))
+    self.assertEqual(False, e(b'/DeviceCMYK'))
+    self.assertEqual(False, e(b'/DeviceN'))
+    self.assertEqual(True, e(b'  /DeviceGray  \r'))
+    self.assertEqual(False, e(b'\t[ /Indexed /DeviceGray'))
+    self.assertEqual(True, e(b'\t[ /Indexed /DeviceGray 5 <]'))
     self.assertRaisesX(main.PdfTokenTruncated, e,
-                      '\t[ /Indexed /DeviceRGB 5 (]')
-    self.assertEqual(True, e('\t[ /Indexed /DeviceRGB\f5 (A\101Azz\172)]'))
-    self.assertEqual(False, e('\t[ /Indexed\n/DeviceRGB 5 (A\101Bzz\172)]'))
-    self.assertEqual(False, e('\t[ /Indexed\n/DeviceRGB 5 (A\101Ayy\172)]'))
+                      b'\t[ /Indexed /DeviceRGB 5 (]')
+    self.assertEqual(True, e(b'\t[ /Indexed /DeviceRGB\f5 (A\101Azz\172)]'))
+    self.assertEqual(False, e(b'\t[ /Indexed\n/DeviceRGB 5 (A\101Bzz\172)]'))
+    self.assertEqual(False, e(b'\t[ /Indexed\n/DeviceRGB 5 (A\101Ayy\172)]'))
 
   def testParseSimpleValue(self):
     e = main.PdfObj.ParseSimpleValue

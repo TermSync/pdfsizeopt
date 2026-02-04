@@ -3086,19 +3086,19 @@ class PdfObj(object):
 
   @classmethod
   def IsGrayColorSpace(cls, colorspace):
-    if not isinstance(colorspace, str):
+    if not isinstance(colorspace, (bytes, memoryview)):
       raise TypeError
     colorspace = colorspace.strip(cls.PDF_WHITESPACE_CHARS)
-    if colorspace == '/DeviceGray':
+    if colorspace == b'/DeviceGray':
       return True
     # !!! TODO(pts): Do proper PDF token sequence parsing (ParseTokensToSafe).
-    match = re.match(r'\[[\x00\t\n\r\f ]*/Indexed[\x00\t\n\r\f ]*'
-                     r'(/DeviceRGB|/DeviceGray)'
-                     r'[\x00\t\n\r\f ]+\d+[\x00\t\n\r\f ]*([<(](.|\n)*)]\Z',
+    match = re.match(br'\[[\x00\t\n\r\f ]*/Indexed[\x00\t\n\r\f ]*'
+                     br'(/DeviceRGB|/DeviceGray)'
+                     br'[\x00\t\n\r\f ]+\d+[\x00\t\n\r\f ]*([<(](.|\n)*)]\Z',
                      colorspace)
     if not match:
       return False
-    if match.group(1) == '/DeviceGray':
+    if match.group(1) == b'/DeviceGray':
       return True
     palette = cls.ParsePdfString(match.group(2))[0]
     palette_size = cls.GetRgbPaletteSize(palette)
