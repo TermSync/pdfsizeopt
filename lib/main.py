@@ -902,14 +902,14 @@ class PdfObj(object):
   """Matches an <x> <y> R."""
 
   PDF_NUMBER_OR_REF_RE = re.compile(
-      r'([-+]?\d+)(?=[\x00\t\n\r\f /%(<>\[\]])(?:'
-      r'(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+([-+]?\d+)'
-      r'(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+R'
-      r'(?=[\x00\t\n\r\f /%(<>\[\]]|\Z))?')
+      br'([-+]?\d+)(?=[\x00\t\n\r\f /%(<>\[\]])(?:'
+      br'(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+([-+]?\d+)'
+      br'(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+R'
+      br'(?=[\x00\t\n\r\f /%(<>\[\]]|\Z))?')
   """Matches a number or an <x> <y> R."""
 
   LENGTH_OF_STREAM_RE = re.compile(
-      r'/Length(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+' +
+      br'/Length(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+' +
       PDF_NUMBER_OR_REF_RE.pattern)
   """Matches `/Length <x>' or `/Length <x> <y> R'."""
 
@@ -1170,7 +1170,7 @@ class PdfObj(object):
   """Matches whitespace, the 'trailer' and some more chars."""
 
   PDF_ENDSTREAM_ENDOBJ_RE = re.compile(
-      r'([\x00\t\n\r\f ]*)endstream[\x00\t\n\r\f ]+endobj(?:[\x00\t\n\r\f /]|\Z)')
+      br'([\x00\t\n\r\f ]*)endstream[\x00\t\n\r\f ]+endobj(?:[\x00\t\n\r\f /]|\Z)')
   """Matches endstream+endobj."""
 
   PDF_BAD_NUMBER_RE = re.compile(r'([\x00\t\n\r\f \[])[.](?=[\x00\t\n\r\f \]])')
@@ -1219,7 +1219,7 @@ class PdfObj(object):
   PDF_NONNAME_CHAR_RE = re.compile(b'[' + re.escape(PDF_NONNAME_CHARS) + b']')
   """Matches a single character which can't be part of a PDF name."""
 
-  PDF_NAME_LITERAL_RE = re.compile(r'/([^\[\]{}()<>/%\x00\t\n\r\f ]+)')
+  PDF_NAME_LITERAL_RE = re.compile(br'/([^\[\]{}()<>/%\x00\t\n\r\f ]+)')
   """Matches a PDF /name literal."""
 
   PDF_INT_RE = re.compile(r'([-+]?\d+)')
@@ -1265,25 +1265,25 @@ class PdfObj(object):
   """Tuple of keys in /Type/FontDescriptor referring to the font data obj."""
 
   PDF_NAME_ABBREVIATIONS = {
-      'BPC': 'BitsPerComponent',
-      'CS': 'ColorSpace',
-      'D': 'Decode',
-      'DP': 'DecodeParms',
-      'F': 'Filter',
-      'H': 'Height',
-      'W': 'Width',
-      'IM': 'ImageMask',
-      'I': 'Interpolate',  # Can also be Indexed.
-      'G': 'DeviceGray',
-      'RGB': 'DeviceRGB',
-      'CMYK': 'DeviceCMYK',
-      'AHx': 'ASCIIHexDecode',
-      'A85': 'ASCII85Decode',
-      'LZW': 'LZWDecode',
-      'Fl': 'FlateDecode',
-      'RL': 'RunLengthDecode',
-      'CCF': 'CCITTFaxDecode',
-      'DCT': 'DCTDecode',
+      b'BPC': b'BitsPerComponent',
+      b'CS': b'ColorSpace',
+      b'D': b'Decode',
+      b'DP': b'DecodeParms',
+      b'F': b'Filter',
+      b'H': b'Height',
+      b'W': b'Width',
+      b'IM': b'ImageMask',
+      b'I': b'Interpolate',  # Can also be Indexed.
+      b'G': b'DeviceGray',
+      b'RGB': b'DeviceRGB',
+      b'CMYK': b'DeviceCMYK',
+      b'AHx': b'ASCIIHexDecode',
+      b'A85': b'ASCII85Decode',
+      b'LZW': b'LZWDecode',
+      b'Fl': b'FlateDecode',
+      b'RL': b'RunLengthDecode',
+      b'CCF': b'CCITTFaxDecode',
+      b'DCT': b'DCTDecode',
   }
   """Maps an abbreviated name (in an inline image) to its full equivalent.
 
@@ -1326,7 +1326,7 @@ class PdfObj(object):
       Exception: Many others.
     """
     self._cache = None
-    if not isinstance(other, (str, memoryview)):
+    if not isinstance(other, (bytes, memoryview)):
       if isinstance(other, PdfObj):
         self._head = other.head
         self.stream = other.stream
@@ -1361,8 +1361,8 @@ class PdfObj(object):
       self.CheckSafePdfTokens(head)
     except PdfTokenParseError as e:
       # !!! TODO(pts): Traceback in Python 2.4 and 2.7 wasn't retained. Why?
-      raise (e.__class__('In obj data between ofs %d and %d: %s' %
-             (file_ofs, file_ofs + len(other) - start, e)), None,
+      raise e.__class__('In obj data between ofs %d and %d: %s' %
+             (file_ofs, file_ofs + len(other) - start, e)).with_traceback(
              sys.exc_info()[2])
     self._head = head
 
@@ -1394,7 +1394,7 @@ class PdfObj(object):
       stream_length = self.Get(b'Length')
       if stream_length is None:
         raise PdfTokenParseError('proper stream /Length not found at ofs=%s' % file_ofs)
-      match = self.LENGTH_OF_STREAM_RE.match('/Length %s ' % stream_length)
+      match = self.LENGTH_OF_STREAM_RE.match(b'/Length %d ' % stream_length)
       assert match
     if match.group(2) is None:
       stream_end_idx = stream_start_idx + int(match.group(1))
@@ -1442,7 +1442,7 @@ class PdfObj(object):
       LogWarning(
           'incorrect /Length fixed for obj %d: %d to %d' %
           (obj_def_obj_num, stream_end_idx - stream_start_idx, match.end(1)))
-      self.Set('Length', match.end(1))  # Trailing whitespace included.
+      self.Set(b'Length', match.end(1))  # Trailing whitespace included.
       stream_end_idx = match.end(1) + stream_start_idx
       if end_ofs_out is not None:
         end_ofs_out.append(match.end() + stream_start_idx)
@@ -1450,8 +1450,8 @@ class PdfObj(object):
       if end_ofs_out is not None:
         end_ofs_out.append(stream_end_idx + match.end())
     self.stream = other[stream_start_idx : stream_end_idx]
-    if isinstance(self.Get(b'Filter'), str):
-      self.Set('Filter', self.ExpandAbbreviations(self.Get(b'Filter')))
+    if isinstance(self.Get(b'Filter'), (bytes, memoryview)):
+      self.Set(b'Filter', self.ExpandAbbreviations(self.Get(b'Filter')))
 
   @classmethod
   def ParseTokensToSafe(cls, data, start=0, end_ofs_out=None,
@@ -1547,15 +1547,15 @@ class PdfObj(object):
             output.append(b' ')
         elif match.group(2) is not None:  # Simple string.
           if _unsafe_string_char_re.search(match.group(2)):
-            output.append('<%s>' % match.group(2).encode('hex'))
+            output.append(b'<%s>' % bytes(ord(c) for c in match.group(2).hex()))
           else:
             output.append(match.group())
         elif match.group(3):  # Beginning of string.
           strdata, i = _parse_pdf_string(data, match.start(), end)
           if _unsafe_string_char_re.search(strdata):
-            output.append('<%s>' % strdata.encode('hex'))
+            output.append(b'<%s>' % bytes(ord(c) for c in strdata.hex()))
           else:
-            output.append('(%s)' % strdata)
+            output.append(b'(%s)' % strdata)
           strdata = ()  # Save memory.
           continue  # Don't change `i' below.
         elif match.group(4):  # /name with hex-escape (#AB).
@@ -1576,12 +1576,12 @@ class PdfObj(object):
                 raise PdfTokenParseError('Invalid < token.')
             strdata = _whitespace_re.sub(b'', memoryview(data[match.start() + 1: match.end() - 1]))
             if len(strdata) & 1 != 0:
-              strdata += '0'
-            strdata_dec = strdata.decode('hex')
+              strdata += b'0'
+            strdata_dec = bytes.fromhex(str(strdata, 'ascii'))
             if _unsafe_string_char_re.search(strdata_dec):
-              output.append('<%s>' % strdata.lower())
+              output.append(b'<%s>' % strdata.lower())
             else:
-              output.append('(%s)' % strdata_dec)
+              output.append(b'(%s)' % strdata_dec)
             strdata = strdata_dec = ()  # Save memory.
         elif match.group(8):
           if match.group() == b'>>':
@@ -1591,7 +1591,7 @@ class PdfObj(object):
         elif (not match.start() or
              chr(data[match.start() - 1]) not in '<>[](){}/\0\t\n\r\f '):
           # `endobj' in the middle of a name token.
-          output.append(match.group()[0])
+          output.append(bytes([match.group()[0]]))
           i = match.start() + 1
           continue
         elif (do_expect_endobj and
@@ -1614,7 +1614,7 @@ class PdfObj(object):
           # but not the following whitespace.
           output.append(data[match.start() : match.end()])
         i = match.end()
-      if output and output[-1] == ' ':
+      if output and output[-1] == b' ':
         output.pop()
       data = b''.join(output)
     else:  # A simple processing.
@@ -1635,21 +1635,21 @@ class PdfObj(object):
 
       def ReplacementAngle(match):
         data = match.group()
-        if data == '<<':
+        if data == b'<<':
           return data
-        if data[-1] != '>':
+        if data[-1:] != b'>':
           if match.end() == end and not (do_expect_endobj or do_expect_startxref):
             raise PdfTokenTruncated('Truncated hex string.')
           else:
             raise PdfTokenParseError('Invalid < token.')
         data = _whitespace_re.sub(b'', memoryview(data[1:len(data) - 1]))
         if len(data) & 1 != 0:
-          data += '0'
-        data_dec = data.decode('hex')
+          data += b'0'
+        data_dec = bytes.fromhex(str(data, 'ascii'))
         if _unsafe_string_char_re.search(data_dec):
-          return '<%s>' % data.lower()
+          return b'<%s>' % data.lower()
         else:
-          return '(%s)' % data_dec
+          return b'(%s)' % data_dec
 
       data = memoryview(data[start:end_for_simple])
       # !!! Benchmark this relatively to complicated implementation.
@@ -1664,7 +1664,7 @@ class PdfObj(object):
       for match in cls.PDF_ANGLE_BRACKET_FOR_SIMPLE_RE.finditer(data):
         a = match.group()
         if len(a) < 2 or chr(a[-1]) not in '<>':
-          if (chr(a[0]) == '<' and chr(a[1]) != '<' and end == match.end() and
+          if (len(a) >= 2 and chr(a[0]) == '<' and chr(a[1]) != '<' and end == match.end() and
               not (do_expect_endobj or do_expect_startxref)):
             raise PdfTokenTruncated('Truncated hex string.')
           else:
@@ -1854,7 +1854,7 @@ class PdfObj(object):
 
     To remove key, specify value=None (and do_keep_null=False by default).
     """
-    if key.startswith('/'):
+    if key.startswith(b'/'):
       raise TypeError('slash in the key= argument')
     if value is None:
       if do_keep_null:
@@ -2383,8 +2383,8 @@ class PdfObj(object):
       # touch unescaped chars (e.g. * or A).
       try:
         data = cls.PDF_NAME_HEX_OR_HASHMARK_RE.sub(
-            lambda match: _cache[int(match.group(1), 16)], data)
-      except TypeError:  # In int(...) if match.group(1) is None.
+            lambda match: _cache[int(str(match.group(1), 'ascii'), 16)], data)
+      except (TypeError, ValueError):  # In int(...) if match.group(1) is None or invalid.
         # It's OK to report an error here (rather than including a literal
         # #), because pdf_reference_1-7.pdf says that # must also be escaped.
         raise PdfTokenParseError('Hex error in name %r.' % data)
@@ -3280,7 +3280,7 @@ class PdfObj(object):
     """Expands /Fl to /FlateDecode, /IM to /ImageMask etc."""
     _abbrs = cls.PDF_NAME_ABBREVIATIONS
     return cls.PDF_NAME_LITERAL_RE.sub(
-        lambda match: '/' + _abbrs.get(match.group(1), match.group(1)), data)
+        lambda match: b'/' + _abbrs.get(match.group(1), match.group(1)), data)
 
   @classmethod
   def _NormalizeNumber(cls, number_match):

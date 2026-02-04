@@ -588,166 +588,166 @@ class PdfSizeOptTest(unittest.TestCase):
 
   def testPdfObjParse(self):
     obj = main.PdfObj(
-        '42 0 obj<</Length  3>>stream\r\nABC endstream endobj')
-    self.assertEqual('<</Length 3>>', obj.head)
-    self.assertEqual('ABC', obj.stream)
+        b'42 0 obj<</Length  3>>stream\r\nABC endstream endobj')
+    self.assertEqual(b'<</Length 3>>', obj.head)
+    self.assertEqual(b'ABC', obj.stream)
     obj = main.PdfObj(
-        '42 0 obj<</Length%5 6\n3\r>>\t\f\0stream\r\nABC endstream endobj')
-    self.assertEqual('<</Length 3>>', obj.head)
-    self.assertEqual('ABC', obj.stream)
+        b'42 0 obj<</Length%5 6\n3\r>>\t\f\0stream\r\nABC endstream endobj')
+    self.assertEqual(b'<</Length 3>>', obj.head)
+    self.assertEqual(b'ABC', obj.stream)
     obj = main.PdfObj(
-        '42 0 obj<</Length 4>>stream\r\nABC endstream endobj')
+        b'42 0 obj<</Length 4>>stream\r\nABC endstream endobj')
     self.assertEqual(
-        'ABC ', main.PdfObj(
-            '42 0 obj<</Length 99>>stream\r\nABC endstream endobj').stream)
-    self.assertEqual('<</Length 4>>', obj.head)
-    self.assertEqual('ABC ', obj.stream)
-    obj = main.PdfObj('42 0 obj<</Length  4>>endobj')
-    self.assertEqual('<<>>', obj.head)
+        b'ABC ', main.PdfObj(
+            b'42 0 obj<</Length 99>>stream\r\nABC endstream endobj').stream)
+    self.assertEqual(b'<</Length 4>>', obj.head)
+    self.assertEqual(b'ABC ', obj.stream)
+    obj = main.PdfObj(b'42 0 obj<</Length  4>>endobj')
+    self.assertEqual(b'<<>>', obj.head)
     self.assertEqual(None, obj.stream)
     obj = main.PdfObj(
-        '42 0 obj<</T[/Length 99]/Length  3>>stream\r\nABC endstream endobj')
-    self.assertEqual('ABC', obj.stream)
+        b'42 0 obj<</T[/Length 99]/Length  3>>stream\r\nABC endstream endobj')
+    self.assertEqual(b'ABC', obj.stream)
     obj = main.PdfObj(
-        '42 0 obj<</T()/Length  3>>stream\nABC endstream endobj')
-    self.assertEqual('ABC', obj.stream)
-    s = '41 0 obj<</T(>>\nendobj\n)/Length  3>>stream\nABD endstream endobj'
-    t = '42 0 obj<</T 5%>>endobj\n/Length  3>>stream\nABE endstream endobj'
+        b'42 0 obj<</T()/Length  3>>stream\nABC endstream endobj')
+    self.assertEqual(b'ABC', obj.stream)
+    s = b'41 0 obj<</T(>>\nendobj\n)/Length  3>>stream\nABD endstream endobj'
+    t = b'42 0 obj<</T 5%>>endobj\n/Length  3>>stream\nABE endstream endobj'
     end_ofs_out = []
     obj = main.PdfObj(s, end_ofs_out=end_ofs_out)
-    self.assertEqual('<</T<3e3e0a656e646f626a0a>/Length 3>>', obj.head)
+    self.assertEqual(b'<</T<3e3e0a656e646f626a0a>/Length 3>>', obj.head)
     self.assertEqual([43, len(s)], end_ofs_out)
-    self.assertEqual('ABD', obj.stream)
+    self.assertEqual(b'ABD', obj.stream)
     end_ofs_out = []
-    obj = main.PdfObj(t + '\r\n\tANYTHING', end_ofs_out=end_ofs_out)
-    self.assertEqual('<</T 5/Length 3>>', obj.head)
+    obj = main.PdfObj(t + b'\r\n\tANYTHING', end_ofs_out=end_ofs_out)
+    self.assertEqual(b'<</T 5/Length 3>>', obj.head)
     self.assertEqual([43, len(t) + 1], end_ofs_out)
     end_ofs_out = []
     obj = main.PdfObj(
-        '%s\n%s' % (s, t), start=len(s) + 1, end_ofs_out=end_ofs_out)
-    self.assertEqual('ABE', obj.stream)
+        b'%s\n%s' % (s, t), start=len(s) + 1, end_ofs_out=end_ofs_out)
+    self.assertEqual(b'ABE', obj.stream)
     self.assertEqual([107, len(s) + 1 + len(t)], end_ofs_out)
-    obj = main.PdfObj('%s\n%s' % (s, t), start=len(s))
-    self.assertEqual('ABE', obj.stream)
+    obj = main.PdfObj(b'%s\n%s' % (s, t), start=len(s))
+    self.assertEqual(b'ABE', obj.stream)
     self.assertEqual([107, len(s) + 1 + len(t)], end_ofs_out)
     # Exception because start points to '#', not an `X Y obj'.
     self.assertRaisesX(
         main.PdfTokenParseError,
-        main.PdfObj, '%s#%s' % (s, t), start=len(s))
+        main.PdfObj, s + b'#' + t, start=len(s))
 
-    s = '22 0 obj<</Producer(A)/CreationDate(B)/Creator(C)>>\nendobj '
-    t = '23 0 obj'
+    s = b'22 0 obj<</Producer(A)/CreationDate(B)/Creator(C)>>\nendobj '
+    t = b'23 0 obj'
     end_ofs_out = []
     obj = main.PdfObj(s + t, end_ofs_out=end_ofs_out)
-    self.assertEqual('<</Producer(A)/CreationDate(B)/Creator(C)>>', obj.head)
+    self.assertEqual(b'<</Producer(A)/CreationDate(B)/Creator(C)>>', obj.head)
     self.assertEqual([len(s)], end_ofs_out)
     obj = main.PdfObj(
-        '42 0 obj[/Foo%]endobj\n42  43\t]\nendobj')
-    self.assertEqual('[/Foo 42 43]', obj.head)
-    obj = main.PdfObj('42 0 obj%hello\r  \t\f%more\n/Foo%bello\nendobj')
-    self.assertEqual('/Foo', obj.head)
-    obj = main.PdfObj('42 0 obj/S()/Type/XObendobj endobj')
-    self.assertEqual('/S()/Type/XObendobj', obj.head)
-    obj = main.PdfObj('42 0 obj/Type/XObendobj endobj')
-    self.assertEqual('/Type/XObendobj', obj.head)
-    obj = main.PdfObj('42 0 obj/Type/XOb#6Aec#74#1a#20endobj endobj')
-    self.assertEqual('/Type/XObject#1A#20endobj', obj.head)
-    obj = main.PdfObj('42 0 obj(endobj+rest) endobj')
-    self.assertEqual('(endobj+rest)', obj.head)
-    obj = main.PdfObj('42 0 obj(endobj rest) endobj')
-    self.assertEqual('<656e646f626a2072657374>', obj.head)
-    obj = main.PdfObj('42 0 obj<</Type\n\n/XObject >>\n\rendobj')
-    self.assertEqual('<</Type/XObject>>', obj.head)
-    obj = main.PdfObj('42 0 obj<</Type\n%\n/XObject >>\n\rendobj')
-    self.assertEqual('<</Type/XObject>>', obj.head)
-    obj = main.PdfObj('42 0 obj<</BitsPerComponent\n\n4 \f>>\t\tendobj')
-    self.assertEqual('<</BitsPerComponent 4>>', obj.head)
-    obj = main.PdfObj('42 0 obj<</BitsPerComponent\n\n4\f/A ( ) >>\t\tendobj')
-    self.assertEqual('<</BitsPerComponent 4/A<20>>>', obj.head)
-    obj = main.PdfObj('42 0 obj<</BitsPerComponent\n\n4\f'
-                      '/A ((\)\)endobj)x) >>\t\tendobj')
-    self.assertEqual('<</BitsPerComponent 4/A<282929656e646f626a2978>>>',
+        b'42 0 obj[/Foo%]endobj\n42  43\t]\nendobj')
+    self.assertEqual(b'[/Foo 42 43]', obj.head)
+    obj = main.PdfObj(b'42 0 obj%hello\r  \t\f%more\n/Foo%bello\nendobj')
+    self.assertEqual(b'/Foo', obj.head)
+    obj = main.PdfObj(b'42 0 obj/S()/Type/XObendobj endobj')
+    self.assertEqual(b'/S()/Type/XObendobj', obj.head)
+    obj = main.PdfObj(b'42 0 obj/Type/XObendobj endobj')
+    self.assertEqual(b'/Type/XObendobj', obj.head)
+    obj = main.PdfObj(b'42 0 obj/Type/XOb#6Aec#74#1a#20endobj endobj')
+    self.assertEqual(b'/Type/XObject#1A#20endobj', obj.head)
+    obj = main.PdfObj(b'42 0 obj(endobj+rest) endobj')
+    self.assertEqual(b'(endobj+rest)', obj.head)
+    obj = main.PdfObj(b'42 0 obj(endobj rest) endobj')
+    self.assertEqual(b'<656e646f626a2072657374>', obj.head)
+    obj = main.PdfObj(b'42 0 obj<</Type\n\n/XObject >>\n\rendobj')
+    self.assertEqual(b'<</Type/XObject>>', obj.head)
+    obj = main.PdfObj(b'42 0 obj<</Type\n%\n/XObject >>\n\rendobj')
+    self.assertEqual(b'<</Type/XObject>>', obj.head)
+    obj = main.PdfObj(b'42 0 obj<</BitsPerComponent\n\n4 \f>>\t\tendobj')
+    self.assertEqual(b'<</BitsPerComponent 4>>', obj.head)
+    obj = main.PdfObj(b'42 0 obj<</BitsPerComponent\n\n4\f/A ( ) >>\t\tendobj')
+    self.assertEqual(b'<</BitsPerComponent 4/A<20>>>', obj.head)
+    obj = main.PdfObj(b'42 0 obj<</BitsPerComponent\n\n4\f'
+                      b'/A ((\)\)endobj)x) >>\t\tendobj')
+    self.assertEqual(b'<</BitsPerComponent 4/A<282929656e646f626a2978>>>',
                      obj.head)
     self.assertRaisesX(  # An empty name token.
-        main.PdfTokenParseError, main.PdfObj, '42 0 obj<</A()/B/>>endobj')
+        main.PdfTokenParseError, main.PdfObj, b'42 0 obj<</A()/B/>>endobj')
     self.assertRaisesX(  # An empty name token.
-        main.PdfTokenParseError, main.PdfObj, '42 0 obj<</A/>>endobj')
-    obj = main.PdfObj('42 0 obj/foo\\bar endobj')
-    self.assertEqual('/foo#5Cbar', obj.head)
-    obj = main.PdfObj('42 0 obj/foo\vbar endobj')
-    self.assertEqual('/foo#0Bbar', obj.head)
-    obj = main.PdfObj('42 0 obj<</f*oo\\$ (*Length$) >>endobj')
-    self.assertEqual('<</f#2Aoo#5C#24(*Length$)>>', obj.head)
-    obj = main.PdfObj('42 0 obj<</A (/Length) >>endobj')
-    self.assertEqual('<</A<2f4c656e677468>>>', obj.head)
-    obj = main.PdfObj('42 0 obj<</A (/Length 5) >>endobj')
-    self.assertEqual('<</A<2f4c656e6774682035>>>', obj.head)
-    obj = main.PdfObj('42 0 obj<</A()/B<686a>>>endobj')
-    self.assertEqual('<</A()/B(hj)>>', obj.head)
-    obj = main.PdfObj('42 0 obj<</B<686a5>>>endobj')
-    self.assertEqual('<</B(hjP)>>', obj.head)
-    obj = main.PdfObj('0 0 obj<</A()/B<>/C(:)/D<3a3A4>>>endobj')
-    self.assertEqual('<</A()/B()/C(:)/D(::@)>>', obj.head)
-    obj = main.PdfObj('42 0 obj(}{)endobj')
-    self.assertEqual('<7d7b>', obj.head)
-    obj = main.PdfObj('42 0 obj/f*oo$ endobj')
-    self.assertEqual('/f#2Aoo#24', obj.head)
-    obj = main.PdfObj('42 0 obj(())endobj')
-    self.assertEqual('<2829>', obj.head)
-    obj = main.PdfObj('42 0 obj(\\n)endobj')
-    self.assertEqual('<0a>', obj.head)
-    obj = main.PdfObj('42 0 obj(\\100)endobj')
-    self.assertEqual('(@)', obj.head)
+        main.PdfTokenParseError, main.PdfObj, b'42 0 obj<</A/>>endobj')
+    obj = main.PdfObj(b'42 0 obj/foo\\bar endobj')
+    self.assertEqual(b'/foo#5Cbar', obj.head)
+    obj = main.PdfObj(b'42 0 obj/foo\vbar endobj')
+    self.assertEqual(b'/foo#0Bbar', obj.head)
+    obj = main.PdfObj(b'42 0 obj<</f*oo\\$ (*Length$) >>endobj')
+    self.assertEqual(b'<</f#2Aoo#5C#24(*Length$)>>', obj.head)
+    obj = main.PdfObj(b'42 0 obj<</A (/Length) >>endobj')
+    self.assertEqual(b'<</A<2f4c656e677468>>>', obj.head)
+    obj = main.PdfObj(b'42 0 obj<</A (/Length 5) >>endobj')
+    self.assertEqual(b'<</A<2f4c656e6774682035>>>', obj.head)
+    obj = main.PdfObj(b'42 0 obj<</A()/B<686a>>>endobj')
+    self.assertEqual(b'<</A()/B(hj)>>', obj.head)
+    obj = main.PdfObj(b'42 0 obj<</B<686a5>>>endobj')
+    self.assertEqual(b'<</B(hjP)>>', obj.head)
+    obj = main.PdfObj(b'0 0 obj<</A()/B<>/C(:)/D<3a3A4>>>endobj')
+    self.assertEqual(b'<</A()/B()/C(:)/D(::@)>>', obj.head)
+    obj = main.PdfObj(b'42 0 obj(}{)endobj')
+    self.assertEqual(b'<7d7b>', obj.head)
+    obj = main.PdfObj(b'42 0 obj/f*oo$ endobj')
+    self.assertEqual(b'/f#2Aoo#24', obj.head)
+    obj = main.PdfObj(b'42 0 obj(())endobj')
+    self.assertEqual(b'<2829>', obj.head)
+    obj = main.PdfObj(b'42 0 obj(\\n)endobj')
+    self.assertEqual(b'<0a>', obj.head)
+    obj = main.PdfObj(b'42 0 obj(\\100)endobj')
+    self.assertEqual(b'(@)', obj.head)
     self.assertRaisesX(main.PdfTokenParseError, main.PdfObj,
-                      '42 0 obj /foo# endobj')
+                      b'42 0 obj /foo# endobj')
     self.assertRaisesX(main.PdfTokenParseError, main.PdfObj,
-                      '42 0 obj /foo#b endobj')
+                      b'42 0 obj /foo#b endobj')
     self.assertRaisesX(main.PdfTokenParseError, main.PdfObj,
-                      '42 0 obj /foo#bxar endobj')
+                      b'42 0 obj /foo#bxar endobj')
     self.assertRaisesX(main.PdfTokenParseError, main.PdfObj,
-                      '42 0 obj [()<a endobj')
+                      b'42 0 obj [()<a endobj')
     self.assertRaisesX(main.PdfTokenParseError, main.PdfObj,
-                      '42 0 obj [()<g> endobj')
+                      b'42 0 obj [()<g> endobj')
     self.assertRaisesX(main.PdfTokenParseError, main.PdfObj,
-                      '42 0 obj [<a endobj')
+                      b'42 0 obj [<a endobj')
     self.assertRaisesX(main.PdfTokenParseError, main.PdfObj,
-                      '42 0 obj [<g> endobj')
+                      b'42 0 obj [<g> endobj')
     self.assertRaisesX(main.PdfTokenParseError, main.PdfObj,
-                      '42 0 obj %\n\nendobj')
+                      b'42 0 obj %\n\nendobj')
     end_ofs_out = []
-    obj = main.PdfObj('42 0 obj 5  endobj\r\n x', end_ofs_out=end_ofs_out)
-    self.assertEqual('5', obj.head)
+    obj = main.PdfObj(b'42 0 obj 5  endobj\r\n x', end_ofs_out=end_ofs_out)
+    self.assertEqual(b'5', obj.head)
     self.assertEqual([20], end_ofs_out)
     end_ofs_out = []
-    obj = main.PdfObj('42 0 obj () endobj\r\n x', end_ofs_out=end_ofs_out)
-    self.assertEqual('()', obj.head)
+    obj = main.PdfObj(b'42 0 obj () endobj\r\n x', end_ofs_out=end_ofs_out)
+    self.assertEqual(b'()', obj.head)
     self.assertEqual([20], end_ofs_out)
     # !!! TODO(pts): Fix bad numbers, all this to 0.
-    obj = main.PdfObj('42 0 obj[. -. . .]endobj')
-    self.assertEqual('[. -. . .]', obj.head)
-    expected_head = '<</Filter[/LZWDecode/ASCIIHexDecode]/Length 0>>'
+    obj = main.PdfObj(b'42 0 obj[. -. . .]endobj')
+    self.assertEqual(b'[. -. . .]', obj.head)
+    expected_head = b'<</Filter[/LZWDecode/ASCIIHexDecode]/Length 0>>'
     # Syntax error, stream must be followed by a EOL according to
     # pdf_reference_1-7.pdf.
     self.assertRaisesX(main.PdfTokenParseError, main.PdfObj,
-                       '42 0 obj<</Filter [/LZW /AHx]/Length 0>>'
-                       'stream%\nendstream endobj')
-    obj = main.PdfObj('42 0 obj<</Filter [/LZW /AHx]/Length 0>>'
-                      'stream\nendstream endobj')
+                       b'42 0 obj<</Filter [/LZW /AHx]/Length 0>>'
+                       b'stream%\nendstream endobj')
+    obj = main.PdfObj(b'42 0 obj<</Filter [/LZW /AHx]/Length 0>>'
+                      b'stream\nendstream endobj')
     self.assertEqual(expected_head, obj.head)
     # Not allowed by pdf_reference_1-7.pdf, we are permissive.
-    obj = main.PdfObj('42 0 obj<</Filter [/LZW /AHx]/Length 0>>'
-                      'stream endstream endobj')
+    obj = main.PdfObj(b'42 0 obj<</Filter [/LZW /AHx]/Length 0>>'
+                      b'stream endstream endobj')
     self.assertEqual(expected_head, obj.head)
-    obj = main.PdfObj('42 0 obj<</Filter [/LZW /AHx]/Length 0>>'
-                      'stream\r\nendstream endobj')
+    obj = main.PdfObj(b'42 0 obj<</Filter [/LZW /AHx]/Length 0>>'
+                      b'stream\r\nendstream endobj')
     self.assertEqual(expected_head, obj.head)
-    self.assertEqual('', obj.stream)
-    obj = main.PdfObj('42 0 obj<</Filter [/LZW /AHx]/Length 0>>'
-                      'stream \t\0\f \r\nendstream endobj')
+    self.assertEqual(b'', obj.stream)
+    obj = main.PdfObj(b'42 0 obj<</Filter [/LZW /AHx]/Length 0>>'
+                      b'stream \t\0\f \r\nendstream endobj')
     self.assertEqual(expected_head, obj.head)
-    obj = main.PdfObj('42 0 obj<</Filter [/LZW /AHx]/Length 42'
-                      '/DecodeParms 43/Foo /Bar>>endobj')
-    self.assertEqual('<</Foo/Bar>>', obj.head)
+    obj = main.PdfObj(b'42 0 obj<</Filter [/LZW /AHx]/Length 42'
+                      b'/DecodeParms 43/Foo /Bar>>endobj')
+    self.assertEqual(b'<</Foo/Bar>>', obj.head)
 
     # TODO(pts): Add more tests.
 
