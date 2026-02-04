@@ -1801,22 +1801,22 @@ class PdfSizeOptTest(unittest.TestCase):
   def testEscapePdfNames(self):
     f1 = main.PdfObj._EscapePdfNamesInHexTokensSafe
     f2 = main.PdfObj.NormalizePdfName
-    self.assertEqual('', f1(''))
-    self.assertRaises(main.PdfTokenParseError, f2, '')
-    self.assertEqual('/', f1('/'))
-    self.assertRaises(main.PdfTokenParseError, f2, '/')
-    self.assertEqual('a', f1('a'))
-    self.assertRaises(main.PdfTokenParseError, f2, 'a')
-    self.assertEqual('ab', f1('ab'))
-    self.assertRaises(main.PdfTokenParseError, f2, 'ab')
-    self.assertEqual('/a', f1(memoryview('/a')))
-    self.assertEqual('/a', f2(memoryview('/a')))
+    self.assertEqual(b'', f1(b''))
+    self.assertRaises(main.PdfTokenParseError, f2, b'')
+    self.assertEqual(b'/', f1(b'/'))
+    self.assertRaises(main.PdfTokenParseError, f2, b'/')
+    self.assertEqual(b'a', f1(b'a'))
+    self.assertRaises(main.PdfTokenParseError, f2, b'a')
+    self.assertEqual(b'ab', f1(b'ab'))
+    self.assertRaises(main.PdfTokenParseError, f2, b'ab')
+    self.assertEqual(b'/a', f1(memoryview(b'/a')))
+    self.assertEqual(b'/a', f2(memoryview(b'/a')))
     for i in range(256):
-      c = '/#%02x' % i
+      c = b'/#%02x' % i
       e1 = f1(c)
       e2 = f2(c)
       self.assertEqual(e1, e2, [e1, e2, c])
-      c = '/%c' % i
+      c = b'/%c' % i
       if chr(i) == '#':
         self.assertRaises(main.PdfTokenParseError, f1, c)
         self.assertRaises(main.PdfTokenParseError, f2, c)
