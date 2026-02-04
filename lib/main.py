@@ -3125,7 +3125,7 @@ class PdfObj(object):
       high = (1 << indexed_bpc) - 1
     else:
       high = 1
-    high_str = bytes(str(high), 'ascii')
+    high_str = b'%d' % high
     if short_decode:
       if short_decode == [b'0', high_str] * s:
         return b'normal'
@@ -3152,10 +3152,10 @@ class PdfObj(object):
     else:
       high = 1
     if is_inverted:
-      items = [str(high), '0']
+      items = [b'%d' % high, b'0']
     else:
-      items = ['0', str(high)]
-    return '[%s]' % ' '.join(items * samples_per_pixel)
+      items = [b'0', b'%d' % high]
+    return b'[' + b' '.join(items * samples_per_pixel) + b']'
 
   @classmethod
   def GetRgbPaletteSize(cls, palette):
