@@ -7924,7 +7924,7 @@ class PdfData(object):
           do_emit_strings_as_hex=True)
       stream = objs[obj_num].stream
       desc = [obj_num, head_minus, stream, refs_to, 0]
-      if isinstance(obj_num, str):  # for 'trailer'
+      if isinstance(obj_num, (bytes, memoryview)):  # for 'trailer' or b'trailer'
         eqclasses.append([desc])
         eqclass_of[obj_num] = eqclasses[-1]
         if do_remove_unused:
