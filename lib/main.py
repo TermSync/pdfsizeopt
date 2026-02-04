@@ -6245,16 +6245,16 @@ class PdfData(object):
     # a /BaseEncoding.
     if encoding_value is None:  # No /Encoding in /Type/Font.
       return True
-    if not isinstance(encoding_value, str):
+    if not isinstance(encoding_value, bytes):
       return None  # Unsupported.
     if PdfObj.PDF_REF_AT_EOS_RE.match(encoding_value):
       raise ValueError('Reference in encoding_value: %r' % encoding_value)
-    if encoding_value.startswith('/'):
+    if encoding_value.startswith(b'/'):
       return False
-    if not encoding_value.startswith('<<'):
+    if not encoding_value.startswith(b'<<'):
       return None  # Unsupported.
     encoding_dict = PdfObj.ParseDict(encoding_value)
-    return encoding_dict.get('BaseEncoding') is None
+    return encoding_dict.get(b'BaseEncoding') is None
 
   @classmethod
   def _MergeBaseEncodingToFontObj(cls, font_obj, base_encoding, objs):

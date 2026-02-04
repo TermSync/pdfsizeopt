@@ -1642,16 +1642,16 @@ class PdfSizeOptTest(unittest.TestCase):
     self.assertEqual(True, f(None))
     self.assertEqual(None, f(True))
     self.assertEqual(None, f(42))
-    self.assertRaisesX(ValueError, f, '42 0 R')
-    self.assertEqual(None, f('42 0 R foo'))
-    self.assertEqual(False, f('/WinAnsiEncoding'))
-    self.assertEqual(None, f('[]'))
-    self.assertRaisesX(main.PdfTokenParseError, f, '<<')
-    self.assertEqual(False, f('<</BaseEncoding/MacRomanEncoding>>'))
+    self.assertRaisesX(ValueError, f, b'42 0 R')
+    self.assertEqual(None, f(b'42 0 R foo'))
+    self.assertEqual(False, f(b'/WinAnsiEncoding'))
+    self.assertEqual(None, f(b'[]'))
+    self.assertRaisesX(main.PdfTokenParseError, f, b'<<')
+    self.assertEqual(False, f(b'<</BaseEncoding/MacRomanEncoding>>'))
     self.assertEqual(
-        False, f('<</BaseEncoding/MaxRomanEncoding/Differences[5/foo]>>'))
-    self.assertEqual(True, f('<<>>'))
-    self.assertEqual(True, f('<</Differences[5/foo]>>'))
+        False, f(b'<</BaseEncoding/MaxRomanEncoding/Differences[5/foo]>>'))
+    self.assertEqual(True, f(b'<<>>'))
+    self.assertEqual(True, f(b'<</Differences[5/foo]>>'))
 
   def testClassifyImageDecode(self):
     f = main.PdfObj.ClassifyImageDecode
