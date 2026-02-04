@@ -1992,7 +1992,7 @@ class PdfObj(object):
     trailer_obj = PdfObj(None)
     trailer_obj.head, _ = cls.ParseTokensToSafe(
         data, start=start, end_ofs_out=end_ofs_out, do_expect_startxref=True)
-    trailer_obj.Set('XRefStm', None)
+    trailer_obj.Set(b'XRefStm', None)
     # We don't remove 'Prev' here, the caller might be interested.
     return trailer_obj
 
