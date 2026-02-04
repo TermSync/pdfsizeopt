@@ -1204,7 +1204,7 @@ class PdfObj(object):
   """Matches whitespace (1 or more)."""
 
   PDF_WHITESPACE_OR_HEX_STRING_RE = re.compile(
-      r'[\x00\t\n\r\f ]+|(<<)|<(?!<)([^>]*)>')
+      br'[\x00\t\n\r\f ]+|(<<)|<(?!<)([^>]*)>')
   """Matches whitespace (1 or more) or a hex string constant or <<."""
 
   PDF_NAME_HEX_OR_HASHMARK_RE = re.compile(br'#([0-9a-fA-F]{2})?')
@@ -1238,7 +1238,7 @@ class PdfObj(object):
       r'%[^\r\n]*|\(([^()\\]*)\)|(\()')
   """Matches a comment, a string simple literal or a string literal opener."""
 
-  PDF_COMMENT_RE = re.compile(r'%[^\r\n]*')
+  PDF_COMMENT_RE = re.compile(br'%[^\r\n]*')
   """Matches a single comment line without a terminator."""
 
   PDF_SIMPLE2_REF_RE = re.compile(r'(\d+)[\x00\t\n\r\f ]+(\d+)[\x00\t\n\r\f ]+R\b')
@@ -2293,7 +2293,7 @@ class PdfObj(object):
         raise PdfTokenParseError('odd item count in dict')
       for i in range(0, len(list_obj), 2):
         key = list_obj[i]
-        if not isinstance(key, str) or not key.startswith('/'):
+        if not isinstance(key, (bytes, memoryview)) or not key.startswith(b'/'):
           # TODO(pts): Report the offset as well.
           raise PdfTokenParseError('dict key expected, got %r... ' % (str(key)[0 : 16]))
         dict_obj[key[1:]] = list_obj[i + 1]
@@ -2439,7 +2439,7 @@ class PdfObj(object):
     while match:
       start = match.end()
       value = match.group(1)
-      kind = value[0]
+      kind = chr(value[0])
       if kind == '%':
         if start >= end:
           raise PdfTokenParseError(
@@ -2469,7 +2469,7 @@ class PdfObj(object):
             raise PdfTokenParseError(
                 'bad string literal at %d, got %r...: %s' %
                 (match.start(1), value1[0 : 16], exc))
-          assert value2.startswith(' <') and value2.endswith('>')
+          assert value2.startswith(b' <') and value2.endswith(b'>')
           value = value2[1:]
           start = match.start(1) + end_ofs_out[0]
           scanner = cls.PDF_SIMPLE_VALUE_RE.scanner(data, start, end)
@@ -2478,7 +2478,7 @@ class PdfObj(object):
           value = cls.ParseSimpleValue(value)
       elif kind == '[':
         value1 = value[1 : -1]
-        if '%' in value1 or '[' in value1 or '(' in value1:
+        if b'%' in value1 or b'[' in value1 or b'(' in value1:
           # !! TODO(pts): Implement a faster solution if no % or (
           end_ofs_out = []
           value1 = data[match.start(1):]  # Add more chars if needed.
@@ -2492,21 +2492,21 @@ class PdfObj(object):
             raise PdfTokenParseError(
                 'bad array at %d, got %r...: %s' %
                 (match.start(1), value1[0 : 16], exc))
-          assert value2.startswith(' [') and value2.endswith(']')
+          assert value2.startswith(b' [') and value2.endswith(b']')
           start = match.start(1) + end_ofs_out[0]
           # If we had `value = value2[1:] instead of the following
           # assignment, we would get the clean, pre-parsed value.
           # But we don't want that because that would be inconsistent with
           # the ('[' in value) above.
-          if '%' in value:
+          if b'%' in value:
             value = cls.CompressValue(value2[1:])
           else:
             value = data[match.start(1) : start]
           scanner = cls.PDF_SIMPLE_VALUE_RE.scanner(data, start, end)
           match = None
-      elif value.startswith('<<'):
+      elif value.startswith(b'<<'):
         value1 = value[2 : -2]
-        if '%' in value1 or '<' in value1 or '(' in value1:
+        if b'%' in value1 or b'<' in value1 or b'(' in value1:
           # !! TODO(pts): Implement a faster solution if no % or (
           end_ofs_out = []
           value1 = data[match.start(1):]  # Add more chars if needed.
@@ -2520,9 +2520,9 @@ class PdfObj(object):
             raise PdfTokenParseError(
                 'bad array at %d, got %r...: %s' %
                 (match.start(1), value1[0 : 16], exc))
-          assert value2.startswith(' <<') and value2.endswith('>>')
+          assert value2.startswith(b' <<') and value2.endswith(b'>>')
           start = match.start(1) + end_ofs_out[0]
-          if '%' in value:
+          if b'%' in value:
             value = cls.CompressValue(value2[1:])
           else:
             value = data[match.start(1) : start]
@@ -2532,7 +2532,7 @@ class PdfObj(object):
         value = cls.ParseSimpleValue(value)
       else:
         if match.group(2):
-          value = '%d %d R' % (int(match.group(2)), int(match.group(3)))
+          value = b'%d %d R' % (int(match.group(2)), int(match.group(3)))
         elif not cls.PDF_KEYWORD_OR_NUMBER_AT_EOS_RE.match(value):
           raise PdfTokenParseError(
               'syntax error in PDF keyword or number %r at %d' %
@@ -2720,7 +2720,7 @@ class PdfObj(object):
     Raises:
       PdfTokenParseError: .
     """
-    if '(' in data:  # Remove comments, replace strings with hex.
+    if b'(' in data:  # Remove comments, replace strings with hex.
       output = []
       i = 0
       scanner = cls.PDF_COMMENT_OR_STRING_RE.scanner(data, 0, len(data))
@@ -2753,11 +2753,11 @@ class PdfObj(object):
       data = ''.join(output)
     else:
       # According the the PDF reference, comments are equivalent to whitespace.
-      data = cls.PDF_COMMENT_RE.sub(' ', data)
+      data = cls.PDF_COMMENT_RE.sub(b' ', data)
 
     if do_emit_safe_names:
      if do_expect_postscript_name_input:
-       data = data.replace('#', '#23')
+       data = data.replace(b'#', b'#23')
        # This escapes eg. * to #2A.
        data = cls.PDF_HEXTOKENS_SAFE_HEX_ESCAPE_RE.sub(
            lambda match: '#%02X' % ord(match.group()), data)
@@ -2816,11 +2816,11 @@ class PdfObj(object):
         return match.group(1)
       else:  # Remove whitespace unless needed.
         if (match.start() == 0 or match.end() == len(data) or
-            data[match.start() - 1] in '<>)[]{}' or  # % not needed.
-            data[match.end()] in '/<>([]{}'):  # % not needed.
-          return ''
+            chr(data[match.start() - 1]) in '<>)[]{}' or  # % not needed.
+            chr(data[match.end()]) in '/<>([]{}'):  # % not needed.
+          return b''
         else:
-          return ' '
+          return b' '
 
     # This must be the last step, because it can emit unsafe strings.
     return cls.PDF_WHITESPACE_OR_HEX_STRING_RE.sub(

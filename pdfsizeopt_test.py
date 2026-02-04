@@ -435,42 +435,42 @@ class PdfSizeOptTest(unittest.TestCase):
   def testParseDict(self):
     e = main.PdfObj.ParseDict
     self.DoTestParseSimplestDict(e=e)
-    self.assertEqual({}, e('<<\0\r>>'))
-    self.assertEqual({}, e('<<\n>>'))
-    self.assertRaisesX(main.PdfTokenParseError, e, '<<')
-    self.assertEqual({'I': 5}, e('<</I%\n5>>'))
-    self.assertEqual({'N': '/Foo-42+_'}, e('<</N/Foo-42+_>>'))
-    self.assertEqual({'N': '/Foo-42+_#2A'}, e('<</N/Foo-42+_*>>'))
-    self.assertEqual({'N': '/Foo-42+_#2Ab'}, e('<</N/Foo-42+_#2ab>>'))
-    self.assertEqual({'Five': '/Six', 'Three': '[/Four]', 'One': '/Two'},
-                     e('<</One/Two/Three[/Four]/Five/Six>>'))
-    self.assertRaisesX(main.PdfTokenParseError, e, '<</Foo bar#3f>>')
-    self.assertEqual({'#3FAnswer#21#20#0D': 42}, e('<</?Answer!#20#0d 42>>'))
-    self.assertEqual({'S': '<0a>'}, e('<</S\r(\\n)>>'))
-    self.assertRaisesX(main.PdfTokenParseError, e, '<</S\r(foo\\)>>')
-    self.assertEqual({'S': '<666f6f29626172>'}, e('<</S(foo\\)bar)>>'))
+    self.assertEqual({}, e(b'<<\0\r>>'))
+    self.assertEqual({}, e(b'<<\n>>'))
+    self.assertRaisesX(main.PdfTokenParseError, e, b'<<')
+    self.assertEqual({b'I': 5}, e(b'<</I%\n5>>'))
+    self.assertEqual({b'N': b'/Foo-42+_'}, e(b'<</N/Foo-42+_>>'))
+    self.assertEqual({b'N': b'/Foo-42+_#2A'}, e(b'<</N/Foo-42+_*>>'))
+    self.assertEqual({b'N': b'/Foo-42+_#2Ab'}, e(b'<</N/Foo-42+_#2ab>>'))
+    self.assertEqual({b'Five': b'/Six', b'Three': b'[/Four]', b'One': b'/Two'},
+                     e(b'<</One/Two/Three[/Four]/Five/Six>>'))
+    self.assertRaisesX(main.PdfTokenParseError, e, b'<</Foo bar#3f>>')
+    self.assertEqual({b'#3FAnswer#21#20#0D': 42}, e(b'<</?Answer!#20#0d 42>>'))
+    self.assertEqual({b'S': b'<0a>'}, e(b'<</S\r(\\n)>>'))
+    self.assertRaisesX(main.PdfTokenParseError, e, b'<</S\r(foo\\)>>')
+    self.assertEqual({b'S': b'<666f6f29626172>'}, e(b'<</S(foo\\)bar)>>'))
     self.assertEqual(
-        {'S': '<2829>', 'T': '<42cab0>'}, e('<</S(())/T<42c Ab>>>'))
-    self.assertEqual({'S': '<282929285c>', 'T': 8},
-                     e('<</S(()\\)\\(\\\\)/T 8>>'))
-    self.assertEqual({'A': '[\f()]'}, e('<</A[\f()]>>'))
-    self.assertEqual({'A': '[\t5 \r6\f]'}, e('<</A[\t5 \r6\f]>>'))
-    self.assertEqual({'A': '[12 34]'}, e('<</A[12%\n34]>>'))
+        {b'S': b'<2829>', b'T': b'<42cab0>'}, e(b'<</S(())/T<42c Ab>>>'))
+    self.assertEqual({b'S': b'<282929285c>', b'T': 8},
+                     e(b'<</S(()\\)\\(\\\\)/T 8>>'))
+    self.assertEqual({b'A': b'[\f()]'}, e(b'<</A[\f()]>>'))
+    self.assertEqual({b'A': b'[\t5 \r6\f]'}, e(b'<</A[\t5 \r6\f]>>'))
+    self.assertEqual({b'A': b'[12 34]'}, e(b'<</A[12%\n34]>>'))
     # \t removed because there was a comment in the array
-    self.assertEqual({'A': '[]'}, e('<</A[\t%()\n]>>'))
-    self.assertEqual({'A': '<2829>', 'B': '[<<]'}, e('<</A(())/B[<<]>>'))
-    self.assertRaisesX(main.PdfTokenParseError, e, '<</A>>')
-    self.assertRaisesX(main.PdfTokenParseError, e, '<<5/A>>')
-    self.assertRaisesX(main.PdfTokenParseError, e, '<</A(())/B[()<<]>>')
-    self.assertRaisesX(main.PdfTokenParseError, e, '<</A[[>>]]>>')
-    self.assertEqual({'A': '[[/hi 5]/lah]'}, e('<</A[[/hi%x\t]z\r5] /lah]>>'))
-    self.assertEqual({'D': '<<()\t<>>>'}, e('<</D<<()\t<>>>>>'))
-    self.assertEqual({'D': '<<>>', 'S': '<>'}, e('<</D<<%\n>>/S()>>'))
+    self.assertEqual({b'A': b'[]'}, e(b'<</A[\t%()\n]>>'))
+    self.assertEqual({b'A': b'<2829>', b'B': b'[<<]'}, e(b'<</A(())/B[<<]>>'))
+    self.assertRaisesX(main.PdfTokenParseError, e, b'<</A>>')
+    self.assertRaisesX(main.PdfTokenParseError, e, b'<<5/A>>')
+    self.assertRaisesX(main.PdfTokenParseError, e, b'<</A(())/B[()<<]>>')
+    self.assertRaisesX(main.PdfTokenParseError, e, b'<</A[[>>]]>>')
+    self.assertEqual({b'A': b'[[/hi 5]/lah]'}, e(b'<</A[[/hi%x\t]z\r5] /lah]>>'))
+    self.assertEqual({b'D': b'<<()\t<>>>'}, e(b'<</D<<()\t<>>>>>'))
+    self.assertEqual({b'D': b'<<>>', b'S': b'<>'}, e(b'<</D<<%\n>>/S()>>'))
     # \t and \f removed because there was a comment in the dict
-    self.assertEqual({'D': '<</E<<>>>>'}, e('<</D<</E\t\f<<%>>\n>>>>>>'))
-    self.assertEqual({'A': '[[]]', 'q': '56 78 R'},
-                     e('<</A[[]]/q\t56\r78%q\rR>>'))
-    self.assertRaisesX(main.PdfTokenParseError, e, '<<\r%>>')
+    self.assertEqual({b'D': b'<</E<<>>>>'}, e(b'<</D<</E\t\f<<%>>\n>>>>>>'))
+    self.assertEqual({b'A': b'[[]]', b'q': b'56 78 R'},
+                     e(b'<</A[[]]/q\t56\r78%q\rR>>'))
+    self.assertRaisesX(main.PdfTokenParseError, e, b'<<\r%>>')
 
   def testParseArray(self):
     e = main.PdfObj.ParseArray
