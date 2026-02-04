@@ -2152,7 +2152,8 @@ class PdfObj(object):
     elif cls.PDF_INT_AT_EOS_RE.match(data):
       return int(data)
     elif data.startswith(b'('):
-      return '<%s>' % cls.ParsePdfString(data)[0].encode('hex')
+      hex_str = cls.ParsePdfString(data)[0].hex()
+      return b'<' + bytes(ord(c) for c in hex_str) + b'>'
     elif data.startswith(b'<<'):
       if not data.endswith(b'>>'):
         raise PdfTokenParseError('Unclosed dict in %r' % data)
@@ -2166,13 +2167,13 @@ class PdfObj(object):
       # .decode('hex').encode('hex'):
       # return '<%s>' % cls.ParsePdfString(data)[0].encode('hex')
       match = cls.PDF_HEX_STRING_LITERAL_RE.match(data)
-      if not match or data[match.end() - 1] != '>':
+      if not match or data[match.end() - 1] != ord('>'):
         if match and match.end() == len(data):
           raise PdfTokenTruncated('Truncated hex string %r' % data)
         raise PdfTokenParseError('Bad hex string %r' % data)
-      data = cls.PDF_WHITESPACE_RE.sub('', data).lower()
+      data = cls.PDF_WHITESPACE_RE.sub(b'', data).lower()
       if (len(data) & 1) != 0:
-        return data[:-1] + '0>'
+        return data[:-1] + b'0>'
       else:
         return data
     elif data.startswith(b'/'):
@@ -2184,7 +2185,7 @@ class PdfObj(object):
       match = cls.PDF_REF_AT_EOS_RE.match(data)
       if not match:
         raise PdfTokenParseError('Bad reference %r' % data)
-      return '%d %d R' % (int(match.group(1)), int(match.group(2)))
+      return b'%d %d R' % (int(match.group(1)), int(match.group(2)))
     else:
       number_match = data and cls.PDF_NUMBER_AT_EOS_RE.match(data)
       if number_match:
