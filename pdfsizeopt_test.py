@@ -396,41 +396,41 @@ class PdfSizeOptTest(unittest.TestCase):
   def DoTestParseSimplestDict(self, e):
     # e is either ParseSimplestDict or ParseDict, so (because the latter)
     # this method should not test for PdfTokenNotSimplest.
-    self.assertEqual({}, e('<<\t\0>>'))
-    self.assertEqual({}, e('<<\n>>'))
-    self.assertEqual({'One': '/Two'}, e('<< /One/Two>>'))
-    self.assertEqual({'One': '2.2'}, e('<</One +2.2>>'))
-    self.assertRaisesX(main.PdfTokenParseError, e, '<</One Two>>')
-    self.assertEqual({'One': 234}, e('<</One 234>>'))
+    self.assertEqual({}, e(b'<<\t\0>>'))
+    self.assertEqual({}, e(b'<<\n>>'))
+    self.assertEqual({b'One': b'/Two'}, e(b'<< /One/Two>>'))
+    self.assertEqual({b'One': b'2.2'}, e(b'<</One +2.2>>'))
+    self.assertRaisesX(main.PdfTokenParseError, e, b'<</One Two>>')
+    self.assertEqual({b'One': 234}, e(b'<</One 234>>'))
     self.assertRaisesX(main.PdfTokenParseError, e,
-                      '<</One/Two/Three Four/Five/Six>>')
-    self.assertEqual({'Five': '/Six', 'Three': '-4', 'One': '/Two'},
-                     e('<</One/Two/Three -4.000/Five/Six>>'))
-    self.assertEqual({'A': True, 'C': None, 'B': False, 'E': '42.5', 'D': 42},
-                     e('<<\n\r/A true/B\f\0false/C null/D\t42/E 42.5\r>>'))
-    self.assertEqual({'Data': '42 137 R'}, e('<</Data 42\t\t137\nR >>'))
-    self.assertEqual({'S': '<68656c6c6f2c20776f726c6421>'},
-                     e('<</S(hello, world!)>>'))
-    self.assertEqual({'S': '<>'}, e('<</S()>>'))
-    self.assertEqual({'S': '<0a>'}, e('<</S\r(\n)>>'))
-    self.assertEqual({'S': '<3c3c5d3e3e5b>'}, e('<</S  (<<]>>[)\n>>'))
-    self.assertEqual({'S': '<deadface50>'}, e('<</S<dEA Dfa CE5>>>'))
-    self.assertEqual({'A': '[42 \t?Foo>><<]'}, e('<</A[42 \t?Foo>><<]>>'))
+                      b'<</One/Two/Three Four/Five/Six>>')
+    self.assertEqual({b'Five': b'/Six', b'Three': b'-4', b'One': b'/Two'},
+                     e(b'<</One/Two/Three -4.000/Five/Six>>'))
+    self.assertEqual({b'A': True, b'C': None, b'B': False, b'E': b'42.5', b'D': 42},
+                     e(b'<<\n\r/A true/B\f\0false/C null/D\t42/E 42.5\r>>'))
+    self.assertEqual({b'Data': b'42 137 R'}, e(b'<</Data 42\t\t137\nR >>'))
+    self.assertEqual({b'S': b'<68656c6c6f2c20776f726c6421>'},
+                     e(b'<</S(hello, world!)>>'))
+    self.assertEqual({b'S': b'<>'}, e(b'<</S()>>'))
+    self.assertEqual({b'S': b'<0a>'}, e(b'<</S\r(\n)>>'))
+    self.assertEqual({b'S': b'<3c3c5d3e3e5b>'}, e(b'<</S  (<<]>>[)\n>>'))
+    self.assertEqual({b'S': b'<deadface50>'}, e(b'<</S<dEA Dfa CE5>>>'))
+    self.assertEqual({b'A': b'[42 \t?Foo>><<]'}, e(b'<</A[42 \t?Foo>><<]>>'))
     self.assertEqual(
-        {'D': '<<]42[\f\t?Foo>>'}, e('<<\n/D\n<<]42[\f\t?Foo>>>>'))
-    self.assertRaisesX(main.PdfTokenParseError, e, '<</S<%\n>>>')
+        {b'D': b'<<]42[\f\t?Foo>>'}, e(b'<<\n/D\n<<]42[\f\t?Foo>>>>'))
+    self.assertRaisesX(main.PdfTokenParseError, e, b'<</S<%\n>>>')
 
   def testParseSimplestDict(self):
     e = main.PdfObj.ParseSimplestDict
     self.DoTestParseSimplestDict(e=e)
     self.assertRaisesX(main.PdfTokenNotSimplest,
-                      e, '<</Three[/Four()]>>')
-    self.assertRaisesX(main.PdfTokenNotSimplest, e, '<</S\r(\\n)>>')
-    self.assertRaisesX(main.PdfTokenNotSimplest, e, '<</A[()]>>')
-    self.assertRaisesX(main.PdfTokenNotSimplest, e, '<</A[%\n]>>')
-    self.assertRaisesX(main.PdfTokenNotSimplest, e, '<</D<<()>>>>')
-    self.assertRaisesX(main.PdfTokenNotSimplest, e, '<</D<<%\n>>>>')
-    self.assertRaisesX(main.PdfTokenNotSimplest, e, '<</?Answer! 42>>')
+                      e, b'<</Three[/Four()]>>')
+    self.assertRaisesX(main.PdfTokenNotSimplest, e, b'<</S\r(\\n)>>')
+    self.assertRaisesX(main.PdfTokenNotSimplest, e, b'<</A[()]>>')
+    self.assertRaisesX(main.PdfTokenNotSimplest, e, b'<</A[%\n]>>')
+    self.assertRaisesX(main.PdfTokenNotSimplest, e, b'<</D<<()>>>>')
+    self.assertRaisesX(main.PdfTokenNotSimplest, e, b'<</D<<%\n>>>>')
+    self.assertRaisesX(main.PdfTokenNotSimplest, e, b'<</?Answer! 42>>')
 
   def testParseDict(self):
     e = main.PdfObj.ParseDict
