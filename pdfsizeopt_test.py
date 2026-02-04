@@ -1997,39 +1997,39 @@ class PdfSizeOptTest(unittest.TestCase):
     def F(data):
       return list(cff.YieldParsePostScriptTokenList(data))
 
-    self.assertEqual([], F(''))
-    self.assertEqual([], F(' \t\r\n\f\0\t  '))
-    self.assertEqual(['/Foo', '/Bar'], F('/Foo/Bar'))
-    self.assertEqual(['/Foo', '/B#24a#2Ar'], F('\n/Foo \t/B$a*r\f'))
+    self.assertEqual([], F(b''))
+    self.assertEqual([], F(b' \t\r\n\f\0\t  '))
+    self.assertEqual([b'/Foo', b'/Bar'], F(b'/Foo/Bar'))
+    self.assertEqual([b'/Foo', b'/B#24a#2Ar'], F(b'\n/Foo \t/B$a*r\f'))
     # Treat #2A as PostScript (not escaped) in the input token name.
-    self.assertEqual(['/pedal.#2A', '/pedal.#232a', '/pedal.#232A'],
-                      F('/pedal.*/pedal.#2a/pedal.#2A'))
-    self.assertRaisesX(ValueError, F, '/')  # OK in regular PostScript
-    self.assertRaisesX(ValueError, F, '<')
-    self.assertRaisesX(ValueError, F, '>')
-    self.assertRaisesX(ValueError, F, '<xy>')
-    self.assertRaisesX(ValueError, F, '<a')
-    self.assertRaisesX(ValueError, F, '<a>')
-    self.assertRaisesX(ValueError, F, '<ab')
-    self.assertRaisesX(ValueError, F, '<ab ')
-    self.assertRaisesX(ValueError, F, 'quit')  # OK in regular PostScript.
-    self.assertRaisesX(ValueError, F, '(')
-    self.assertRaisesX(ValueError, F, ')')
-    self.assertRaisesX(ValueError, F, '{}')  # OK in regular PostScript.
-    self.assertRaisesX(ValueError, F, '[]')  # OK in regular PostScript.
-    self.assertRaisesX(ValueError, F, '(())')  # OK in regular PostScript.
-    self.assertRaisesX(ValueError, F, '(\\n)')  # OK in regular PostScript.
-    self.assertRaisesX(ValueError, F, '8#77')  # OK in regular PostScript.
-    self.assertRaisesX(ValueError, F, '16#ab')  # OK in regular PostScript.
-    self.assertRaisesX(ValueError, F, '<~ab~>')  # OK in regular PostScript.
-    self.assertEqual(repr(['def', True, False, None]),
-                     repr(F('def true false null')))
-    self.assertEqual(repr([42, 5, -42, '425.', '-4.25']),
-                     repr(F('42 +5 -42 +42.5e+1 -42.5E-1')))
-    self.assertEqual(repr(['def', True, '/false', '<>', None, 42]),
-                     repr(F('def true/false<>null%foo\r42%')))
-    self.assertEqual(['<>', '<>', '<202a>', '<2a3b>'],
-                     F('()<\f\t>( *)<\r2 A\t3\nb\r>'))
+    self.assertEqual([b'/pedal.#2A', b'/pedal.#232a', b'/pedal.#232A'],
+                      F(b'/pedal.*/pedal.#2a/pedal.#2A'))
+    self.assertRaisesX(ValueError, F, b'/')  # OK in regular PostScript
+    self.assertRaisesX(ValueError, F, b'<')
+    self.assertRaisesX(ValueError, F, b'>')
+    self.assertRaisesX(ValueError, F, b'<xy>')
+    self.assertRaisesX(ValueError, F, b'<a')
+    self.assertRaisesX(ValueError, F, b'<a>')
+    self.assertRaisesX(ValueError, F, b'<ab')
+    self.assertRaisesX(ValueError, F, b'<ab ')
+    self.assertRaisesX(ValueError, F, b'quit')  # OK in regular PostScript.
+    self.assertRaisesX(ValueError, F, b'(')
+    self.assertRaisesX(ValueError, F, b')')
+    self.assertRaisesX(ValueError, F, b'{}')  # OK in regular PostScript.
+    self.assertRaisesX(ValueError, F, b'[]')  # OK in regular PostScript.
+    self.assertRaisesX(ValueError, F, b'(())')  # OK in regular PostScript.
+    self.assertRaisesX(ValueError, F, b'(\\n)')  # OK in regular PostScript.
+    self.assertRaisesX(ValueError, F, b'8#77')  # OK in regular PostScript.
+    self.assertRaisesX(ValueError, F, b'16#ab')  # OK in regular PostScript.
+    self.assertRaisesX(ValueError, F, b'<~ab~>')  # OK in regular PostScript.
+    self.assertEqual(repr([b'def', True, False, None]),
+                     repr(F(b'def true false null')))
+    self.assertEqual(repr([42, 5, -42, b'425.', b'-4.25']),
+                     repr(F(b'42 +5 -42 +42.5e+1 -42.5E-1')))
+    self.assertEqual(repr([b'def', True, b'/false', b'<>', None, 42]),
+                     repr(F(b'def true/false<>null%foo\r42%')))
+    self.assertEqual([b'<>', b'<>', b'<202a>', b'<2a3b>'],
+                     F(b'()<\f\t>( *)<\r2 A\t3\nb\r>'))
 
   def testParsePostScriptDefs(self):
     F = cff.ParsePostScriptDefs

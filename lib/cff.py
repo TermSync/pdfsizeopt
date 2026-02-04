@@ -296,22 +296,22 @@ CFF_STANDARD_STRINGS = (  # 391 strings.
 """CFF standard strings."""
 
 SIMPLE_POSTSCRIPT_TOKEN_RE = re.compile(
-    r'(def)|'  # 1: def.
-    r'(true|false|null)|'  # 2: Unique values.
-    r'([-+]?(?:\d+(?:[.]\d*)?|[.]\d+)(?:[eE][+-]?\d+)?)|'  #  3: Decimal number literal.
-    r'(/[^/\[\]{}()<>%\0\t\n\r\f ]+)|'  #  4. Name literal.
-    r'\(([^\\()]*)\)|'  # 5. String literal (matches only a subset of strings).
-    r'<([a-fA-F0-9\0\t\n\r\f ]*)>|'  # 6. Hex string literal.
-    r'(%[^\r\n]*|[\0\t\n\r\f ]+)|'  #  7: Comment or whitespace.
-    r'([-+_.a-zA-Z0-9]+)|'  # 8: Invalid ASCII command.
-    r'([/(<])|' # 9: Invalid token.
-    r'([^\0\t\n\r\f %])')  # 10: 1 character of anything else, invalid.
+    br'(def)|'  # 1: def.
+    br'(true|false|null)|'  # 2: Unique values.
+    br'([-+]?(?:\d+(?:[.]\d*)?|[.]\d+)(?:[eE][+-]?\d+)?)|'  #  3: Decimal number literal.
+    br'(/[^/\[\]{}()<>%\0\t\n\r\f ]+)|'  #  4. Name literal.
+    br'\(([^\\()]*)\)|'  # 5. String literal (matches only a subset of strings).
+    br'<([a-fA-F0-9\0\t\n\r\f ]*)>|'  # 6. Hex string literal.
+    br'(%[^\r\n]*|[\0\t\n\r\f ]+)|'  #  7: Comment or whitespace.
+    br'([-+_.a-zA-Z0-9]+)|'  # 8: Invalid ASCII command.
+    br'([/(<])|' # 9: Invalid token.
+    br'([^\0\t\n\r\f %])')  # 10: 1 character of anything else, invalid.
 """Matches a token of a simplified subset of PostScript."""
 
-SIMPLE_POSTSCRIPT_UNIQUE_VALUES = {'true': True, 'false': False, 'null': None}
+SIMPLE_POSTSCRIPT_UNIQUE_VALUES = {b'true': True, b'false': False, b'null': None}
 """Maps string to Python representation of simple PostScript unique values."""
 
-POSTSCRIPT_WHITESPACE_RE = re.compile('[\0\t\n\r\f ]+')
+POSTSCRIPT_WHITESPACE_RE = re.compile(b'[\0\t\n\r\f ]+')
 """Matches 1 or more PostScript whitespace."""
 
 NAME_CHAR_TO_HEX_KEEP_ESCAPED_RE = re.compile(br'[^-+A-Za-z0-9_.]')
@@ -903,23 +903,23 @@ def YieldParsePostScriptTokenList(data):
           f = float(match.group(3))
         except ValueError:
           raise ValueError('Invalid PostScript number: %r' % match.group(3))
-        yield float_util.FormatFloatShort(f, is_int_ok=False)
+        yield bytes(float_util.FormatFloatShort(f, is_int_ok=False), 'ascii')
     elif match.group(4):
       # PostScript supports the empty name literal (/), but we don't, because
       # it's hard to convert it to a PDF name, and then to omit the subsequent
       # whitespace.
       if _NAME_CHAR_TO_HEX_KEEP_ESCAPED_RE.search(match.group(4), 1):
-        yield '/' + _NAME_CHAR_TO_HEX_KEEP_ESCAPED_RE.sub(
-            lambda match: '#%02X' % ord(match.group(0)), match.group(4)[1:])
+        yield b'/' + _NAME_CHAR_TO_HEX_KEEP_ESCAPED_RE.sub(
+            lambda match: b'#%02X' % ord(match.group(0)), match.group(4)[1:])
       else:
         yield match.group(4)
     elif match.group(5) is not None:
-      yield '<%s>' % str(match.group(5)).encode('hex')
+      yield b'<%s>' % bytes(match.group(5).hex(), 'ascii')
     elif match.group(6) is not None:
-      value = _POSTSCRIPT_WHITESPACE_RE.sub('', match.group(6))
+      value = _POSTSCRIPT_WHITESPACE_RE.sub(b'', match.group(6))
       if len(value) % 2:
         raise ValueError('Odd number of PostScript hex nibbles.')
-      yield '<%s>' % value.lower()
+      yield b'<%s>' % value.lower()
       del value
     elif match.group(7):
       pass
