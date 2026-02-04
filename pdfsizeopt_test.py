@@ -1256,27 +1256,27 @@ class PdfSizeOptTest(unittest.TestCase):
   def testFindEqclassesTwoGroupsWithTrailer(self):
     pdf = main.PdfData()
     pdf.trailer = main.PdfObj(
-        '0 0 obj<</A[3 0 R 4 0 R 5 0 R 6 0 R 3 0 R]>>endobj')
-    pdf.objs[5] = main.PdfObj('0 0 obj<</S(q)/P 6 0 R>>endobj')
-    pdf.objs[6] = main.PdfObj('0 0 obj<</S(q)/Q 5 0 R >>endobj')
-    pdf.objs[3] = main.PdfObj('0 0 obj<</S(q)/P 4 0 R  >>endobj')
-    pdf.objs[4] = main.PdfObj('0 0 obj<</S(q)/Q 3 0 R   >>endobj')
-    pdf.objs[10] = main.PdfObj('0 0 obj[11 0 R]endobj')
-    pdf.objs[11] = main.PdfObj('0 0 obj[10 0 R]endobj')
-    pdf.objs[12] = main.PdfObj('0 0 obj[11 0 R]endobj')
-    pdf.objs[12].stream = 'blah'
-    pdf.objs['trailer'] = pdf.trailer
+        b'0 0 obj<</A[3 0 R 4 0 R 5 0 R 6 0 R 3 0 R]>>endobj')
+    pdf.objs[5] = main.PdfObj(b'0 0 obj<</S(q)/P 6 0 R>>endobj')
+    pdf.objs[6] = main.PdfObj(b'0 0 obj<</S(q)/Q 5 0 R >>endobj')
+    pdf.objs[3] = main.PdfObj(b'0 0 obj<</S(q)/P 4 0 R  >>endobj')
+    pdf.objs[4] = main.PdfObj(b'0 0 obj<</S(q)/Q 3 0 R   >>endobj')
+    pdf.objs[10] = main.PdfObj(b'0 0 obj[11 0 R]endobj')
+    pdf.objs[11] = main.PdfObj(b'0 0 obj[10 0 R]endobj')
+    pdf.objs[12] = main.PdfObj(b'0 0 obj[11 0 R]endobj')
+    pdf.objs[12].stream = b'blah'
+    pdf.objs[b'trailer'] = pdf.trailer
     new_objs = main.PdfData.FindEqclasses(pdf.objs)
-    del pdf.objs['trailer']
+    del pdf.objs[b'trailer']
     for obj_num in new_objs:
       new_objs[obj_num] = (new_objs[obj_num].head, new_objs[obj_num].stream)
     self.assertEqual(
-        {'trailer': ('<</A[3 0 R 4 0 R 3 0 R 4 0 R 3 0 R]>>', None),
-         10: ('[10 0 R]', None),
-         12: ('[10 0 R]', 'blah'),
-         3: ('<</S(q)/P 4 0 R>>', None),
-         4: ('<</S(q)/Q 3 0 R>>', None)}, new_objs)
-
+        {b'trailer': (b'<</A[3 0 R 4 0 R 3 0 R 4 0 R 3 0 R]>>', None),
+         10: (b'[10 0 R]', None),
+         12: (b'[10 0 R]', b'blah'),
+         3: (b'<</S(q)/P 4 0 R>>', None),
+         4: (b'<</S(q)/Q 3 0 R>>', None)}, new_objs)
+    
   def testFindEqclassesTwoGroupsWithTrailerUnused(self):
     pdf = main.PdfData()
     pdf.trailer = main.PdfObj(

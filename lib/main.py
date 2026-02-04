@@ -7914,7 +7914,7 @@ class PdfData(object):
     by_form = {}
     # List of desc.
     search_todo = []
-    for obj_num in sorted(objs):
+    for obj_num in sorted(objs, key=lambda x: (isinstance(x, bytes), x)):
       refs_to = []  # List of object numbers obj_num refers to).
       head = objs[obj_num].head
       # !! TODO(pts): reorder dicts to canonical order
