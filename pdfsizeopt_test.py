@@ -1491,7 +1491,7 @@ class PdfSizeOptTest(unittest.TestCase):
 
   def testPermissiveZlibDecompress(self):
     e = main.PermissiveZlibDecompress
-    data = 'Hello, World!' * 42
+    data = b'Hello, World!' * 42
     compressed = zlib.compress(data, 9)
     self.assertEqual(data, e(compressed))
     self.assertEqual(data, e(compressed[:-1]))
