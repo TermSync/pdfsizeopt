@@ -1861,10 +1861,10 @@ class PdfObj(object):
       raise TypeError('slash in the key= argument')
     if value is None:
       if do_keep_null:
-        value = 'null'
-    elif value == 'null':
+        value = b'null'
+    elif value == b'null':
       pass
-    elif isinstance(value, str):
+    elif isinstance(value, (bytes, memoryview)):
       value = self.ParseSimpleValue(value)
     else:
       self.SerializeSimpleValue(value)  # just for the TypeError
