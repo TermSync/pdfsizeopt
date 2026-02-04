@@ -534,7 +534,7 @@ def GetCffFontNameOfs(data):
   elif off_size == 2:
     return ai3 + (count << 1) + 1 + struct.unpack('>H', memoryview(data[ai3:ai3+2]))[0]
   elif off_size == 3:
-    a, b = struct.unpack('>BH', memoryview(data, ai3, 3))
+    a, b = struct.unpack('>BH', memoryview(data)[ai3:ai3+3])
     return ai3 + (count * 3) + 2 + (a << 16 | b)
   elif off_size == 4:
     return ai3 + (count << 2) + 3 + struct.unpack('>L', memoryview(data[ai3:ai3+4]))[0]
@@ -631,7 +631,7 @@ def SerializeCffIndexHeader(off_size, buffers):
       yield struct.pack('>HB', count, 3)
       for offset in offsets:
         yield struct.pack('>BH', offset >> 16, offset & 65535)
-    data = ''.join(emit3())
+    data = b''.join(emit3())
   elif off_size == 4:
     data = struct.pack('>HB%dL' % len(offsets), count, 4, *offsets)
   else:

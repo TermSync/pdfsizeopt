@@ -1957,10 +1957,10 @@ class PdfSizeOptTest(unittest.TestCase):
   )
 
   def testCffFontNameOfs(self):
-    cff_header = '\1\0\4\1'
-    fontname = 'MyFontName'
+    cff_header = b'\1\0\4\1'
+    fontname = b'MyFontName'
     for off_size in (1, 2, 3, 4):
-      cff_data = ''.join((
+      cff_data = b''.join((
           cff_header,
           cff.SerializeCffIndexHeader(off_size, (fontname,))[1],
           fontname))
