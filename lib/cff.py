@@ -551,7 +551,7 @@ def ParseCffHeader(data, do_need_single_font=True, do_parse_rest=True):
   if not (1 <= cff_off_size <= 4):
     raise ValueError('Invalid CFF off_size: %d' % cff_off_size)
   if hdr_size < 4:
-    raise ValueError('CFF header too short, got: %d' % header_size)
+    raise ValueError('CFF header too short, got: %d' % hdr_size)
   ai1, font_name_bufs = ParseCffIndex(memoryview(data[hdr_size:]))
   if not font_name_bufs:
     raise ValueError('CFF contains no fonts.')
@@ -825,7 +825,7 @@ def GetParsedCffDifferences(a, b):
     if a is None and b is None:
       return True
     if type(a) != dict or type(b) != dict:
-      return false
+      return False
     # !! Better compare floats etc.
     return sorted(a.items()) == sorted(b.items())
 
@@ -1346,7 +1346,7 @@ def ParseCff1(data, is_careful=False):
   # It's OK to have long font names. 5176.CFF.pdf says that the maximum
   # ``should be'' 127, but we don't check it.
   if CFF_NON_FONTNAME_CHAR_RE.search(cff_font_name):
-    raise ValueError('CFF font name %r contains invalid chars.' % font_name)
+    raise ValueError('CFF font name %r contains invalid chars.' % cff_font_name)
   cff_top_dict_buf = cff_font_items[0][1]
   top_dict = ParseCffDict(cff_top_dict_buf)
   if is_careful:
@@ -1395,7 +1395,7 @@ def ParseCff1(data, is_careful=False):
       if (len(op_value) != 1 or not isinstance(op_value[0], int) or
           op_value[0] <= 0):
         raise ValueError('Invalid SID value for CFF /%s: %r' %
-                         (op_name, value))
+                         (op_name, op_value))
       op_value = op_value[0]
       if op_value < string_index_limit:
         # TODO(pts): Deduplicate these values as both hex and regular strings.
