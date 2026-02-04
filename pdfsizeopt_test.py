@@ -1376,12 +1376,12 @@ class PdfSizeOptTest(unittest.TestCase):
     }
     cff_dict_b = dict(cff_dict)
     cff_dict_b[12007] = ['.001', 0, '287e-6', '.001', 0, 0]
-    cff_str1 = ('f81b01f81c02f81d038bfba2f9c0f99505f81e0c008b0c038b0c'
-                '041e0a001f8b1e0a000287ff1e0a001f8b8b0c07a01c195912f7'
-                'f211f7ad0ff78910'.decode('hex'))
-    cff_str2 = ('f81b01f81c02f81d038bfba2f9c0f99505f7ad0ff78910f7f211'
-                'a01c195912f81e0c008b0c038b0c041ea001ff8b1e287c6f1ea0'
-                '01ff8b8b0c07'.decode('hex'))
+    cff_str1 = bytes.fromhex('f81b01f81c02f81d038bfba2f9c0f99505f81e0c008b0c038b0c'
+                             '041e0a001f8b1e0a000287ff1e0a001f8b8b0c07a01c195912f7'
+                             'f211f7ad0ff78910')
+    cff_str2 = bytes.fromhex('f81b01f81c02f81d038bfba2f9c0f99505f7ad0ff78910f7f211'
+                             'a01c195912f81e0c008b0c038b0c041ea001ff8b1e287c6f1ea0'
+                             '01ff8b8b0c07')
     self.assertEqual(cff_dict_b, cff.ParseCffDict(cff_str1))
     self.assertEqual(cff_dict_b, cff.ParseCffDict(cff_str2))
     self.assertEqual(cff_str2, cff.SerializeCffDict(cff_dict))

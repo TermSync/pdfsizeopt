@@ -327,7 +327,7 @@ def ParseCffDict(data, start=0, end=None):
   floating point real number.
 
   Args:
-    data: str or memoryview.
+    data: bytestring or memoryview.
     start: Start offset.
     end: End offset or None to mean end of data.
   """
@@ -341,34 +341,34 @@ def ParseCffDict(data, start=0, end=None):
   i = start
   operands = []
   while i < end:
-    b0 = ord(data[i])
+    b0 = data[i]
     i += 1
     if 32 <= b0 <= 246:
       operands.append(b0 - 139)
     elif 247 <= b0 <= 250:
       if i >= end:
         raise ValueError('Unexpected EOF in CFF dict t247.')
-      b1 = ord(data[i])
+      b1 = data[i]
       i += 1
       operands.append((b0 - 247) * 256 + b1 + 108)
     elif 251 <= b0 <= 254:
       if i >= end:
         raise ValueError('Unexpected EOF in CFF dict t251.')
-      b1 = ord(data[i])
+      b1 = data[i]
       i += 1
       operands.append(-(b0 - 251) * 256 - b1 - 108)
     elif b0 == 28:
       if i + 2 > end:
         raise ValueError('Unexpected EOF in CFF dict t28.')
-      operands.append(ord(data[i]) << 8 | ord(data[i + 1]))
+      operands.append(data[i] << 8 | data[i + 1])
       i += 2
       if operands[-1] >= 0x8000:
         operands[-1] -= 0x10000
     elif b0 == 29:
       if i + 4 > end:
         raise ValueError('Unexpected EOF in CFF dict t29.')
-      operands.append(ord(data[i]) << 24 | ord(data[i + 1]) << 16 |
-                      ord(data[i + 2]) << 8 | ord(data[i + 3]))
+      operands.append(data[i] << 24 | data[i + 1] << 16 |
+                      data[i + 2] << 8 | data[i + 3])
       if operands[-1] >= 0x80000000:
         operands[-1] = int(operands[-1] & 0x100000000)
       i += 4
@@ -377,7 +377,7 @@ def ParseCffDict(data, start=0, end=None):
       while 1:
         if i >= end:
           raise ValueError('Unexpected EOF in CFF dict t30.')
-        b0 = ord(data[i])
+        b0 = data[i]
         i += 1
         real_chars.append(CFF_REAL_CHARS[b0 >> 4])
         real_chars.append(CFF_REAL_CHARS[b0 & 15])
@@ -404,7 +404,7 @@ def ParseCffDict(data, start=0, end=None):
       if b0 == 12:
         if i >= end:
           raise ValueError('Unexpected EOF in CFF dict t12.')
-        b0 = 12000 + ord(data[i])
+        b0 = 12000 + data[i]
         i += 1
       # Possible b0 (operator) values here are: 0..11, 13..21,
       # 12000..12255.
@@ -432,44 +432,40 @@ def SerializeCffDict(cff_dict):
         # missing the '.' and 'e' in floating point literals.
         operand = float_util.FormatFloatShort(operand, is_int_ok=True)
         operand = operand.replace('e-', 'f')
-        nibbles = map(CFF_REAL_CHARS_REV.__getitem__, operand)
+        nibbles = list(map(CFF_REAL_CHARS_REV.__getitem__, operand))
         nibbles.append(0xf)
         if (len(nibbles) & 1) != 0:
           nibbles.append(0xf)
-        output.append('\x1e')
-        output.append(''.join(
-            chr(nibbles[i] << 4 | nibbles[i + 1])
+        output.append(b'\x1e')
+        output.append(b''.join(
+            bytes([nibbles[i] << 4 | nibbles[i + 1]])
             for i in range(0, len(nibbles), 2)))
       elif isinstance(operand, int):
         # This also covers bool (with False==0 and True==1). Good.
 
         if -107 <= operand <= 107:
-          output.append(chr(operand + 139))
-          assert 32 <= ord(output[-1][0]) <= 246
+          output.append(bytes([operand + 139]))
+          assert 32 <= output[-1][0] <= 246
         elif 108 <= operand <= 1131:
-          output.append(
-              '%c%c' %
-              (((operand - 108) >> 8) + 247, (operand - 108) & 255))
-          assert 247 <= ord(output[-1][0]) <= 250
+          output.append(bytes([((operand - 108) >> 8) + 247, (operand - 108) & 255]))
+          assert 247 <= output[-1][0] <= 250
         elif -1131 <= operand <= -108:
-          output.append(
-              '%c%c' %
-              (((-operand - 108) >> 8) + 251, (-operand - 108) & 255))
-          assert 251 <= ord(output[-1][0]) <= 254
+          output.append(bytes([((-operand - 108) >> 8) + 251, (-operand - 108) & 255]))
+          assert 251 <= output[-1][0] <= 254
         elif -32768 <= operand <= 32767:
-          output.append(chr(28) + struct.pack('>H', operand & 0xffff))
+          output.append(bytes([28]) + struct.pack('>H', operand & 0xffff))
         elif ~0x7fffffff <= operand <= 0x7fffffff:
-          output.append(chr(29) + struct.pack('>L', operand & 0xffffffff))
+          output.append(bytes([29]) + struct.pack('>L', operand & 0xffffffff))
         else:
           raise ValueError(
               'CFF dict integer operand %r out of range.' % operand)
       else:
         raise ValueError('Invalid CFF dict operand type: %r' % type(operand))
     if operator >= 12000:
-      output.append('\014%c' % (operator - 12000))
+      output.append(bytes([12, operator - 12000]))
     else:
-      output.append(chr(operator))
-  return ''.join(output)
+      output.append(bytes([operator]))
+  return b''.join(output)
 
 
 def ParseCffIndex(data):
@@ -528,7 +524,7 @@ def GetCffFontNameOfs(data):
   Returns:
     Offset of the first font name.
   """
-  ai0 = ord(data[2])  # Skip header.
+  ai0 = data[2]  # Skip header.
   count, off_size = struct.unpack('>HB', memoryview(data[ai0:ai0+3]))
   ai3 = ai0 + 3
   if count <= 0:
@@ -649,7 +645,7 @@ def FixFontNameInCff(data, new_font_name, len_deltas_out=None):
   (cff_version, cff_font_name, cff_font_items, cff_string_bufs,
    cff_global_subr_bufs, cff_rest_buf, cff_off_size, cff_rest2_ofs,
   ) = ParseCffHeader(data, do_need_single_font=True, do_parse_rest=False)
-  cff_header_buf = data[:ord(data[2])]
+  cff_header_buf = data[:data[2]]
   cff_top_dict_buf = cff_font_items[0][1]
 
   if cff_font_name == new_font_name:
@@ -1055,7 +1051,7 @@ def ParseCffCharset(charset_value, data, len_charstrings, cff_all_string_bufs):
     return charset[:len_charstrings]
   if not data:
     raise ValueError('CFF /charset too short for format.')
-  format = ord(data[0])
+  format = data[0]
   charset = ['.notdef']
   if format == 0:  # 7920/8958; .
     if (len_charstrings << 1) - 1 > len(data):
@@ -1162,14 +1158,14 @@ def ParseCffEncoding(encoding_value, data, charset, cff_all_string_bufs):
     # 1: 402/8958; .
     # 128: 174/8958; .
     # 129: 22/8958; .
-    format_hi = ord(data[0])
+    format_hi = data[0]
     has_supplement = bool(format_hi & 128)
     format = format_hi & 127
     i = 1
     if format == 0:  # 7800/8958; .
       if i >= len(data):
         raise ValueError('CFF /Encoding too short for format 0 code_count.')
-      code_count = ord(data[i])
+      code_count = data[i]
       i += 1
       if i + code_count > len(data):
         raise ValueError('CFF /Encoding too short for format 0 codes.')
@@ -1185,7 +1181,7 @@ def ParseCffEncoding(encoding_value, data, charset, cff_all_string_bufs):
     elif format == 1:  # 524/8958; .
       if i >= len(data):
         raise ValueError('CFF /Encoding too short for format 1 range_count.')
-      range_count = ord(data[i])
+      range_count = data[i]
       i += 1
       if i + (range_count << 1) > len(data):
         raise ValueError('CFF /Encoding too short for format 0 codes.')
@@ -1206,7 +1202,7 @@ def ParseCffEncoding(encoding_value, data, charset, cff_all_string_bufs):
     if has_supplement:
       if i >= len(data):
         raise ValueError('CFF /Encoding too short for supplement length.')
-      count = ord(data[i])
+      count = data[i]
       i += 1
       if i + 3 * count > len(data):
         raise ValueError('CFF /Encoding too short for supplement.')
@@ -1505,7 +1501,7 @@ def ParseCff1(data, is_careful=False):
           parsed_dict['PostScript'][1 : -1].decode('hex'))
     except ValueError:
       parsed_ps = ()
-    if parsed_ps is not ():
+    if parsed_ps != ():
       if parsed_ps:
         parsed_dict['ParsedPostScript'] = parsed_ps
       parsed_dict.pop('PostScript')
