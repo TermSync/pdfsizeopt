@@ -2958,7 +2958,7 @@ class PdfObj(object):
       PdfTokenParseError: If data is not a valid PDF name.
     """
     data_size = len(data)
-    data = data.lstrip('/')
+    data = data.lstrip(b'/')
     slash_count = data_size - len(data)
     if slash_count > 1:
       raise PdfTokenParseError('Too many leading slashes in name: %r' % data)
@@ -2966,7 +2966,7 @@ class PdfObj(object):
       raise ValueError('Empty name: %r' % data)
     try:
       data = cls.PDF_NAME_HEX_OR_HASHMARK_RE.sub(
-          lambda match: chr(int(match.group(1), 16)), data)
+          lambda match: bytes([int(match.group(1), 16)]), data)
     except TypeError:  # In int(...) if match.group(1) is None.
       raise PdfTokenParseError('Invalid hex escape in PDF name.')
     match = cls.PDF_NONNAME_CHAR_RE.search(data)
@@ -2976,10 +2976,10 @@ class PdfObj(object):
         # with /FontName/YHKXAA+#7B#7D . This shouldn't matter anyway,
         # because /FontName gets overwritten to Obj000.... in
         # psproc.TYPE1C_GENERATOR.
-        return '<%s>cvn' % data.encode('hex')
+        return b'<%s>cvn' % bytes(data.hex(), 'ascii')
       raise ValueError(
           'Char not allowed in PostScript name: %r' % match.group())
-    return '/' * slash_count + data
+    return b'/' * slash_count + data
 
   @classmethod
   def ParseValueRecursive(cls, data, do_expect_postscript_name_input=False):

@@ -1579,63 +1579,63 @@ class PdfSizeOptTest(unittest.TestCase):
 
   def testParseTokenList(self):
     f = main.PdfObj.ParseTokenList
-    self.assertEqual(repr([42, True]), repr(f('42 true')))
-    self.assertEqual([], f(''))
-    self.assertEqual([], f(' \t'))
-    self.assertEqual(['<666f6f>', 6, 7], f(' \n\r(foo)\t6%foo\n7'))
-    self.assertRaisesX(main.PdfTokenParseError, f, ' \n\r(foo)\t6\f7(')
-    self.assertRaisesX(main.PdfTokenParseError, f, ' \n\r(foo)\t6\f7[')
-    self.assertRaisesX(main.PdfTokenParseError, f, ' \n\r(foo)\t6\f7<<')
-    self.assertRaisesX(main.PdfTokenParseError, f, ' \n\r(foo)\t6\f7)')
-    self.assertRaisesX(main.PdfTokenParseError, f, ' \n\r(foo)\t6\f7]')
-    self.assertRaisesX(main.PdfTokenParseError, f, ' \n\r(foo)\t6\f7>>')
+    self.assertEqual(repr([42, True]), repr(f(b'42 true')))
+    self.assertEqual([], f(b''))
+    self.assertEqual([], f(b' \t'))
+    self.assertEqual([b'<666f6f>', 6, 7], f(b' \n\r(foo)\t6%foo\n7'))
+    self.assertRaisesX(main.PdfTokenParseError, f, b' \n\r(foo)\t6\f7(')
+    self.assertRaisesX(main.PdfTokenParseError, f, b' \n\r(foo)\t6\f7[')
+    self.assertRaisesX(main.PdfTokenParseError, f, b' \n\r(foo)\t6\f7<<')
+    self.assertRaisesX(main.PdfTokenParseError, f, b' \n\r(foo)\t6\f7)')
+    self.assertRaisesX(main.PdfTokenParseError, f, b' \n\r(foo)\t6\f7]')
+    self.assertRaisesX(main.PdfTokenParseError, f, b' \n\r(foo)\t6\f7>>')
     end_ofs_ary = []
-    self.assertEqual(['<666f6f>', 6, 7],
-                     f(' \n\r(foo)\t6\f7\f', 3, end_ofs_out=end_ofs_ary))
-    self.assertEqual([len(' \n\r(foo)\t6\f7')], end_ofs_ary)  # No whitespace.
+    self.assertEqual([b'<666f6f>', 6, 7],
+                     f(b' \n\r(foo)\t6\f7\f', 3, end_ofs_out=end_ofs_ary))
+    self.assertEqual([len(b' \n\r(foo)\t6\f7')], end_ofs_ary)  # No whitespace.
     end_ofs_ary = []
-    self.assertEqual(['<666f6f>', 6, 7],
-                     f(' \n\r(foo)\t6\f7\f', end_ofs_out=end_ofs_ary))
-    self.assertEqual([len(' \n\r(foo)\t6\f7')], end_ofs_ary)  # No whitespace.
-    self.assertEqual(['<666f6f>', 6], f(' \n\r(foo)\t6(', 2))
-    self.assertEqual(['<666f6f>'], f(' \n\r(foo)]', 1))
-    self.assertEqual([], f('<<', 0))
-    self.assertEqual(['<<>>', 51], f('<<%]\r>>51'))
-    self.assertEqual(['[]', -3], f('[%<<\n]-3'))
+    self.assertEqual([b'<666f6f>', 6, 7],
+                     f(b' \n\r(foo)\t6\f7\f', end_ofs_out=end_ofs_ary))
+    self.assertEqual([len(b' \n\r(foo)\t6\f7')], end_ofs_ary)  # No whitespace.
+    self.assertEqual([b'<666f6f>', 6], f(b' \n\r(foo)\t6(', 2))
+    self.assertEqual([b'<666f6f>'], f(b' \n\r(foo)]', 1))
+    self.assertEqual([], f(b'<<', 0))
+    self.assertEqual([b'<<>>', 51], f(b'<<%]\r>>51'))
+    self.assertEqual([b'[]', -3], f(b'[%<<\n]-3'))
 
-    self.assertRaisesX(main.PdfTokenParseError, f, '//')
-    self.assertRaisesX(main.PdfTokenParseError, f, '/')
-    self.assertRaisesX(main.PdfTokenParseError, f, '/#xy')
-    self.assertRaisesX(main.PdfTokenParseError, f, '/#')
-    self.assertEqual(['/pedal.#2A', '/pedal.#2A'], f('/pedal.*/pedal.#2a'))
-    self.assertEqual(['/#2F#23'], f('/#2f#23'))
+    self.assertRaisesX(main.PdfTokenParseError, f, b'//')
+    self.assertRaisesX(main.PdfTokenParseError, f, b'/')
+    self.assertRaisesX(main.PdfTokenParseError, f, b'/#xy')
+    self.assertRaisesX(main.PdfTokenParseError, f, b'/#')
+    self.assertEqual([b'/pedal.#2A', b'/pedal.#2A'], f(b'/pedal.*/pedal.#2a'))
+    self.assertEqual([b'/#2F#23'], f(b'/#2f#23'))
 
   def testPdfToPsName(self):
     f = main.PdfObj.PdfToPsName
-    self.assertEqual('/foo!', f('/foo#21'))
-    self.assertEqual('pedal.*', f('pedal.*'))
-    self.assertEqual('/pedal.*', f('/pedal.*'))
-    self.assertEqual('/pedal.*', f('/pedal.#2A'))
-    self.assertEqual('/pedal.*', f('/pedal.#2a'))
-    self.assertEqual('pedal.*', f('pedal.#2A'))
-    self.assertEqual('/pedal.*B+', f('/pedal.#2AB#2b'))
-    self.assertEqual('/pedal.#2A', f('/peda#6c.#232A'))
-    self.assertEqual('/\xFEeD', f('/#fEeD'))
-    self.assertRaisesX(ValueError, f, '')
-    self.assertRaisesX(ValueError, f, '/')
-    self.assertRaisesX(main.PdfTokenParseError, f, '//')
-    self.assertRaisesX(main.PdfTokenParseError, f, '//foo')
-    self.assertRaisesX(main.PdfTokenParseError, f, '/#')
+    self.assertEqual(b'/foo!', f(b'/foo#21'))
+    self.assertEqual(b'pedal.*', f(b'pedal.*'))
+    self.assertEqual(b'/pedal.*', f(b'/pedal.*'))
+    self.assertEqual(b'/pedal.*', f(b'/pedal.#2A'))
+    self.assertEqual(b'/pedal.*', f(b'/pedal.#2a'))
+    self.assertEqual(b'pedal.*', f(b'pedal.#2A'))
+    self.assertEqual(b'/pedal.*B+', f(b'/pedal.#2AB#2b'))
+    self.assertEqual(b'/pedal.#2A', f(b'/peda#6c.#232A'))
+    self.assertEqual(b'/\xFEeD', f(b'/#fEeD'))
+    self.assertRaisesX(ValueError, f, b'')
+    self.assertRaisesX(ValueError, f, b'/')
+    self.assertRaisesX(main.PdfTokenParseError, f, b'//')
+    self.assertRaisesX(main.PdfTokenParseError, f, b'//foo')
+    self.assertRaisesX(main.PdfTokenParseError, f, b'/#')
     # Starts with double /. Will raise: Char not allowed in PostScript name
-    self.assertRaisesX(ValueError, f, '/#2F')
-    self.assertRaisesX(ValueError, f, '/foo#20')  # PDF_NONNAME_CHARS.
-    self.assertRaisesX(ValueError, f, '/foo#28')  # PDF_NONNAME_CHARS.
-    self.assertRaisesX(ValueError, f, '/foo#25')  # PDF_NONNAME_CHARS.
-    self.assertRaisesX(ValueError, f, 'foo/bar')
-    self.assertRaisesX(ValueError, f, '/foo#7b#7d')
-    self.assertRaisesX(ValueError, f, 'foo#7b#7d', is_nonname_char_ok=True)
-    self.assertEqual('<666f6f7b7d>cvn',
-                     f('/foo#7b#7d', is_nonname_char_ok=True))
+    self.assertRaisesX(ValueError, f, b'/#2F')
+    self.assertRaisesX(ValueError, f, b'/foo#20')  # PDF_NONNAME_CHARS.
+    self.assertRaisesX(ValueError, f, b'/foo#28')  # PDF_NONNAME_CHARS.
+    self.assertRaisesX(ValueError, f, b'/foo#25')  # PDF_NONNAME_CHARS.
+    self.assertRaisesX(ValueError, f, b'foo/bar')
+    self.assertRaisesX(ValueError, f, b'/foo#7b#7d')
+    self.assertRaisesX(ValueError, f, b'foo#7b#7d', is_nonname_char_ok=True)
+    self.assertEqual(b'<666f6f7b7d>cvn',
+                     f(b'/foo#7b#7d', is_nonname_char_ok=True))
 
   def testIsFontBuiltInEncodingUsed(self):
     f = main.PdfData.IsFontBuiltInEncodingUsed
