@@ -1182,15 +1182,15 @@ class PdfSizeOptTest(unittest.TestCase):
 
   def testFindEqclassesAllEquivalentAndUndefined(self):
     pdf = main.PdfData()
-    pdf.trailer = main.PdfObj('0 0 obj<<>>endobj')
-    pdf.objs[1] = main.PdfObj('0 0 obj<</S(q)/P 2 0 R /U 6 0 R>>endobj')
-    pdf.objs[2] = main.PdfObj('0 0 obj<</S(q)/P 1 0 R /U 7 0 R>>endobj')
-    pdf.objs[3] = main.PdfObj('0 0 obj<</S(q)/P 4 0 R /U 8 0 R>>endobj')
-    pdf.objs[4] = main.PdfObj('0 0 obj<</S(q)/P 3 0 R /U 9 0 R>>endobj')
+    pdf.trailer = main.PdfObj(b'0 0 obj<<>>endobj')
+    pdf.objs[1] = main.PdfObj(b'0 0 obj<</S(q)/P 2 0 R /U 6 0 R>>endobj')
+    pdf.objs[2] = main.PdfObj(b'0 0 obj<</S(q)/P 1 0 R /U 7 0 R>>endobj')
+    pdf.objs[3] = main.PdfObj(b'0 0 obj<</S(q)/P 4 0 R /U 8 0 R>>endobj')
+    pdf.objs[4] = main.PdfObj(b'0 0 obj<</S(q)/P 3 0 R /U 9 0 R>>endobj')
     new_objs = main.PdfData.FindEqclasses(pdf.objs)
     for obj_num in new_objs:
       new_objs[obj_num] = (new_objs[obj_num].head, new_objs[obj_num].stream)
-    self.assertEqual({1: ('<</S(q)/P 1 0 R/U null>>', None)}, new_objs)
+    self.assertEqual({1: (b'<</S(q)/P 1 0 R/U null>>', None)}, new_objs)
 
   def testFindEqclassesTwoGroupsByHead(self):
     pdf = main.PdfData()

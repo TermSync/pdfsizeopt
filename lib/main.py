@@ -7930,8 +7930,8 @@ class PdfData(object):
         if do_remove_unused:
           search_todo.append(desc)
       elif (not do_unify_pages and
-            stream is None and head_minus.startswith('<<') and
-            objs[obj_num].Get(b'Type') == '/Page'):
+            stream is None and head_minus.startswith(b'<<') and
+            objs[obj_num].Get(b'Type') == b'/Page'):
         # Make sure that /Page objects are not unified. xpdf and evince
         # display the error message `Loop in Pages tree' (but still display
         # the PDF) if we unify equivalent pages, but since the PDF spec
@@ -7950,11 +7950,6 @@ class PdfData(object):
           eqclasses.append([desc])
           eqclass_of[obj_num] = by_form[form] = eqclasses[-1]
     del by_form  # save memory
-
-    #for eqclass in eqclasses:
-    #  for desc in eqclass:
-    #    print desc
-    #  print
 
     had_split = True
     while had_split:
@@ -8050,7 +8045,7 @@ class PdfData(object):
           LogWarning(
               'obj %s missing, referenced by objs %r...' %
               (target_obj_num, [desc[0] for desc in eqclass]))
-          return 'null'
+          return b'null'
         else:
           new_obj_num = new_class[0][0]
           return b'%d 0 R' % obj_num_map.get(new_obj_num, new_obj_num)
