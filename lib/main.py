@@ -1022,7 +1022,7 @@ class PdfObj(object):
   'foo&bar' all the way to the end, but PDF_TOKENS_UNSAFE_CHARS_RE isn't found.
   """
 
-  PDF_TOKENS_UNSAFE_CHARS_RE = re.compile(r'[{}\\\v\x00\t\n\r\f%\\]+')
+  PDF_TOKENS_UNSAFE_CHARS_RE = re.compile(br'[{}\\\v\x00\t\n\r\f%\\]+')
   r"""Matches a single unsafe character in a PDF token sequence.
 
   * Space is not unsafe, we need it for `/Length 5'.

@@ -196,7 +196,7 @@ class PdfSizeOptTest(unittest.TestCase):
                      e(b'(()' + bytes(map(lambda x: {13: 10}.get(x, x), range(33))) + b')'))
     self.assertEqual(b' <face422829>', e(b'(\xfa\xCE\x42())'))
     self.assertEqual(b' <00210023>', e(b'(\0!\\0#)'))
-    self.assertEqual(b' <073839380a>', e(b'(\78\98\12)'))
+    self.assertEqual(b' <073839380a>', e(br'(\78\98\12)'))
     self.assertEqual(b' <053031>', e(b'(\\501)'))
     self.assertEqual(b' <0a0a09080c>', e(b'(\n\r\t\b\f)'))
     self.assertEqual(b' <0a0d09080c>', e(b'(\\n\\r\\t\\b\\f)'))
@@ -204,7 +204,7 @@ class PdfSizeOptTest(unittest.TestCase):
     self.assertEqual(b' <61275c>', e(b"(a'\\\\)"))
     self.assertEqual(b' <314f5c60>', e(b'<\n3\t1\r4f5C6 >'))
     self.assertEqual(b' <0006073839050e170338043805380638073838380a3913391f39>',
-                     e(b'(\0\6\7\8\9\05\16\27\38\48\58\68\78\88\129\239\379)'))
+                     e(br'(\0\6\7\8\9\05\16\27\38\48\58\68\78\88\129\239\379)'))
     self.assertEqual(b' <666f6f0a626172>', e(b'(foo\nbar)'))
     self.assertEqual(b' <666f6f0a626172>', e(b'(foo\\nbar)'))
     self.assertEqual(b' <666f6f626172>', e(b'(foo\\\nbar)'))
@@ -286,8 +286,8 @@ class PdfSizeOptTest(unittest.TestCase):
     self.assertRaisesX(main.PdfTokenTruncated, e,
                       b'true foo', do_terminate_obj=True)
     self.assertEqual(b' <68656c296c6f0a0877286f72296c64>',
-                     e(b'(hel\)lo\n\bw(or)ld)'))
-    self.assertRaisesX(main.PdfTokenTruncated, e, b'(hel\)lo\n\bw(orld)')
+                     e(br'(hel\)lo\n\bw(or)ld)'))
+    self.assertRaisesX(main.PdfTokenTruncated, e, br'(hel\)lo\n\bw(orld)')
     self.assertEqual(b' [ <68656c296c6f0a0877286f72296c64> ]',
                      e(b' [ (hel\\051lo\\012\\010w\\050or\\051ld) ]<'))
     self.assertRaisesX(main.PdfTokenTruncated, e, b'>')
@@ -665,7 +665,7 @@ class PdfSizeOptTest(unittest.TestCase):
     obj = main.PdfObj(b'42 0 obj<</BitsPerComponent\n\n4\f/A ( ) >>\t\tendobj')
     self.assertEqual(b'<</BitsPerComponent 4/A<20>>>', obj.head)
     obj = main.PdfObj(b'42 0 obj<</BitsPerComponent\n\n4\f'
-                      b'/A ((\)\)endobj)x) >>\t\tendobj')
+                      br'/A ((\)\)endobj)x) >>\t\tendobj')
     self.assertEqual(b'<</BitsPerComponent 4/A<282929656e646f626a2978>>>',
                      obj.head)
     self.assertRaisesX(  # An empty name token.
@@ -942,7 +942,7 @@ class PdfSizeOptTest(unittest.TestCase):
                      F(b'(()' + bytes(range(33)) + b')'))
     self.assertEqual(b'<face422829>', F(b'(\xfa\xCE\x42())'))
     self.assertEqual(b'<00210023>', F(b'(\0!\\0#)'))
-    self.assertEqual(b'<073839380a>', F(b'(\78\98\12)'))
+    self.assertEqual(b'<073839380a>', F(br'(\78\98\12)'))
     self.assertEqual(b'(\x0501)', F(b'(\\501)'))
     self.assertEqual(b'<0a0a09080c>', F(b'(\n\r\t\b\f)'))
     self.assertEqual(b'<0a0d09080c>', F(b'(\\n\\r\\t\\b\\f)'))
@@ -950,7 +950,7 @@ class PdfSizeOptTest(unittest.TestCase):
     self.assertEqual(b'<61275c>', F(b"(a'\\\\)"))
     self.assertEqual(b'<314f5c60>', F(b'<\n3\t1\r4f5C6 >'))
     self.assertEqual(b'<0006073839050e170338043805380638073838380a3913391f39>',
-                     F(b'(\0\6\7\8\9\05\16\27\38\48\58\68\78\88\129\239\379)'))
+                     F(br'(\0\6\7\8\9\05\16\27\38\48\58\68\78\88\129\239\379)'))
     self.assertEqual(b'<666f6f0a626172>', F(b'(foo\nbar)'))
     self.assertEqual(b'<666f6f0a626172>', F(b'(foo\\nbar)'))
     self.assertEqual(b'(foobar)', F(b'(foo\\\nbar)'))
@@ -1036,8 +1036,8 @@ class PdfSizeOptTest(unittest.TestCase):
     self.assertEqual(b'true foo bar', F(b'true foo bar'))
     self.assertEqual(b'true foo', F(b'true foo'))
     self.assertEqual(b'<68656c296c6f0a0877286f72296c64>',
-                     F(b'(hel\)lo\n\bw(or)ld)'))
-    self.assertRaisesX(main.PdfTokenTruncated, F, b'(hel\)lo\n\bw(orld)')
+                     F(br'(hel\)lo\n\bw(or)ld)'))
+    self.assertRaisesX(main.PdfTokenTruncated, F, br'(hel\)lo\n\bw(orld)')
     self.assertEqual(b'[<68656c296c6f0a0877286f72296c64>]',
                      F(b' [ (hel\\051lo\\012\\010w\\050or\\051ld) ]'))
     self.assertRaisesX(main.PdfTokenTruncated,
@@ -1097,24 +1097,24 @@ class PdfSizeOptTest(unittest.TestCase):
   def testPdfUnsafeRegexpSubsets(self):
     a_re = main.PdfObj.PDF_TOKENS_UNSAFE_CHARS_RE
     b_re = main.PdfObj.PDF_SAFE_KEEP_HEX_ESCAPED_RE
-    self.assertFalse(a_re.match('*'))
-    self.assertTrue(b_re.match('*'))
+    self.assertFalse(a_re.match(b'*'))
+    self.assertTrue(b_re.match(b'*'))
     for i in range(256):  # Test that b_re is a subset of a_re.
-      self.assertTrue(not a_re.match(chr(i)) or b_re.match(chr(i)), i)
+      self.assertTrue(not a_re.match(bytes([i])) or b_re.match(bytes([i])), i)
 
     a_re = main.PdfObj.PDF_STRING_UNSAFE_CHAR_RE
     b_re = main.PdfObj.PDF_SAFE_KEEP_HEX_ESCAPED_RE
-    self.assertFalse(a_re.match('*'))
-    self.assertTrue(b_re.match('*'))
+    self.assertFalse(a_re.match(b'*'))
+    self.assertTrue(b_re.match(b'*'))
     for i in range(256):  # Test that b_re is a subset of a_re.
-      self.assertTrue(not a_re.match(chr(i)) or b_re.match(chr(i)), i)
+      self.assertTrue(not a_re.match(bytes([i])) or b_re.match(bytes([i])), i)
 
     a_re = main.PdfObj.PDF_TOKENS_UNSAFE_CHARS_RE
     b_re = main.PdfObj.PDF_STRING_UNSAFE_CHAR_RE
-    self.assertFalse(a_re.match('('))
-    self.assertTrue(b_re.match('('))
+    self.assertFalse(a_re.match(b'('))
+    self.assertTrue(b_re.match(b'('))
     for i in range(256):  # Test that b_re is a subset of a_re.
-      self.assertTrue(not a_re.match(chr(i)) or b_re.match(chr(i)), i)
+      self.assertTrue(not a_re.match(bytes([i])) or b_re.match(bytes([i])), i)
 
   def testPdfObjGetSet(self):
     obj = main.PdfObj('42 0 obj<</Foo(hi)>>\t\f\rendobj junk stream\r\n')
