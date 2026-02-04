@@ -768,17 +768,17 @@ class PdfSizeOptTest(unittest.TestCase):
                      F(trailer, start=3, end_ofs_out=end_ofs_out).head)
     self.assertEqual(b'xref\t', trailer[end_ofs_out[0]:])
 
-  def testExpandAbbreviatoins(self):
+  def testExpandAbbreviations(self):
     F = main.PdfObj.ExpandAbbreviations
-    self.assertEqual('', F(''))
-    self.assertEqual('/Foo', F('/Foo'))
-    self.assertEqual(' /AHxy ', F(' /AHxy '))
-    self.assertEqual(' /ASCIIHexDecode ', F(' /AHx '))
-    self.assertEqual(' /ASCIIHexDecode ', F(' /ASCIIHexDecode '))
-    self.assertEqual('\t/ImageMask\f', F('\t/IM\f'))
-    self.assertEqual('[/ASCIIHexDecode/ASCII85Decode/LZWDecode '
-                     '/FlateDecode/RunLengthDecode/CCITTFaxDecode/DCTDecode]',
-                     F('[/AHx/A85/LZW /Fl/RL/CCF/DCT]'))
+    self.assertEqual(b'', F(b''))
+    self.assertEqual(b'/Foo', F(b'/Foo'))
+    self.assertEqual(b' /AHxy ', F(b' /AHxy '))
+    self.assertEqual(b' /ASCIIHexDecode ', F(b' /AHx '))
+    self.assertEqual(b' /ASCIIHexDecode ', F(b' /ASCIIHexDecode '))
+    self.assertEqual(b'\t/ImageMask\f', F(b'\t/IM\f'))
+    self.assertEqual(b'[/ASCIIHexDecode/ASCII85Decode/LZWDecode '
+                     b'/FlateDecode/RunLengthDecode/CCITTFaxDecode/DCTDecode]',
+                     F(b'[/AHx/A85/LZW /Fl/RL/CCF/DCT]'))
 
   def testCheckSafePdfTokens(self):
     F = main.PdfObj.CheckSafePdfTokens
