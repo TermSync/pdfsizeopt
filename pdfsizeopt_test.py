@@ -1327,31 +1327,31 @@ class PdfSizeOptTest(unittest.TestCase):
     pdf = main.PdfData()
     # The Rs are needed in the trailer, otherwise objects would be discarded.
     pdf.trailer = main.PdfObj(
-        '0 0 obj<<4 0 R 5 0 R 9 0 R 10 0 R>>endobj')
+        b'0 0 obj<<4 0 R 5 0 R 9 0 R 10 0 R>>endobj')
     pdf.objs[4] = main.PdfObj(
-        '0 0 obj<</Parent  1 0 R/Type/Pages/Kids[9 0 R]/Count 1>>endobj')
+        b'0 0 obj<</Parent  1 0 R/Type/Pages/Kids[9 0 R]/Count 1>>endobj')
     pdf.objs[5] = main.PdfObj(
-        '0 0 obj<</Parent 1  0 R/Type/Pages/Kids[10 0 R]/Count 1>>endobj')
+        b'0 0 obj<</Parent 1  0 R/Type/Pages/Kids[10 0 R]/Count 1>>endobj')
     pdf.objs[9] = main.PdfObj(
-        '0 0 obj<</Type/Page/MediaBox[0 0 419 534]/CropBox[0 0 419 534]'
-        '/Parent 4 0 R/Resources<</XObject<</S 2 0 R>>/ProcSet[/PDF/ImageB]>>'
-        '/Contents 3 0 R>>endobj')
+        b'0 0 obj<</Type/Page/MediaBox[0 0 419 534]/CropBox[0 0 419 534]'
+        b'/Parent 4 0 R/Resources<</XObject<</S 2 0 R>>/ProcSet[/PDF/ImageB]>>'
+        b'/Contents 3 0 R>>endobj')
     pdf.objs[10] = main.PdfObj(
-        '10 0 obj<</Type/Page/MediaBox[0 0 419 534]/CropBox[0 0 419 534]'
-        '/Parent 5 0 R/Resources<</XObject<</S 2 0 R>>/ProcSet[/PDF/ImageB]>>'
-        '/Contents 3 0 R>>endobj')
-    pdf.objs['trailer'] = pdf.trailer
+        b'10 0 obj<</Type/Page/MediaBox[0 0 419 534]/CropBox[0 0 419 534]'
+        b'/Parent 5 0 R/Resources<</XObject<</S 2 0 R>>/ProcSet[/PDF/ImageB]>>'
+        b'/Contents 3 0 R>>endobj')
+    pdf.objs[b'trailer'] = pdf.trailer
     new_objs = main.PdfData.FindEqclasses(
         pdf.objs, do_remove_unused=True, do_renumber=True)
-    del pdf.objs['trailer']
+    del pdf.objs[b'trailer']
     for obj_num in new_objs:
       new_objs[obj_num] = (new_objs[obj_num].head, new_objs[obj_num].stream)
     self.assertEqual(
-        {1: ('<</Parent null/Type/Pages/Kids[2 0 R]/Count 1>>', None),
-         2: ('<</Type/Page/MediaBox[0 0 419 534]/CropBox[0 0 419 534]'
-             '/Parent 1 0 R/Resources<</XObject<</S null>>'
-             '/ProcSet[/PDF/ImageB]>>/Contents null>>', None),
-         'trailer': ('<<1 0 R 1 0 R 2 0 R 2 0 R>>', None)}, new_objs)
+        {1: (b'<</Parent null/Type/Pages/Kids[2 0 R]/Count 1>>', None),
+         2: (b'<</Type/Page/MediaBox[0 0 419 534]/CropBox[0 0 419 534]'
+             b'/Parent 1 0 R/Resources<</XObject<</S null>>'
+             b'/ProcSet[/PDF/ImageB]>>/Contents null>>', None),
+         b'trailer': (b'<<1 0 R 1 0 R 2 0 R 2 0 R>>', None)}, new_objs)
 
   def testFindEqclassesString(self):
     pdf = main.PdfData()
