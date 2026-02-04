@@ -955,7 +955,7 @@ class PdfObj(object):
   """
 
   PDF_HEXTOKENS_SAFE_HEX_ESCAPE_RE = re.compile(
-      r'[^-+A-Za-z0-9_./#\[\]()<>{}\x00\t\n\r\f ]')
+      br'[^-+A-Za-z0-9_./#\[\]()<>{}\x00\t\n\r\f ]')
   """Matches a single name character which needs to be hex-escaped.
 
   This regexp should be matched against a PDF token sequence (rather than a
@@ -1210,13 +1210,13 @@ class PdfObj(object):
   PDF_NAME_HEX_OR_HASHMARK_RE = re.compile(br'#([0-9a-fA-F]{2})?')
   """Matches a hex escape (#AB) in a PDF name token."""
 
-  PDF_NONNAME_CHARS = '/[]{}()<>%\0\t\n\r\f '
+  PDF_NONNAME_CHARS = b'/[]{}()<>%\0\t\n\r\f '
   """Contains all characters which can't be part of a PDF name.
 
   Same as the CFF spec disallows in a FontName.
   """
 
-  PDF_NONNAME_CHAR_RE = re.compile('[%s]' % re.escape(PDF_NONNAME_CHARS))
+  PDF_NONNAME_CHAR_RE = re.compile(b'[' + re.escape(PDF_NONNAME_CHARS) + b']')
   """Matches a single character which can't be part of a PDF name."""
 
   PDF_NAME_LITERAL_RE = re.compile(r'/([^\[\]{}()<>/%\x00\t\n\r\f ]+)')
@@ -2214,7 +2214,7 @@ class PdfObj(object):
     For duplicate keys, only the last key--value pair is kept.
 
     Args:
-      data: String containing a PDF token sequence for a dict, like '<<...>>'.
+      data: Bytestring containing a PDF token sequence for a dict, like '<<...>>'.
     Returns:
       A dict mapping strings to values (usually strings).
     Raises:
@@ -2222,8 +2222,8 @@ class PdfObj(object):
         approach.
     """
     # TODO(pts): Measure what percentage can be parsed.
-    assert data.startswith('<<')
-    assert data.endswith('>>')
+    assert data.startswith(b'<<')
+    assert data.endswith(b'>>')
     start = 2
     end = len(data) - 2
     dict_obj = {}
@@ -2373,11 +2373,11 @@ class PdfObj(object):
     if _cache is None:
       _cache = [
         cls.PDF_SAFE_KEEP_HEX_ESCAPED_RE.sub(
-          lambda match: '#%02X' % ord(match.group()),chr(i)
+          lambda match: b'#%02X' % ord(match.group()), bytes([i])
         ) for i in range(256)
       ]
     """Data is a PDF token sequence containing all strings as <hex>."""
-    if '#' in data:  # Works for both strings and memoryviews.
+    if b'#' in data:  # Works for both strings and memoryviews.
       # This unescapes e.g. #41 to A, and keeps e.g. #20 escaped. It doesn't
       # touch unescaped chars (e.g. * or A).
       try:
@@ -2388,7 +2388,7 @@ class PdfObj(object):
         # #), because pdf_reference_1-7.pdf says that # must also be escaped.
         raise PdfTokenParseError('Hex error in name %r.' % data)
     return cls.PDF_HEXTOKENS_SAFE_HEX_ESCAPE_RE.sub(  # Escapes e.g. * to #2A.
-        lambda match: '#%02X' % ord(match.group()), data)
+        lambda match: b'#%02X' % ord(match.group()), data)
 
   @classmethod
   def _EscapePdfNamesInHexTokensOptimized(cls, data, idx=None, _cache = None):  # !!! Add unit tests.
@@ -2842,18 +2842,18 @@ class PdfObj(object):
 
   @classmethod
   def SerializeSimpleValue(cls, value):
-    if isinstance(value, str):
-      if (value.startswith('(') or
-          (value.startswith('<') and not value.startswith('<<'))):
+    if isinstance(value, (bytes, memoryview)):
+      if (value.startswith(b'(') or
+          (value.startswith(b'<') and not value.startswith(b'<<'))):
         return cls.SerializePdfStringSafe(cls.ParsePdfString(value)[0])
       else:
         return value
     elif isinstance(value, bool):  # must be above int
-      return str(value).lower()
+      return b'true' if value else b'false'
     elif isinstance(value, int):
-      return str(value)
+      return b'%d' % value
     elif value is None:
-      return 'null'
+      return b'null'
     # We deliberately don't serialize float because of precision and
     # representation issues (PDF doesn't support exponential notation).
     else:
@@ -2868,15 +2868,15 @@ class PdfObj(object):
     cls.CompressValue(cls.RewriteToParsable(cls.SerializeDict(dict_obj))),
     of which cls.RewriteToParsable is slow.
     """
-    output = ['<<']
+    output = [b'<<']
     for key in sorted(dict_obj):
-      output.append('/' + key)
+      output.append(b'/' + key)
       value = cls.SerializeSimpleValue(dict_obj[key])
-      if value[0] not in '<({[/\0\t\n\r\f %':
-        output.append(' ')
+      if value[0] not in b'<({[/\x00\t\n\r\f %':
+        output.append(b' ')
       output.append(value)
-    output.append('>>')
-    return ''.join(output)
+    output.append(b'>>')
+    return b''.join(output)
 
   @classmethod
   def SerializePdfStringSafe(cls, data):

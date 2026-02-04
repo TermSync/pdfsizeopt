@@ -322,18 +322,18 @@ class PdfSizeOptTest(unittest.TestCase):
     self.assertEqual(13, eo[0])  # spaces not included
     self.assertEqual(b' << /Pages -333 -1 R >>', e(b'<</Pages -333 -1 R\n>>'))
     self.assertEqual(b' << /Pages 0 55 R >>', e(b'<</Pages 0 55 R\n>>'))
-    
+
   def testSerializeDict(self):
     # Toplevel whitespace is removed, but the newline inside the /DecodeParms
     # value is kept.
     self.assertEqual(
-        '<</BitsPerComponent 8/ColorSpace/DeviceGray/DecodeParms'
-        '<</Predictor 15\n/Columns 640>>/Filter/FlateDecode/Height 480'
-        '/Length 6638/Subtype/Image/Width 640/Z true>>',
+        b'<</BitsPerComponent 8/ColorSpace/DeviceGray/DecodeParms'
+        b'<</Predictor 15\n/Columns 640>>/Filter/FlateDecode/Height 480'
+        b'/Length 6638/Subtype/Image/Width 640/Z true>>',
         main.PdfObj.SerializeDict(main.PdfObj.ParseSimplestDict(
-            '<</Subtype/Image\n/ColorSpace/DeviceGray\n/Width 640/Z  true\n'
-            '/Height 480\n/BitsPerComponent 8\n/Filter/FlateDecode\n'
-            '/DecodeParms <</Predictor 15\n/Columns 640>>/Length 6638>>')))
+            b'<</Subtype/Image\n/ColorSpace/DeviceGray\n/Width 640/Z  true\n'
+            b'/Height 480\n/BitsPerComponent 8\n/Filter/FlateDecode\n'
+            b'/DecodeParms <</Predictor 15\n/Columns 640>>/Length 6638>>')))
 
   def testIsGrayColorSpace(self):
     e = main.PdfObj.IsGrayColorSpace
