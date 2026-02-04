@@ -84,72 +84,71 @@ class PdfSizeOptTest(unittest.TestCase):
       self.assertEqual(data, p(memoryview(pdf_string_literal)))
     def CheckParse(pdf_string_literal, data):
       self.assertEqual(data, p(memoryview(pdf_string_literal)))
-    Check('()', '')
-    Check('(Hello, World!)', 'Hello, World!')
-    Check('(\\\\Hello, \\(World!)', '\\Hello, (World!')
-    Check('(Hello, \\)World!\\\\)', 'Hello, )World!\\')
-    Check('(hi\\r)', 'hi\r')
-    Check('(hi\n)', 'hi\n')
-    Check('(hi\\r\n)', 'hi\r\n')
-    Check('(hir%\'"a)', 'hir%\'"a')
-    Check('(//)', '//')
-    Check('(\\r\\()', '\r(')
-    Check('(\\(\\\\\\r)', '(\\\r')
-    CheckParse('(hi\\\nr\\%\\\'\\"\\a)', 'hir%\'"a')
-    CheckParse('(hi\\\r\nx)', 'hix')
-    CheckParse('(hi\\\r\\nx)', 'hi\nx')  # Same as in PostScript.
-    CheckParse('(hi\\n\\r\\t\\b\\f\\400\\500\\600\\700)',
-               'hi\n\r\t\b\f\00400\00500\00600\00700')
-    CheckParse('(hi\\08\\18\\28\\38\\079\\179\\279\\379)',
-               'hi\0008\0018\0028\0038\0079\0179\0279\0379')
-    CheckParse('(hi\\076\\154\\232\\310\\0123\\1234\\2345\\3000)',
-               'hi\076\154\232\310\0123\1234\2345\3000')
-    CheckParse('<>', '')
-    CheckParse('<\t\f>', '')
-    CheckParse('<fA3>', '\xfa\x30')
-    CheckParse('(\\0576\\057)', '/6/')
-    s = ''.join([c for c in map(chr, range(255, -1, -1)) if c not in '()\\\r'])
-    Check('(%s)' % s, s)
-    Check('(Hello, \\)\\(Wo\\\\rld!)', 'Hello, )(Wo\\rld!')
-    Check('((((foo\\\\))))', '(((foo\\)))')
-    Check('(((foo)) (\\(bar)d)', '((foo)) ((bar)d')
-    Check('((foo)\\) (bar))', '(foo)) (bar)')
+    Check(b'()', b'')
+    Check(b'(Hello, World!)', b'Hello, World!')
+    Check(b'(\\\\Hello, \\(World!)', b'\\Hello, (World!')
+    Check(b'(Hello, \\)World!\\\\)', b'Hello, )World!\\')
+    Check(b'(hi\\r)', b'hi\r')
+    Check(b'(hi\n)', b'hi\n')
+    Check(b'(hi\\r\n)', b'hi\r\n')
+    Check(b'(hir%\'"a)', b'hir%\'"a')
+    Check(b'(//)', b'//')
+    Check(b'(\\r\\()', b'\r(')
+    Check(b'(\\(\\\\\\r)', b'(\\\r')
+    CheckParse(b'(hi\\\nr\\%\\\'\\"\\a)', b'hir%\'"a')
+    CheckParse(b'(hi\\\r\nx)', b'hix')
+    CheckParse(b'(hi\\\r\\nx)', b'hi\nx')  # Same as in PostScript.
+    CheckParse(b'(hi\\n\\r\\t\\b\\f\\400\\500\\600\\700)',
+               b'hi\n\r\t\b\f\00400\00500\00600\00700')
+    CheckParse(b'(hi\\08\\18\\28\\38\\079\\179\\279\\379)',
+               b'hi\0008\0018\0028\0038\0079\0179\0279\0379')
+    CheckParse(b'(hi\\076\\154\\232\\310\\0123\\1234\\2345\\3000)',
+               b'hi\076\154\232\310\0123\1234\2345\3000')
+    CheckParse(b'<>', b'')
+    CheckParse(b'<\t\f>', b'')
+    CheckParse(b'<fA3>', b'\xfa\x30')
+    CheckParse(b'(\\0576\\057)', b'/6/')
+    s = bytes([i for i in range(255, -1, -1) if chr(i) not in '()\\\r'])
+    Check(b'(' + s + b')', s)
+    Check(b'(Hello, \\)\\(Wo\\\\rld!)', b'Hello, )(Wo\\rld!')
+    Check(b'((((foo\\\\))))', b'(((foo\\)))')
+    Check(b'(((foo)) (\\(bar)d)', b'((foo)) ((bar)d')
+    Check(b'((foo)\\) (bar))', b'(foo)) (bar)')
     # We escape \r\n as \\r\n, to prevent it from being parsed as just \n.
-    Check('(\nbar\\rbaz\\r\nquux\n\\rfoo)',
-          '\nbar\rbaz\r\nquux\n\rfoo')
+    Check(b'(\nbar\\rbaz\\r\nquux\n\\rfoo)',
+          b'\nbar\rbaz\r\nquux\n\rfoo')
     self.assertRaisesX(TypeError, p, None)
     self.assertRaisesX(TypeError, p, 42)
-    self.assertRaisesX(main.PdfTokenNotString, p, '/foo')
-    self.assertRaisesX(main.PdfTokenTruncated, p, '(')
-    self.assertRaisesX(main.PdfTokenTruncated, p, '(foo')
-    self.assertRaisesX(main.PdfTokenTruncated, p, '<f00')
-    self.assertRaisesX(main.PdfTokenTruncated, p, '(foo\\')
-    self.assertRaisesX(main.PdfTokenTruncated, p, '()', 2)
-    self.assertEqual('', p('?()/', 1, 3))
-    self.assertRaisesX(main.PdfTokenParseError, p, '()/', 0, 3)
-    self.assertRaisesX(main.PdfTokenParseError, p, '(\\n)/', 0, 5)
-    self.assertEqual(('', 2), main.PdfObj.ParsePdfString(
-        '()/', 0, 3, is_partial_ok=True))
-    self.assertEqual(('\n', 5), main.PdfObj.ParsePdfString(
-        '?(\\n)/', 1, 5, is_partial_ok=True))
-    self.assertRaisesX(ValueError, p, '()', 3)  # Bad offsets.
-    self.assertEqual(('', 2), main.PdfObj.ParsePdfString(
-        '<>>>>>', is_partial_ok=True))
-    self.assertEqual(('', 3), main.PdfObj.ParsePdfString(
-        '?<>>>>>', start=1, is_partial_ok=True))
-    self.assertEqual(('\x8d\x50', 5), main.PdfObj.ParsePdfString(
-        '<8d5>]/', is_partial_ok=True))
+    self.assertRaisesX(main.PdfTokenNotString, p, b'/foo')
+    self.assertRaisesX(main.PdfTokenTruncated, p, b'(')
+    self.assertRaisesX(main.PdfTokenTruncated, p, b'(foo')
+    self.assertRaisesX(main.PdfTokenTruncated, p, b'<f00')
+    self.assertRaisesX(main.PdfTokenTruncated, p, b'(foo\\')
+    self.assertRaisesX(main.PdfTokenTruncated, p, b'()', 2)
+    self.assertEqual(b'', p(b'?()/', 1, 3))
+    self.assertRaisesX(main.PdfTokenParseError, p, b'()/', 0, 3)
+    self.assertRaisesX(main.PdfTokenParseError, p, b'(\\n)/', 0, 5)
+    self.assertEqual((b'', 2), main.PdfObj.ParsePdfString(
+        b'()/', 0, 3, is_partial_ok=True))
+    self.assertEqual((b'\n', 5), main.PdfObj.ParsePdfString(
+        b'?(\\n)/', 1, 5, is_partial_ok=True))
+    self.assertRaisesX(ValueError, p, b'()', 3)  # Bad offsets.
+    self.assertEqual((b'', 2), main.PdfObj.ParsePdfString(
+        b'<>>>>>', is_partial_ok=True))
+    self.assertEqual((b'', 3), main.PdfObj.ParsePdfString(
+        b'?<>>>>>', start=1, is_partial_ok=True))
+    self.assertEqual((b'\x8d\x50', 5), main.PdfObj.ParsePdfString(
+        b'<8d5>]/', is_partial_ok=True))
     self.assertRaisesX(main.PdfTokenTruncated, main.PdfObj.ParsePdfString,
-                      '<8d5', is_partial_ok=True)
+                      b'<8d5', is_partial_ok=True)
     self.assertRaisesX(main.PdfTokenParseError, main.PdfObj.ParsePdfString,
-                      '<6?', is_partial_ok=True)
+                      b'<6?', is_partial_ok=True)
     self.assertRaisesX(main.PdfTokenParseError, main.PdfObj.ParsePdfString,
-                      '<\n3\t1\r4f5C5]>')
+                      b'<\n3\t1\r4f5C5]>')
     self.assertRaisesX(main.PdfTokenParseError, main.PdfObj.ParsePdfString,
-                      '<\n3\t1\r4f5C5]')
+                      b'<\n3\t1\r4f5C5]')
     self.assertRaisesX(main.PdfTokenTruncated, main.PdfObj.ParsePdfString,
-                      '<\n3\t1\r4f5C5')
-
+                      b'<\n3\t1\r4f5C5')
   def testRewriteToParsable(self):
     e = main.PdfObj.RewriteToParsable
     self.assertEqual(' [ ]', e('[]'))

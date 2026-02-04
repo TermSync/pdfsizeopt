@@ -211,6 +211,7 @@ __pychecker__ = (
     'maxlines=999 maxlocals=99 unusednames=self,cls maxreturns=99 '
     'maxbranches=9999')
 
+import binascii
 import getopt
 import os
 import os.path
@@ -989,7 +990,7 @@ class PdfObj(object):
   * \r is considered unsafe because (\r) is equivalent to (\n).
   * { and } are considered unsafe because they are PostScript tokens, and they
     are not safe to have in PDF names.
-  * \\ is considered unsafe because of (\)) .
+  * \\ is considered unsafe because of (\\)) .
   * # is considered unsafe so that we'd be able to do
     _EscapePdfNamesInHexTokensSafe processing before string processing.
 
@@ -1054,8 +1055,7 @@ class PdfObj(object):
   """Matches a << or a PDF hex <...> string literal, without maybe the
   trailing >."""
 
-  PDF_HEX_STRING_LITERAL_RE = re.compile(
-      r'<[\x00\t\n\r\f 0-9a-fA-F]*>?')
+  PDF_HEX_STRING_LITERAL_RE = re.compile(br'<[\x00\t\n\r\f 0-9a-fA-F]*>?')
   """Matches a PDF hex <...> string literal, where the trailing > is optional,
   but then anchored to \Z."""
 
@@ -1201,7 +1201,7 @@ class PdfObj(object):
   PDF_WHITESPACE_AT_EOS_RE = re.compile(br'[\x00\t\n\r\f ]*\Z')
   """Matches whitespace (0 or more) at end of string."""
 
-  PDF_WHITESPACE_RE = re.compile(r'[\x00\t\n\r\f ]+')
+  PDF_WHITESPACE_RE = re.compile(br'[\x00\t\n\r\f ]+')
   """Matches whitespace (1 or more)."""
 
   PDF_WHITESPACE_OR_HEX_STRING_RE = re.compile(
@@ -1229,10 +1229,10 @@ class PdfObj(object):
   PDF_INT_AT_EOS_RE = re.compile(br'[-+]?\d+\Z')
   """Matches a PDF integer token."""
 
-  PDF_STRING_NONSIMPLE_CHAR_RE = re.compile(r'([()\\\r])')
+  PDF_STRING_NONSIMPLE_CHAR_RE = re.compile(br'([()\\\r])')
   """Matches PDF string literal special chars ( ) \\ \r ."""
 
-  PDF_SIMPLE_STRING_RE = re.compile(r'\(([^()\\\r]*)\)')
+  PDF_SIMPLE_STRING_RE = re.compile(br'\(([^()\\\r]*)\)')
   """Matches a PDF string literal without special chars ( ) \\ \r . No \Z."""
 
   PDF_COMMENT_OR_STRING_RE = re.compile(
@@ -2000,15 +2000,16 @@ class PdfObj(object):
   @classmethod
   def _ParseNonSimplePdfString(
       cls, data, start, end,
-      _escapes = dict(('n\n', 'r\r', 't\t', 'b\b', 'f\f', '4\4', '5\5',
-                       '6\6', '7\7'))):
+      _escapes = {ord(b'n'): b'\n', ord(b'r'): b'\r', ord(b't'): b'\t', 
+                  ord(b'b'): b'\b', ord(b'f'): b'\f', ord(b'4'): b'\4', 
+                  ord(b'5'): b'\5', ord(b'6'): b'\6', ord(b'7'): b'\7'}):
     """Internal method. Use ParsePdfString instead."""
     i = start + 1
     j, output, depth = i, [], 1
     while 1:
       if j == end:
         raise PdfTokenTruncated
-      c = data[j]
+      c = chr(data[j])
       if c == '(':
         depth += 1
         j += 1
@@ -2023,45 +2024,45 @@ class PdfObj(object):
       elif c == '\\':
         if j + 1 == end:
           raise PdfTokenTruncated
-        c = data[j + 1]
+        c = chr(data[j + 1])
         if c in '0123':
           output.append(data[i : j])
-          if j + 2 == end or data[j + 2] not in '01234567':
-            output.append(chr(int(c, 8)))
+          if j + 2 == end or chr(data[j + 2]) not in '01234567':
+            output.append(bytes([int(c, 8)]))
             j += 2
-          elif j + 3 == end or data[j + 3] not in '01234567':
-            output.append(chr(int(data[j + 1 : j + 3], 8)))
+          elif j + 3 == end or chr(data[j + 3]) not in '01234567':
+            output.append(bytes([int(bytes(data[j + 1 : j + 3]), 8)]))
             j += 3
           else:
-            output.append(chr(int(data[j + 1 : j + 4], 8)))
+            output.append(bytes([int(bytes(data[j + 1 : j + 4]), 8)]))
             j += 4
         elif c in 'nrtbf4567':
           output.append(data[i : j])
-          output.append(_escapes[c])
+          output.append(_escapes[ord(c)])
           j += 2
-        elif c == '\n':  # Skip '\n'.
+        elif c == '\n':
           output.append(data[i : j])
           j += 2
-        elif c == '\r':  # Skip '\r' or '\r\n'.
+        elif c == '\r':
           output.append(data[i : j])
           j += 2
-          if j < end and data[j] == '\n':
+          if j < end and chr(data[j]) == '\n':
             j += 1
         else:
           output.append(data[i : j])
-          output.append(c)  # Append without the backslash.
+          output.append(bytes([ord(c)]))  # Append without the backslash.
           j += 2
         i = j
       elif c == '\r':
         output.append(data[i : j])
-        output.append('\n')
+        output.append(b'\n')
         j += 1
-        if j < end and data[j] == '\n':
+        if j < end and chr(data[j]) == '\n':
           j += 1
         i = j
       else:
         j += 1
-    return ''.join(output), i
+    return b''.join(output), i
 
   @classmethod
   def ParsePdfString(cls, data, start=0, end=None, is_partial_ok=False):
@@ -2097,7 +2098,7 @@ class PdfObj(object):
     #   a literal string without a preceding backslash, the result is
     #   equivalent to \n (regardless of whether the end-of-line marker
     #   was a carriage return, a line feed, or both).''
-    if not isinstance(data, (memoryview, str)):
+    if not isinstance(data, (memoryview, bytes)):
       raise TypeError
     if end is None:
       end = len(data)
@@ -2105,18 +2106,18 @@ class PdfObj(object):
       raise ValueError('Bad offsets.')
     if start >= len(data):
       raise PdfTokenTruncated
-    if data[start] == '<':
+    if data[start] == ord(b'<'):
       match = cls.PDF_HEX_STRING_LITERAL_RE.match(data, start, end)
-      if not match or data[match.end() - 1] != '>':
+      if not match or data[match.end() - 1] != ord(b'>'):
         if match and match.end() == end:
           raise PdfTokenTruncated('Truncated hex string.')
         raise PdfTokenParseError('Bad hex string.')
       i = match.end()
-      data = cls.PDF_WHITESPACE_RE.sub('', memoryview(data[start + 1:match.end()-1]))
+      data = cls.PDF_WHITESPACE_RE.sub(b'', memoryview(data[start + 1:match.end()-1]))
       if (len(data) & 1) != 0:
-        data += '0'
-      data = data.decode('hex')
-    elif data[start] == '(':
+        data += b'0'
+      data = binascii.unhexlify(data)
+    elif data[start] == ord(b'('):
       match = cls.PDF_SIMPLE_STRING_RE.match(data, start, end)
       if match:
         data, i = match.group(1), match.end()
@@ -2891,37 +2892,37 @@ class PdfObj(object):
     """Escape a string to the shortest possible PDF string literal.
 
     Args:
-      data: An arbitrary byte string (str) (not a PDF string).
+      data: An arbitrary byte string (not a PDF string).
     Results:
       A string containing a PDF token. Please note that it won't always be a
       safe string, e.g. '(\n)' and '(())' are both unsafe. To get a safe string
       as result, use SerializePdfStringSafe.
     """
-    if not isinstance(data, str):
+    if not isinstance(data, bytes):
       raise TypeError
     # We never emit hex strings (e.g. <face>), because they cannot ever be
     # shorter than the literal binary string.
-    no_open = '(' not in data
-    no_close = ')' not in data
+    no_open = b'(' not in data
+    no_close = b')' not in data
     if no_open or no_close:
       # No way to match parens.
       if no_open and no_close:
-        data = '(%s)' % data.replace('\\', '\\\\')
-        return data.replace('\r', '\\r')
+        data = b'(' + data.replace(b'\\', b'\\\\') + b')'
+        return data.replace(b'\r', b'\\r')
       else:
-        data = '(%s)' % cls.PDF_STRING_NONSIMPLE_CHAR_RE.sub(r'\\\1', data)
-        return data.replace('\\\r', '\\r')
-    close_remaining = data.count(')')
+        data = b'(' + cls.PDF_STRING_NONSIMPLE_CHAR_RE.sub(br'\\\1', data) + b')'
+        return data.replace(b'\\\r', b'\\r')
+    close_remaining = data.count(b')')
     depth = 0
-    output = ['(']
+    output = [b'(']
     i = j = 0
     while j < len(data):
-      c = data[j]
+      c = chr(data[j])
       if (c == '\\' or
           (c == ')' and depth == 0) or
           (c == '(' and close_remaining <= depth)):
         output.append(data[i : j])  # Flush unescaped.
-        output.append('\\' + c)
+        output.append(b'\\' + bytes([ord(c)]))
         if c == ')':
           close_remaining -= 1
         j += 1
@@ -2934,12 +2935,12 @@ class PdfObj(object):
           close_remaining -= 1
         j += 1
     output.append(data[i:])
-    output.append(')')
+    output.append(b')')
     assert depth == 0
     assert close_remaining == 0
-    data = ''.join(output)
+    data = b''.join(output)
     # Without this replacement, (\r\n) would become just \n (EOL).
-    return data.replace('\r', '\\r')
+    return data.replace(b'\r', b'\\r')
 
   @classmethod
   def PdfToPsName(cls, data, is_nonname_char_ok=False):
