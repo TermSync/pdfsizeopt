@@ -222,76 +222,76 @@ CFF_PRIVATE_DELTA_OPERATORS = (
 """Contains CFF private dict operators with delta values."""
 
 CFF_STANDARD_STRINGS = (  # 391 strings.
-    '.notdef', 'space', 'exclam', 'quotedbl', 'numbersign', 'dollar',
-    'percent', 'ampersand', 'quoteright', 'parenleft', 'parenright',
-    'asterisk', 'plus', 'comma', 'hyphen', 'period', 'slash', 'zero', 'one',
-    'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine',
-    'colon', 'semicolon', 'less', 'equal', 'greater', 'question', 'at', 'A',
-    'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
-    'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'bracketleft',
-    'backslash', 'bracketright', 'asciicircum', 'underscore', 'quoteleft',
-    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',
-    'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'braceleft',
-    'bar', 'braceright', 'asciitilde', 'exclamdown', 'cent', 'sterling',
-    'fraction', 'yen', 'florin', 'section', 'currency', 'quotesingle',
-    'quotedblleft', 'guillemotleft', 'guilsinglleft', 'guilsinglright',
-    'fi', 'fl', 'endash', 'dagger', 'daggerdbl', 'periodcentered',
-    'paragraph', 'bullet', 'quotesinglbase', 'quotedblbase',
-    'quotedblright', 'guillemotright', 'ellipsis', 'perthousand',
-    'questiondown', 'grave', 'acute', 'circumflex', 'tilde', 'macron',
-    'breve', 'dotaccent', 'dieresis', 'ring', 'cedilla', 'hungarumlaut',
-    'ogonek', 'caron', 'emdash', 'AE', 'ordfeminine', 'Lslash', 'Oslash',
-    'OE', 'ordmasculine', 'ae', 'dotlessi', 'lslash', 'oslash', 'oe',
-    'germandbls', 'onesuperior', 'logicalnot', 'mu', 'trademark', 'Eth',
-    'onehalf', 'plusminus', 'Thorn', 'onequarter', 'divide', 'brokenbar',
-    'degree', 'thorn', 'threequarters', 'twosuperior', 'registered',
-    'minus', 'eth', 'multiply', 'threesuperior', 'copyright', 'Aacute',
-    'Acircumflex', 'Adieresis', 'Agrave', 'Aring', 'Atilde', 'Ccedilla',
-    'Eacute', 'Ecircumflex', 'Edieresis', 'Egrave', 'Iacute', 'Icircumflex',
-    'Idieresis', 'Igrave', 'Ntilde', 'Oacute', 'Ocircumflex', 'Odieresis',
-    'Ograve', 'Otilde', 'Scaron', 'Uacute', 'Ucircumflex', 'Udieresis',
-    'Ugrave', 'Yacute', 'Ydieresis', 'Zcaron', 'aacute', 'acircumflex',
-    'adieresis', 'agrave', 'aring', 'atilde', 'ccedilla', 'eacute',
-    'ecircumflex', 'edieresis', 'egrave', 'iacute', 'icircumflex',
-    'idieresis', 'igrave', 'ntilde', 'oacute', 'ocircumflex', 'odieresis',
-    'ograve', 'otilde', 'scaron', 'uacute', 'ucircumflex', 'udieresis',
-    'ugrave', 'yacute', 'ydieresis', 'zcaron', 'exclamsmall',
-    'Hungarumlautsmall', 'dollaroldstyle', 'dollarsuperior',
-    'ampersandsmall', 'Acutesmall', 'parenleftsuperior',
-    'parenrightsuperior', 'twodotenleader', 'onedotenleader',
-    'zerooldstyle', 'oneoldstyle', 'twooldstyle', 'threeoldstyle',
-    'fouroldstyle', 'fiveoldstyle', 'sixoldstyle', 'sevenoldstyle',
-    'eightoldstyle', 'nineoldstyle', 'commasuperior', 'threequartersemdash',
-    'periodsuperior', 'questionsmall', 'asuperior', 'bsuperior',
-    'centsuperior', 'dsuperior', 'esuperior', 'isuperior', 'lsuperior',
-    'msuperior', 'nsuperior', 'osuperior', 'rsuperior', 'ssuperior',
-    'tsuperior', 'ff', 'ffi', 'ffl', 'parenleftinferior',
-    'parenrightinferior', 'Circumflexsmall', 'hyphensuperior', 'Gravesmall',
-    'Asmall', 'Bsmall', 'Csmall', 'Dsmall', 'Esmall', 'Fsmall', 'Gsmall',
-    'Hsmall', 'Ismall', 'Jsmall', 'Ksmall', 'Lsmall', 'Msmall', 'Nsmall',
-    'Osmall', 'Psmall', 'Qsmall', 'Rsmall', 'Ssmall', 'Tsmall', 'Usmall',
-    'Vsmall', 'Wsmall', 'Xsmall', 'Ysmall', 'Zsmall', 'colonmonetary',
-    'onefitted', 'rupiah', 'Tildesmall', 'exclamdownsmall', 'centoldstyle',
-    'Lslashsmall', 'Scaronsmall', 'Zcaronsmall', 'Dieresissmall',
-    'Brevesmall', 'Caronsmall', 'Dotaccentsmall', 'Macronsmall',
-    'figuredash', 'hypheninferior', 'Ogoneksmall', 'Ringsmall',
-    'Cedillasmall', 'questiondownsmall', 'oneeighth', 'threeeighths',
-    'fiveeighths', 'seveneighths', 'onethird', 'twothirds', 'zerosuperior',
-    'foursuperior', 'fivesuperior', 'sixsuperior', 'sevensuperior',
-    'eightsuperior', 'ninesuperior', 'zeroinferior', 'oneinferior',
-    'twoinferior', 'threeinferior', 'fourinferior', 'fiveinferior',
-    'sixinferior', 'seveninferior', 'eightinferior', 'nineinferior',
-    'centinferior', 'dollarinferior', 'periodinferior', 'commainferior',
-    'Agravesmall', 'Aacutesmall', 'Acircumflexsmall', 'Atildesmall',
-    'Adieresissmall', 'Aringsmall', 'AEsmall', 'Ccedillasmall',
-    'Egravesmall', 'Eacutesmall', 'Ecircumflexsmall', 'Edieresissmall',
-    'Igravesmall', 'Iacutesmall', 'Icircumflexsmall', 'Idieresissmall',
-    'Ethsmall', 'Ntildesmall', 'Ogravesmall', 'Oacutesmall',
-    'Ocircumflexsmall', 'Otildesmall', 'Odieresissmall', 'OEsmall',
-    'Oslashsmall', 'Ugravesmall', 'Uacutesmall', 'Ucircumflexsmall',
-    'Udieresissmall', 'Yacutesmall', 'Thornsmall', 'Ydieresissmall',
-    '001.000', '001.001', '001.002', '001.003', 'Black', 'Bold', 'Book',
-    'Light', 'Medium', 'Regular', 'Roman', 'Semibold',
+    b'.notdef', b'space', b'exclam', b'quotedbl', b'numbersign', b'dollar',
+    b'percent', b'ampersand', b'quoteright', b'parenleft', b'parenright',
+    b'asterisk', b'plus', b'comma', b'hyphen', b'period', b'slash', b'zero', b'one',
+    b'two', b'three', b'four', b'five', b'six', b'seven', b'eight', b'nine',
+    b'colon', b'semicolon', b'less', b'equal', b'greater', b'question', b'at', b'A',
+    b'B', b'C', b'D', b'E', b'F', b'G', b'H', b'I', b'J', b'K', b'L', b'M', b'N', b'O',
+    b'P', b'Q', b'R', b'S', b'T', b'U', b'V', b'W', b'X', b'Y', b'Z', b'bracketleft',
+    b'backslash', b'bracketright', b'asciicircum', b'underscore', b'quoteleft',
+    b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j', b'k', b'l', b'm', b'n',
+    b'o', b'p', b'q', b'r', b's', b't', b'u', b'v', b'w', b'x', b'y', b'z', b'braceleft',
+    b'bar', b'braceright', b'asciitilde', b'exclamdown', b'cent', b'sterling',
+    b'fraction', b'yen', b'florin', b'section', b'currency', b'quotesingle',
+    b'quotedblleft', b'guillemotleft', b'guilsinglleft', b'guilsinglright',
+    b'fi', b'fl', b'endash', b'dagger', b'daggerdbl', b'periodcentered',
+    b'paragraph', b'bullet', b'quotesinglbase', b'quotedblbase',
+    b'quotedblright', b'guillemotright', b'ellipsis', b'perthousand',
+    b'questiondown', b'grave', b'acute', b'circumflex', b'tilde', b'macron',
+    b'breve', b'dotaccent', b'dieresis', b'ring', b'cedilla', b'hungarumlaut',
+    b'ogonek', b'caron', b'emdash', b'AE', b'ordfeminine', b'Lslash', b'Oslash',
+    b'OE', b'ordmasculine', b'ae', b'dotlessi', b'lslash', b'oslash', b'oe',
+    b'germandbls', b'onesuperior', b'logicalnot', b'mu', b'trademark', b'Eth',
+    b'onehalf', b'plusminus', b'Thorn', b'onequarter', b'divide', b'brokenbar',
+    b'degree', b'thorn', b'threequarters', b'twosuperior', b'registered',
+    b'minus', b'eth', b'multiply', b'threesuperior', b'copyright', b'Aacute',
+    b'Acircumflex', b'Adieresis', b'Agrave', b'Aring', b'Atilde', b'Ccedilla',
+    b'Eacute', b'Ecircumflex', b'Edieresis', b'Egrave', b'Iacute', b'Icircumflex',
+    b'Idieresis', b'Igrave', b'Ntilde', b'Oacute', b'Ocircumflex', b'Odieresis',
+    b'Ograve', b'Otilde', b'Scaron', b'Uacute', b'Ucircumflex', b'Udieresis',
+    b'Ugrave', b'Yacute', b'Ydieresis', b'Zcaron', b'aacute', b'acircumflex',
+    b'adieresis', b'agrave', b'aring', b'atilde', b'ccedilla', b'eacute',
+    b'ecircumflex', b'edieresis', b'egrave', b'iacute', b'icircumflex',
+    b'idieresis', b'igrave', b'ntilde', b'oacute', b'ocircumflex', b'odieresis',
+    b'ograve', b'otilde', b'scaron', b'uacute', b'ucircumflex', b'udieresis',
+    b'ugrave', b'yacute', b'ydieresis', b'zcaron', b'exclamsmall',
+    b'Hungarumlautsmall', b'dollaroldstyle', b'dollarsuperior',
+    b'ampersandsmall', b'Acutesmall', b'parenleftsuperior',
+    b'parenrightsuperior', b'twodotenleader', b'onedotenleader',
+    b'zerooldstyle', b'oneoldstyle', b'twooldstyle', b'threeoldstyle',
+    b'fouroldstyle', b'fiveoldstyle', b'sixoldstyle', b'sevenoldstyle',
+    b'eightoldstyle', b'nineoldstyle', b'commasuperior', b'threequartersemdash',
+    b'periodsuperior', b'questionsmall', b'asuperior', b'bsuperior',
+    b'centsuperior', b'dsuperior', b'esuperior', b'isuperior', b'lsuperior',
+    b'msuperior', b'nsuperior', b'osuperior', b'rsuperior', b'ssuperior',
+    b'tsuperior', b'ff', b'ffi', b'ffl', b'parenleftinferior',
+    b'parenrightinferior', b'Circumflexsmall', b'hyphensuperior', b'Gravesmall',
+    b'Asmall', b'Bsmall', b'Csmall', b'Dsmall', b'Esmall', b'Fsmall', b'Gsmall',
+    b'Hsmall', b'Ismall', b'Jsmall', b'Ksmall', b'Lsmall', b'Msmall', b'Nsmall',
+    b'Osmall', b'Psmall', b'Qsmall', b'Rsmall', b'Ssmall', b'Tsmall', b'Usmall',
+    b'Vsmall', b'Wsmall', b'Xsmall', b'Ysmall', b'Zsmall', b'colonmonetary',
+    b'onefitted', b'rupiah', b'Tildesmall', b'exclamdownsmall', b'centoldstyle',
+    b'Lslashsmall', b'Scaronsmall', b'Zcaronsmall', b'Dieresissmall',
+    b'Brevesmall', b'Caronsmall', b'Dotaccentsmall', b'Macronsmall',
+    b'figuredash', b'hypheninferior', b'Ogoneksmall', b'Ringsmall',
+    b'Cedillasmall', b'questiondownsmall', b'oneeighth', b'threeeighths',
+    b'fiveeighths', b'seveneighths', b'onethird', b'twothirds', b'zerosuperior',
+    b'foursuperior', b'fivesuperior', b'sixsuperior', b'sevensuperior',
+    b'eightsuperior', b'ninesuperior', b'zeroinferior', b'oneinferior',
+    b'twoinferior', b'threeinferior', b'fourinferior', b'fiveinferior',
+    b'sixinferior', b'seveninferior', b'eightinferior', b'nineinferior',
+    b'centinferior', b'dollarinferior', b'periodinferior', b'commainferior',
+    b'Agravesmall', b'Aacutesmall', b'Acircumflexsmall', b'Atildesmall',
+    b'Adieresissmall', b'Aringsmall', b'AEsmall', b'Ccedillasmall',
+    b'Egravesmall', b'Eacutesmall', b'Ecircumflexsmall', b'Edieresissmall',
+    b'Igravesmall', b'Iacutesmall', b'Icircumflexsmall', b'Idieresissmall',
+    b'Ethsmall', b'Ntildesmall', b'Ogravesmall', b'Oacutesmall',
+    b'Ocircumflexsmall', b'Otildesmall', b'Odieresissmall', b'OEsmall',
+    b'Oslashsmall', b'Ugravesmall', b'Uacutesmall', b'Ucircumflexsmall',
+    b'Udieresissmall', b'Yacutesmall', b'Thornsmall', b'Ydieresissmall',
+    b'001.000', b'001.001', b'001.002', b'001.003', b'Black', b'Bold', b'Book',
+    b'Light', b'Medium', b'Regular', b'Roman', b'Semibold',
 )
 """CFF standard strings."""
 
@@ -314,7 +314,7 @@ SIMPLE_POSTSCRIPT_UNIQUE_VALUES = {'true': True, 'false': False, 'null': None}
 POSTSCRIPT_WHITESPACE_RE = re.compile('[\0\t\n\r\f ]+')
 """Matches 1 or more PostScript whitespace."""
 
-NAME_CHAR_TO_HEX_KEEP_ESCAPED_RE = re.compile(r'[^-+A-Za-z0-9_.]')
+NAME_CHAR_TO_HEX_KEEP_ESCAPED_RE = re.compile(br'[^-+A-Za-z0-9_.]')
 """Matches a single character to be kept escaped internally to pdfsizeopt."""
 
 
@@ -979,14 +979,14 @@ def ParseCffNumber(op, number):
 def CffStringToName(
     data, _NAME_CHAR_TO_HEX_KEEP_ESCAPED_RE=NAME_CHAR_TO_HEX_KEEP_ESCAPED_RE):
   """Prepends '/', hex-escapes the rest."""
-  if data == '.notdef':  # Intern it to optimize for memory.
-    return '/.notdef'
+  if data == b'.notdef':  # Intern it to optimize for memory.
+    return b'/.notdef'
   if _NAME_CHAR_TO_HEX_KEEP_ESCAPED_RE.search(data):
     data = _NAME_CHAR_TO_HEX_KEEP_ESCAPED_RE.sub(
-        lambda match: '#%02X' % ord(match.group(0)), data)
-  if data.startswith('/'):
+        lambda match: b'#%02X' % ord(match.group(0)), data)
+  if data.startswith(b'/'):
     raise ValueError('CFF name string starts with /: %s' % data)
-  return '/' + data
+  return b'/' + data
 
 
 _CFF_EXPERT_CHARSET_SIDS = (

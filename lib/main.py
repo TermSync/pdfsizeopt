@@ -881,8 +881,8 @@ class PdfObj(object):
   """Matches stream or endobj in a PDF obj, prefixed with 1 char."""
 
   REST_OF_R_RE = re.compile(
-      r'(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+([-+]?\d+)'
-      r'(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+R(?=[\x00\t\n\r\f /%<>\[\](])')
+      br'(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+([-+]?\d+)'
+      br'(?:[\x00\t\n\r\f ]|%[^\r\n]*[\r\n])+R(?=[\x00\t\n\r\f /%<>\[\](])')
   """Matches the generation number and the 'R' (followed by a char)."""
 
   PDF_END_OF_REF_RE = re.compile(
@@ -1102,7 +1102,7 @@ class PdfObj(object):
   PDF_WHITESPACE_IN_SIMPLE_RE = re.compile(br'([^\x00\t\n\r\f ])[\x00\t\n\r\f ]+(?=([^\x00\t\n\r\f ]|\Z))')
   """Matches whitespace in a simple obj head."""
 
-  PDF_NUMBER_AT_EOS_RE = re.compile(r'(?:([-])|[+]?)0*(\d*(?:[.]\d*)?)\Z')
+  PDF_NUMBER_AT_EOS_RE = re.compile(br'(?:([-])|[+]?)0*(\d*(?:[.]\d*)?)\Z')
   """Matches a single PDF numeric token (real or integer).
 
   Captures some parts of the number in groups.
@@ -1116,8 +1116,7 @@ class PdfObj(object):
   PDF_KEYWORD_RE = re.compile('[a-z]+')
   """Matches a PDF keyword."""
 
-  PDF_KEYWORD_OR_NUMBER_AT_EOS_RE = re.compile(
-     '[a-z]+\Z|[+-]?(?:[.]\d*|\d+(?:[.]\d*)?)\Z')
+  PDF_KEYWORD_OR_NUMBER_AT_EOS_RE = re.compile(b'[a-z]+\Z|[+-]?(?:[.]\d*|\d+(?:[.]\d*)?)\Z')
   """Matches a PDF keyword (e.g. true, false, null, obj) or number."""
 
   PDF_STARTXREF_EOF_RE = re.compile(
@@ -1208,7 +1207,7 @@ class PdfObj(object):
       r'[\x00\t\n\r\f ]+|(<<)|<(?!<)([^>]*)>')
   """Matches whitespace (1 or more) or a hex string constant or <<."""
 
-  PDF_NAME_HEX_OR_HASHMARK_RE = re.compile(r'#([0-9a-fA-F]{2})?')
+  PDF_NAME_HEX_OR_HASHMARK_RE = re.compile(br'#([0-9a-fA-F]{2})?')
   """Matches a hex escape (#AB) in a PDF name token."""
 
   PDF_NONNAME_CHARS = '/[]{}()<>%\0\t\n\r\f '
@@ -3290,13 +3289,13 @@ class PdfObj(object):
     # exponential format (such as 6.02E23).
 
     # Convert the number to canonical (shortest) form.
-    token = (number_match.group(1) or '') + number_match.group(2)
-    if '.' in token:
-      token = token.rstrip('0')
-      if token.endswith('.'):
+    token = (number_match.group(1) or b'') + number_match.group(2)
+    if b'.' in token:
+      token = token.rstrip(b'0')
+      if token.endswith(b'.'):
         token = token[:-1]  # Convert real to integer: '42.' -> '42'
-    if token in ('', '-'):
-      token = '0'
+    if token in (b'', b'-'):
+      token = b'0'
     return token
 
   PDF_CLASSIFY = [40] * 256
@@ -3374,80 +3373,84 @@ class PdfObj(object):
     """
     # !! precompile regexps in this method (although sre._compile uses cache,
     # but if flushes the cache after 100 regexps)
+
+    if not isinstance(data, (bytes, memoryview)):
+      raise TypeError('data must be bytes or memoryview, not %r' % type(data))
+    
     data_size = len(data)
     i = start
     if data_size <= start:
       raise PdfTokenTruncated
     output = []
     # Stack of '[' (list) and '<' (dict)
-    stack = ['-']
+    stack = [b'-']
     if do_terminate_obj:
-      stack[:0] = ['.']
+      stack[:0] = [b'.']
 
     while stack:
       if i >= data_size:
         raise PdfTokenTruncated('structures open: %r' % stack)
 
-      o = cls.PDF_CLASSIFY[ord(data[i])]
+      o = cls.PDF_CLASSIFY[data[i]]
       if o == 0:  # whitespace
         i += 1
-        while i < data_size and cls.PDF_CLASSIFY[ord(data[i])] == 0:
+        while i < data_size and cls.PDF_CLASSIFY[data[i]] == 0:
           i += 1
       elif o == 14:  # [
-        stack.append('[')
-        output.append(' [')
+        stack.append(b'[')
+        output.append(b' [')
         i += 1
       elif o == 15:  # ]
         item = stack.pop()
-        if item != '[':
+        if item != b'[':
           raise PdfTokenParseError('got list-close, expected %r' % item)
-        output.append(' ]')
+        output.append(b' ]')
         i += 1
-        if stack[-1] == '-':
+        if stack[-1] == b'-':
           stack.pop()
       elif o in (18, 40):  # name or /name or number
         # TODO(pts): Be more strict on PDF token names.
         j = i
         p = o == 18
         i += 1
-        while i < data_size and cls.PDF_CLASSIFY[ord(data[i])] == 40:
+        while i < data_size and cls.PDF_CLASSIFY[data[i]] == 40:
           i += 1
-        if data[j] == '/':
+        if data[j] == ord('/'):
           token = data[j + 1 : i]
           if not token:
             raise PdfTokenTruncated('Empty PDF name token.')
           if not do_expect_postscript_name_input:
             try:
               token = cls.PDF_NAME_HEX_OR_HASHMARK_RE.sub(
-                  lambda match: chr(int(match.group(1), 16)), token)
+                  lambda match: bytes([int(match.group(1), 16)]), token)
             except TypeError:  # In int(...) if match.group(1) is None.
               raise PdfTokenParseError(
-                  'Invalid hex escape in PDF name %r' % ('/' + token))
-          token = '/' + cls.PDF_SAFE_KEEP_HEX_ESCAPED_RE.sub(
-              lambda match: '#%02X' % ord(match.group()), token)
+                  b'Invalid hex escape in PDF name %r' % (b'/' + token))
+          token = b'/' + cls.PDF_SAFE_KEEP_HEX_ESCAPED_RE.sub(
+              lambda match: b'#%02X' % ord(match.group()), token)
         else:
           token = data[j : i]
-          if token != 'R' and not cls.PDF_KEYWORD_OR_NUMBER_AT_EOS_RE.match(
+          if token != b'R' and not cls.PDF_KEYWORD_OR_NUMBER_AT_EOS_RE.match(
               token):
             raise PdfTokenParseError(
                 'Invalid character in keyword or number %r' % token)
 
         number_match = cls.PDF_NUMBER_AT_EOS_RE.match(token)
         if number_match:
-          output.append(' ' + cls._NormalizeNumber(number_match))
+          output.append(b' ' + cls._NormalizeNumber(number_match))
         else:
-          output.append(' ' + token)
+          output.append(b' ' + token)
 
-        if (number_match or token[0] == '/' or
-            token in ('true', 'false', 'null', 'R')):
-          if token == 'R' and (
+        if (number_match or chr(token[0]) == '/' or
+            token in (b'true', b'false', b'null', b'R')):
+          if token == b'R' and (
              len(output) < 3 or
-             not re.match(r' -?\d+\Z', output[-2]) or
-             not re.match(r' -?\d+\Z', output[-3])):
+             not re.match(br' -?\d+\Z', output[-2]) or
+             not re.match(br' -?\d+\Z', output[-3])):
             raise PdfTokenParseError(
                 'invalid R after %r' % output[-2:])
-          if stack[-1] == '-':
-            if re.match(' -?\d+\Z', output[-1]):
+          if stack[-1] == b'-':
+            if re.match(b' -?\d+\Z', output[-1]):
               # We have parsed `5' from `5 6 R', try to find the rest.
               # TODO(pts): raise PdfTokenTruncated if not available?
               match = cls.REST_OF_R_RE.match(data, i, len(data))
@@ -3456,46 +3459,46 @@ class PdfObj(object):
                 if int(output[-1]) <= 0 or num2 < 0:
                   raise PdfTokenParseError(
                       'invalid R: %s %s' % (output[-1], num2))
-                output.append(' %s R' % num2)
+                output.append(b' %d R' % num2)
                 i = match.end()
             stack.pop()
         else:
           # TODO(pts): Support parsing PDF content stream operators.
-          if stack[-1] != '.':
+          if stack[-1] != b'.':
             raise PdfTokenParseError(
                 'invalid operator %r with stack %r' % (token, stack))
           stack.pop()
           if i == len(data):
             raise PdfTokenTruncated
-          elif data[i] == '\r':
+          elif data[i] == ord('\r'):
             i += 1
             if i == data_size:
-              if output[-1] == ' stream':
+              if output[-1] == b' stream':
                 raise PdfTokenTruncated('missing \\n after \\r')
-            elif data[i] == '\n':  # Skip over \r\n.
+            elif data[i] == ord('\n'):  # Skip over \r\n.
               i += 1
-          elif cls.PDF_CLASSIFY[ord(data[i])] == 0:
+          elif cls.PDF_CLASSIFY[data[i]] == 0:
             i += 1  # Skip over whitespace.
       elif o == 11:  # >
         i += 1
         if i == data_size:
           raise PdfTokenTruncated
-        if data[i] != '>':
+        if data[i] != ord('>'):
           raise PdfTokenParseError('dict-close expected')
         item = stack.pop()
-        if item != '<':
+        if item != b'<':
           raise PdfTokenParseError('got dict-close, expected %r' % item)
-        output.append(' >>')
+        output.append(b' >>')
         i += 1
-        if stack[-1] == '-':
+        if stack[-1] == b'-':
           stack.pop()
       elif o == 10:  # <
         i += 1
         if i == data_size:
           raise PdfTokenTruncated
-        if data[i] == '<':
-          stack.append('<')
-          output.append(' <<')
+        if data[i] == ord('<'):
+          stack.append(b'<')
+          output.append(b' <<')
           i += 1
         else:  # A hex string literal.
           # This would also work here, but it contains an unnecessary
@@ -3504,25 +3507,25 @@ class PdfObj(object):
           #     data, i - 1, data_size, is_partial_ok=True)
           # output.append(' <%s>' % s.encode('hex'))
           match = cls.PDF_HEX_STRING_LITERAL_RE.match(data, i - 1, data_size)
-          if not match or data[match.end() - 1] != '>':
+          if not match or data[match.end() - 1] != ord('>'):
             if match and match.end() == data_size:
               raise PdfTokenTruncated('Truncated hex string.')
             raise PdfTokenParseError('Bad hex string.')
           j = match.end()
-          s = cls.PDF_WHITESPACE_RE.sub('', memoryview(data[i:j-1]))
-          output.append(' <%s%s>' % (s.lower(), '0' * (len(s) & 1)))
+          s = cls.PDF_WHITESPACE_RE.sub(b'', memoryview(data[i:j-1]))
+          output.append(b' <' + s.lower() + b'0' * (len(s) & 1) + b'>')
           i = j
           del s  # Save memory.
-          if stack[-1] == '-':
+          if stack[-1] == b'-':
             stack.pop()
       elif o == 16:  # A (...) string literal.
         s, i = cls.ParsePdfString(data, i, data_size, is_partial_ok=True)
-        output.append(' <%s>' % s.encode('hex'))
+        output.append(b' <' + binascii.hexlify(s) + b'>')
         del s  # Save memory.
-        if stack[-1] == '-':
+        if stack[-1] == b'-':
           stack.pop()
       elif o == 19:  # A single-line comment.
-        while i < data_size and data[i] != '\r' and data[i] != '\n':
+        while i < data_size and data[i] != ord('\r') and data[i] != ord('\n'):
           i += 1
         if i < data_size:
           i += 1  # Don't increase it further.
@@ -3531,7 +3534,7 @@ class PdfObj(object):
                                  data[i])
 
     assert i <= data_size
-    output_data = ''.join(output)
+    output_data = b''.join(output)
     assert output_data
     if end_ofs_out is not None:
       end_ofs_out.append(i)
