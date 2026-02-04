@@ -802,169 +802,168 @@ class PdfSizeOptTest(unittest.TestCase):
     self.assertRaisesX(main.PdfTokenParseError, F, b'> >')
     self.assertRaisesX(main.PdfTokenParseError, F, b'<<<')
     self.assertRaisesX(main.PdfTokenParseError, F, b'>>>')
-    
+
   def testParseTokensToSafeSimple(self, is_simple_ok=True):
     def F(data, **kwargs):
       return main.PdfObj.ParseTokensToSafe(
           memoryview(data), is_simple_ok=is_simple_ok, **kwargs)[0]
 
-    self.assertEqual('hello world', F('hello  world'))
-    self.assertEqual('foo', F('foo\t\f\0\r \n'))
-    self.assertEqual('world', F('%hello\rworld'))
-    self.assertEqual('($)', F('($)'))
-    self.assertEqual('<23>', F('(#)'))
-    self.assertEqual('', F(''))
-    self.assertEqual('', F('%hello'))
-    self.assertEqual('', F('%hello\n'))
-    self.assertEqual('/Foo#2C#2C 42', F('/Foo,, 42'))
-    self.assertEqual('/Foo#2C#2C 42', F('/Foo#2c#2C 42'))
-    self.assertEqual('/Foo#2C#2C 42', F('/Foo,#2c 42'))
-    self.assertRaisesX(main.PdfTokenParseError, F, '/')
+    self.assertEqual(b'hello world', F(b'hello  world'))
+    self.assertEqual(b'foo', F(b'foo\t\f\0\r \n'))
+    self.assertEqual(b'world', F(b'%hello\rworld'))
+    self.assertEqual(b'($)', F(b'($)'))
+    self.assertEqual(b'<23>', F(b'(#)'))
+    self.assertEqual(b'', F(b''))
+    self.assertEqual(b'', F(b'%hello'))
+    self.assertEqual(b'', F(b'%hello\n'))
+    self.assertEqual(b'/Foo#2C#2C 42', F(b'/Foo,, 42'))
+    self.assertEqual(b'/Foo#2C#2C 42', F(b'/Foo#2c#2C 42'))
+    self.assertEqual(b'/Foo#2C#2C 42', F(b'/Foo,#2c 42'))
+    self.assertRaisesX(main.PdfTokenParseError, F, b'/')
     # PdfTokenTruncated would be better.
-    self.assertRaisesX(main.PdfTokenParseError, F, '/#')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'/#')
     # PdfTokenTruncated would be better.
-    self.assertRaisesX(main.PdfTokenParseError, F, '/#2')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'/#2')
     # PdfTokenTruncated would be better.
-    self.assertRaisesX(main.PdfTokenParseError, F, '#')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'#')
     # PdfTokenTruncated would be better.
-    self.assertRaisesX(main.PdfTokenParseError, F, '#2')
-    self.assertRaisesX(main.PdfTokenTruncated, F, '(')
-    self.assertRaisesX(main.PdfTokenTruncated, F, '<')
-    self.assertEqual('[', F('['))
-    self.assertEqual('/#2A', F('/#2a'))
-    self.assertEqual('/J', F('/#4a'))
-    self.assertEqual('#2A', F('#2a'))
-    self.assertEqual('J', F('#4a'))
-
-    self.assertEqual('', F('\x00'))
-    self.assertEqual('\x01', F('\x01'))  # !!! #01
-    self.assertEqual('\x7f', F('\x7f'))  # !!! #7F
-    self.assertEqual('\x80', F('\x80'))  # !!! #80
-    self.assertEqual('\xff', F('\xff'))  # !!! #FF
-    self.assertEqual('#01', F('#01'))
-    self.assertEqual('#7F', F('#7f'))
-    self.assertEqual('#80', F('#80'))
-    self.assertEqual('#FF', F('#fF'))
-    self.assertRaisesX(main.PdfTokenParseError, F, '/')
-    self.assertRaisesX(main.PdfTokenParseError, F, '/\x00')
-    self.assertEqual('/#01', F('/\x01'))
-    self.assertEqual('/#7F', F('/\x7f'))
-    self.assertEqual('/#80', F('/\x80'))
-    self.assertEqual('/#FF', F('/\xff'))
-    self.assertEqual('/#00', F('/#00'))
-    self.assertEqual('/#01', F('/#01'))
-    self.assertEqual('/#7F', F('/#7f'))
-    self.assertEqual('/#80', F('/#80'))
-    self.assertEqual('/#FF', F('/#fF'))
+    self.assertRaisesX(main.PdfTokenParseError, F, b'#2')
+    self.assertRaisesX(main.PdfTokenTruncated, F, b'(')
+    self.assertRaisesX(main.PdfTokenTruncated, F, b'<')
+    self.assertEqual(b'[', F(b'['))
+    self.assertEqual(b'/#2A', F(b'/#2a'))
+    self.assertEqual(b'/J', F(b'/#4a'))
+    self.assertEqual(b'#2A', F(b'#2a'))
+    self.assertEqual(b'J', F(b'#4a'))
+    self.assertEqual(b'', F(b'\x00'))
+    self.assertEqual(b'\x01', F(b'\x01'))  # !!! #01
+    self.assertEqual(b'\x7f', F(b'\x7f'))  # !!! #7F
+    self.assertEqual(b'\x80', F(b'\x80'))  # !!! #80
+    self.assertEqual(b'\xff', F(b'\xff'))  # !!! #FF
+    self.assertEqual(b'#01', F(b'#01'))
+    self.assertEqual(b'#7F', F(b'#7f'))
+    self.assertEqual(b'#80', F(b'#80'))
+    self.assertEqual(b'#FF', F(b'#fF'))
+    self.assertRaisesX(main.PdfTokenParseError, F, b'/')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'/\x00')
+    self.assertEqual(b'/#01', F(b'/\x01'))
+    self.assertEqual(b'/#7F', F(b'/\x7f'))
+    self.assertEqual(b'/#80', F(b'/\x80'))
+    self.assertEqual(b'/#FF', F(b'/\xff'))
+    self.assertEqual(b'/#00', F(b'/#00'))
+    self.assertEqual(b'/#01', F(b'/#01'))
+    self.assertEqual(b'/#7F', F(b'/#7f'))
+    self.assertEqual(b'/#80', F(b'/#80'))
+    self.assertEqual(b'/#FF', F(b'/#fF'))
 
     # Most of these tests copied from testCompressValue. (Not everything was
     # copied.)
-    self.assertEqual('', F('\t\f\0\r \n'))
-    self.assertEqual('foo bar', F('   foo\n\t  bar\f'))
-    self.assertEqual('foo 123', F('foo%bar\r123'))
-    self.assertEqual('foo 123', F('foo%bar\n123'))
-    self.assertEqual(']foo/bar(\xba\xd0)>>', F(' ]  foo\n\t  /bar\f <bAd>>>'))
-    self.assertEqual('<<bAd CAFE>>', F('<<bAd  CAFE>>'))
-    self.assertEqual('<<(\xba\xdc\xaf\xe0)>>', F('<<<bad CAFE>>>'))
-    self.assertEqual('()', F('()'))
-    self.assertEqual('<2829>', F(' <2829>\t'))
-    self.assertEqual('<2829>', F(' (())%hi'))
-    self.assertEqual('<2829>', F(' (())\t'))
-    self.assertEqual('<2928>', F(' <2928>\t'))
-    self.assertEqual('[12 34]', F('[12%\n34]'))
-    self.assertEqual('[12 34]', F('[ 12 34 ]'))
-    self.assertEqual('<</A[12 34]>>', F(' << \t/A\f[12%\n34]>>\r'))
-    self.assertEqual('<2068656c6c6f090a>world', F(' ( hello\\t\n)world'))
-    self.assertEqual('<292828686929295c>world', F(' (\\)(\\(hi\\))\\\\)world'))
-    self.assertEqual('/#FAce#5BB', F('/\xface#5b#42\f'))
-    self.assertRaisesX(main.PdfTokenParseError, F, '/#')
-    s = '/Kids[041\t 0\rR\f43\n0% 96 0 R\rR 42 0 R 97 0 Rs 42 0 R]( 98 0 R )\f'
-    t = '/Kids[041 0 R 43 0 R 42 0 R 97 0 Rs 42 0 R]<2039382030205220>'
+    self.assertEqual(b'', F(b'\t\f\0\r \n'))
+    self.assertEqual(b'foo bar', F(b'   foo\n\t  bar\f'))
+    self.assertEqual(b'foo 123', F(b'foo%bar\r123'))
+    self.assertEqual(b'foo 123', F(b'foo%bar\n123'))
+    self.assertEqual(b']foo/bar(\xba\xd0)>>', F(b' ]  foo\n\t  /bar\f <bAd>>>'))
+    self.assertEqual(b'<<bAd CAFE>>', F(b'<<bAd  CAFE>>'))
+    self.assertEqual(b'<<(\xba\xdc\xaf\xe0)>>', F(b'<<<bad CAFE>>>'))
+    self.assertEqual(b'()', F(b'()'))
+    self.assertEqual(b'<2829>', F(b' <2829>\t'))
+    self.assertEqual(b'<2829>', F(b' (())%hi'))
+    self.assertEqual(b'<2829>', F(b' (())\t'))
+    self.assertEqual(b'<2928>', F(b' <2928>\t'))
+    self.assertEqual(b'[12 34]', F(b'[12%\n34]'))
+    self.assertEqual(b'[12 34]', F(b'[ 12 34 ]'))
+    self.assertEqual(b'<</A[12 34]>>', F(b' << \t/A\f[12%\n34]>>\r'))
+    self.assertEqual(b'<2068656c6c6f090a>world', F(b' ( hello\\t\n)world'))
+    self.assertEqual(b'<292828686929295c>world', F(b' (\\)(\\(hi\\))\\\\)world'))
+    self.assertEqual(b'/#FAce#5BB', F(b'/\xface#5b#42\f'))
+    self.assertRaisesX(main.PdfTokenParseError, F, b'/#')
+    s = b'/Kids[041\t 0\rR\f43\n0% 96 0 R\rR 42 0 R 97 0 Rs 42 0 R]( 98 0 R )\f'
+    t = b'/Kids[041 0 R 43 0 R 42 0 R 97 0 Rs 42 0 R]<2039382030205220>'
     self.assertEqual(t, F(s))
     self.assertEqual(t, F(F(s)))
-    uu = '/Kids[41 0 R 53 0 R 52 0 R 97 0 Rs 52 0 R]( 98 0 R )'
-    u = '/Kids[41 0 R 53 0 R 52 0 R 97 0 Rs 52 0 R]<2039382030205220>'
+    uu = b'/Kids[41 0 R 53 0 R 52 0 R 97 0 Rs 52 0 R]( 98 0 R )'
+    u = b'/Kids[41 0 R 53 0 R 52 0 R 97 0 Rs 52 0 R]<2039382030205220>'
     self.assertEqual(u, F(u))
     self.assertEqual(u, F(uu))
-    self.assertEqual('<</Length 68/Filter/FlateDecode>>',
-                     F('<</Length 68/Filter/FlateDecode >>'))
-    self.assertEqual('<</Type/Catalog/Pages 1 0 R>>',
-                     F('<</Type/Catalog/Pages 1 0 R >>'))
-    self.assertEqual('[/Zoo#3C#3E 1]', F('[/Zoo#3c#3e 1]'))
-    self.assertEqual('[/Zoo#3C#3E(a)/foo#2A/bar#2A#5B/pedal.#2A]',
-                     F('[/Zoo#3c#3e(a\\\n)/foo*/bar#2a#5b/pedal.#2a]'))
-    self.assertEqual('[/Zoo#3C#3E<0a>/foo#2A/bar#2A#5B/pedal.#2A]',
-                     F('[/Zoo#3c#3e(\r\\\n)/foo*/bar#2a#5b/pedal.#2a]'))
-    self.assertEqual('[/Zoo#3C#3E<0d>/foo#2A/bar#2A#5B/pedal.#2A]',
-                     F('[/Zoo#3c#3e(\\r\\\n)/foo*/bar#2a#5b/pedal.#2a]'))
+    self.assertEqual(b'<</Length 68/Filter/FlateDecode>>',
+                     F(b'<</Length 68/Filter/FlateDecode >>'))
+    self.assertEqual(b'<</Type/Catalog/Pages 1 0 R>>',
+                     F(b'<</Type/Catalog/Pages 1 0 R >>'))
+    self.assertEqual(b'[/Zoo#3C#3E 1]', F(b'[/Zoo#3c#3e 1]'))
+    self.assertEqual(b'[/Zoo#3C#3E(a)/foo#2A/bar#2A#5B/pedal.#2A]',
+                     F(b'[/Zoo#3c#3e(a\\\n)/foo*/bar#2a#5b/pedal.#2a]'))
+    self.assertEqual(b'[/Zoo#3C#3E<0a>/foo#2A/bar#2A#5B/pedal.#2A]',
+                     F(b'[/Zoo#3c#3e(\r\\\n)/foo*/bar#2a#5b/pedal.#2a]'))
+    self.assertEqual(b'[/Zoo#3C#3E<0d>/foo#2A/bar#2A#5B/pedal.#2A]',
+                     F(b'[/Zoo#3c#3e(\\r\\\n)/foo*/bar#2a#5b/pedal.#2a]'))
 
     # Most of these tests copied from testRewriteToParsable. (Not everything
     # was copied.)
-    self.assertEqual('[]', F('[]'))
-    self.assertEqual('[]<<', F('[]<<'))
-    self.assertEqual('true', F('true '))
-    self.assertEqual('true', F('true'))
-    self.assertEqual('hi', F('hi '))
+    self.assertEqual(b'[]', F(b'[]'))
+    self.assertEqual(b'[]<<', F(b'[]<<'))
+    self.assertEqual(b'true', F(b'true '))
+    self.assertEqual(b'true', F(b'true'))
+    self.assertEqual(b'hi', F(b'hi '))
     eo = []
-    self.assertEqual('false true', F('\n\t\r \f\0false true ', end_ofs_out=eo))
+    self.assertEqual(b'false true', F(b'\n\t\r \f\0false true ', end_ofs_out=eo))
     self.assertEqual([17], eo)
-    self.assertEqual('<<true false null>>baz',
-                     F('% hi\r<<%\ntrue false null>>baz'))
-    self.assertEqual('<<true>>baz',
-                     F('<<true>>baz'))
-    self.assertEqual('[[<<[<<<<>>>>]>>]]', F('[[<<[<<<<>>>>]>>]]'))
+    self.assertEqual(b'<<true false null>>baz',
+                     F(b'% hi\r<<%\ntrue false null>>baz'))
+    self.assertEqual(b'<<true>>baz',
+                     F(b'<<true>>baz'))
+    self.assertEqual(b'[[<<[<<<<>>>>]>>]]', F(b'[[<<[<<<<>>>>]>>]]'))
     # Unbalanced << and [. It's OK.
-    self.assertEqual('[[<<[<<<<>>]>>>>]]', F('[[<<[<<<<>>]>>>>]]'))
-    self.assertEqual('', F('\t \n% foo'))
-    self.assertEqual('[', F(' [\t'))
-    self.assertRaisesX(main.PdfTokenTruncated, F, '\n<\f')
-    self.assertEqual('<<', F('\t<<\n\r'))
-    self.assertEqual('[<<', F('[<<'))
-    self.assertEqual('[<<]', F('[<<]'))
-    self.assertEqual('[>>]', F('[>>]'))
-    self.assertEqual('()', F('()'))  # Different from RewriteToParsable.
-    self.assertEqual('()', F('<>'))  # Different from RewriteToParsable.
-    self.assertEqual('<<', F('<<'))
-    self.assertEqual('>>', F('>>'))
-    self.assertEqual('[', F('['))
-    self.assertEqual(']', F(']'))
-    self.assertRaisesX(main.PdfTokenTruncated, F, '(foo')
-    self.assertRaisesX(main.PdfTokenTruncated, F, '(foo\\)bar')
-    self.assertEqual('<face654389210b7d>', F('< f\nAc\tE\r654389210B7d\f>'))
-    self.assertEqual('<48656c6c6f2c20576f726c6421>', F('(Hello, World!)'))
-    self.assertEqual('<2828666f6f2929296261725c>', F('(((foo))\\)bar\\\\)'))
-    self.assertEqual('<410a420a430a440a0a45>', F('(A\rB\nC\r\nD\n\rE)'))
-    self.assertEqual('<0a280d2900>', F('(\\n(\\r)\\0)'))
-    self.assertEqual('<0a280a2900780a790a0a7a>', F('(\n(\r)\0x\r\ny\n\rz)'))
-    self.assertEqual('(FooBarBaz)', F('(Foo\\\nBar\\\rBa\\\r\nz)'))
-    self.assertEqual('<466f6f4261720a42617a>', F('(Foo\\\r\nBar\\\n\rBaz)'))
-    self.assertEqual('<2829%s>' % ''.join(['%02x' % {13: 10}.get(i, i)
-                                            for i in range(33)]),
-                     F('(()%s)' % ''.join(map(chr, range(33)))))
-    self.assertEqual('<face422829>', F('(\xfa\xCE\x42())'))
-    self.assertEqual('<00210023>', F('(\0!\\0#)'))
-    self.assertEqual('<073839380a>', F('(\78\98\12)'))
-    self.assertEqual('(\x0501)', F('(\\501)'))
-    self.assertEqual('<0a0a09080c>', F('(\n\r\t\b\f)'))
-    self.assertEqual('<0a0d09080c>', F('(\\n\\r\\t\\b\\f)'))
-    self.assertEqual('<236141>', F('(\\#\\a\\A)'))
-    self.assertEqual('<61275c>', F("(a'\\\\)"))
-    self.assertEqual('<314f5c60>', F('<\n3\t1\r4f5C6 >'))
-    self.assertEqual('<0006073839050e170338043805380638073838380a3913391f39>',
-                     F('(\0\6\7\8\9\05\16\27\38\48\58\68\78\88\129\239\379)'))
-    self.assertEqual('<666f6f0a626172>', F('(foo\nbar)'))
-    self.assertEqual('<666f6f0a626172>', F('(foo\\nbar)'))
-    self.assertEqual('(foobar)', F('(foo\\\nbar)'))
-    self.assertEqual('<0006073839050e170338043805380638073838380a3913391f39'
-                     '043031053031063031073031>',
-                     F('(\\0\\6\\7\\8\\9\\05\\16\\27\\38\\48\\58\\68\\78\\88'
-                       '\\129\\239\\379\\401\\501\\601\\701)'))
+    self.assertEqual(b'[[<<[<<<<>>]>>>>]]', F(b'[[<<[<<<<>>]>>>>]]'))
+    self.assertEqual(b'', F(b'\t \n% foo'))
+    self.assertEqual(b'[', F(b' [\t'))
+    self.assertRaisesX(main.PdfTokenTruncated, F, b'\n<\f')
+    self.assertEqual(b'<<', F(b'\t<<\n\r'))
+    self.assertEqual(b'[<<', F(b'[<<'))
+    self.assertEqual(b'[<<]', F(b'[<<]'))
+    self.assertEqual(b'[>>]', F(b'[>>]'))
+    self.assertEqual(b'()', F(b'()'))  # Different from RewriteToParsable.
+    self.assertEqual(b'()', F(b'<>'))  # Different from RewriteToParsable.
+    self.assertEqual(b'<<', F(b'<<'))
+    self.assertEqual(b'>>', F(b'>>'))
+    self.assertEqual(b'[', F(b'['))
+    self.assertEqual(b']', F(b']'))
+    self.assertRaisesX(main.PdfTokenTruncated, F, b'(foo')
+    self.assertRaisesX(main.PdfTokenTruncated, F, b'(foo\\)bar')
+    self.assertEqual(b'<face654389210b7d>', F(b'< f\nAc\tE\r654389210B7d\f>'))
+    self.assertEqual(b'<48656c6c6f2c20576f726c6421>', F(b'(Hello, World!)'))
+    self.assertEqual(b'<2828666f6f2929296261725c>', F(b'(((foo))\\)bar\\\\)'))
+    self.assertEqual(b'<410a420a430a440a0a45>', F(b'(A\rB\nC\r\nD\n\rE)'))
+    self.assertEqual(b'<0a280d2900>', F(b'(\\n(\\r)\\0)'))
+    self.assertEqual(b'<0a280a2900780a790a0a7a>', F(b'(\n(\r)\0x\r\ny\n\rz)'))
+    self.assertEqual(b'(FooBarBaz)', F(b'(Foo\\\nBar\\\rBa\\\r\nz)'))
+    self.assertEqual(b'<466f6f4261720a42617a>', F(b'(Foo\\\r\nBar\\\n\rBaz)'))
+    self.assertEqual(bytes('<2829%s>' % ''.join(['%02x' % {13: 10}.get(i, i)
+                                                  for i in range(33)]), 'ascii'),
+                     F(b'(()' + bytes(range(33)) + b')'))
+    self.assertEqual(b'<face422829>', F(b'(\xfa\xCE\x42())'))
+    self.assertEqual(b'<00210023>', F(b'(\0!\\0#)'))
+    self.assertEqual(b'<073839380a>', F(b'(\78\98\12)'))
+    self.assertEqual(b'(\x0501)', F(b'(\\501)'))
+    self.assertEqual(b'<0a0a09080c>', F(b'(\n\r\t\b\f)'))
+    self.assertEqual(b'<0a0d09080c>', F(b'(\\n\\r\\t\\b\\f)'))
+    self.assertEqual(b'<236141>', F(b'(\\#\\a\\A)'))
+    self.assertEqual(b'<61275c>', F(b"(a'\\\\)"))
+    self.assertEqual(b'<314f5c60>', F(b'<\n3\t1\r4f5C6 >'))
+    self.assertEqual(b'<0006073839050e170338043805380638073838380a3913391f39>',
+                     F(b'(\0\6\7\8\9\05\16\27\38\48\58\68\78\88\129\239\379)'))
+    self.assertEqual(b'<666f6f0a626172>', F(b'(foo\nbar)'))
+    self.assertEqual(b'<666f6f0a626172>', F(b'(foo\\nbar)'))
+    self.assertEqual(b'(foobar)', F(b'(foo\\\nbar)'))
+    self.assertEqual(b'<0006073839050e170338043805380638073838380a3913391f39'
+                     b'043031053031063031073031>',
+                     F(b'(\\0\\6\\7\\8\\9\\05\\16\\27\\38\\48\\58\\68\\78\\88'
+                       b'\\129\\239\\379\\401\\501\\601\\701)'))
     # PDF doesn't have \x
-    self.assertEqual('(xfaxbCxDE\xf8)', F('(\\xfa\\xbC\\xDE\xF8)'))
-    self.assertEqual('0', F('0'))
-    self.assertEqual('.', F('.'))
-    self.assertEqual('42', F('42'))
-    self.assertEqual('42', F('42 '))
+    self.assertEqual(b'(xfaxbCxDE\xf8)', F(b'(\\xfa\\xbC\\xDE\xF8)'))
+    self.assertEqual(b'0', F(b'0'))
+    self.assertEqual(b'.', F(b'.'))
+    self.assertEqual(b'42', F(b'42'))
+    self.assertEqual(b'42', F(b'42 '))
 
     # Different from RewriteToParsable.
     #self.assertEqual('0', F('00000 '))
@@ -993,105 +992,103 @@ class PdfSizeOptTest(unittest.TestCase):
     #self.assertEqual('[ 0 0 0 ]', F('[000. -000. +000.]'))
     #self.assertEqual('[ 0 0 0 ]', F('[.0 -.0 +.0]'))
     #self.assertEqual('[ 0 0 0 ]', F('[.000 -.000 +.000]'))
-    #self.assertEqual('[ 0 0 0 ]', F('[00.000 -00.000 +00.000]'))
+    # self.assertEqual('[ 0 0 0 ]', F('[00.000 -00.000 +00.000]'))
 
-    self.assertEqual('12 345 R', F(' 12 345 R '))
+    self.assertEqual(b'12 345 R', F(b' 12 345 R '))
 
     end_ofs_out = []
-    self.assertEqual('5 endobj', F(' 5 endobj\t', end_ofs_out=end_ofs_out))
+    self.assertEqual(b'5 endobj', F(b' 5 endobj\t', end_ofs_out=end_ofs_out))
     self.assertEqual([10], end_ofs_out)
     end_ofs_out = []
-    self.assertEqual('5 endobj 6', F(' 5 endobj\t6', end_ofs_out=end_ofs_out))
+    self.assertEqual(b'5 endobj 6', F(b' 5 endobj\t6', end_ofs_out=end_ofs_out))
     self.assertEqual([11], end_ofs_out)
     end_ofs_out = []
-    self.assertEqual('5()endobj', F(' 5() endobj\t', end_ofs_out=end_ofs_out))
+    self.assertEqual(b'5()endobj', F(b' 5() endobj\t', end_ofs_out=end_ofs_out))
     self.assertEqual([12], end_ofs_out)
-    self.assertRaisesX(main.PdfTokenParseError, F, '/#')
-    self.assertRaisesX(main.PdfTokenParseError, F, '/ ')
-    self.assertRaisesX(main.PdfTokenParseError, F, '/')
-    self.assertRaisesX(main.PdfTokenParseError, F, '/%')
-    self.assertEqual('/#2A', F('/*'))
-    self.assertEqual('/STROZ#2F', F('/STR#4fZ#2f'))
-    self.assertEqual('/STROZ', F('/STR#4FZ\r\n\t\t\t \t'))
+    self.assertRaisesX(main.PdfTokenParseError, F, b'/#')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'/ ')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'/')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'/%')
+    self.assertEqual(b'/#2A', F(b'/*'))
+    self.assertEqual(b'/STROZ#2F', F(b'/STR#4fZ#2f'))
+    self.assertEqual(b'/STROZ', F(b'/STR#4FZ\r\n\t\t\t \t'))
     end_ofs_out = []
-    self.assertEqual('5/STROZ hi',
-                     F(' 5 /STR#4FZ hi\r\n\t\t\t \t',
+    self.assertEqual(b'5/STROZ hi',
+                     F(b' 5 /STR#4FZ hi\r\n\t\t\t \t',
                        end_ofs_out=end_ofs_out))
     self.assertEqual([21], end_ofs_out)
-    self.assertEqual('5 STROZ', F(' 5 STR#4FZ\r\n\t\t\t \t'))
+    self.assertEqual(b'5 STROZ', F(b' 5 STR#4FZ\r\n\t\t\t \t'))
     # It could be PdfTokenTruncated as well.
-    self.assertRaisesX(main.PdfTokenParseError, F, '#')
-    self.assertRaisesX(main.PdfTokenParseError, F, '()#')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'#')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'()#')
     end_ofs_out = []
-    self.assertEqual('/Size 42', F('/Size 42 ', end_ofs_out=end_ofs_out))
+    self.assertEqual(b'/Size 42', F(b'/Size 42 ', end_ofs_out=end_ofs_out))
     self.assertEqual([9], end_ofs_out)
-    self.assertEqual('[/Size 42]', F('[/Size 42]'))
-    self.assertEqual('<</Size 42>>', F('<</Size 42>>'))
-    self.assertEqual('[true 42]', F('[true\n%korte\n42]'))
-    self.assertEqual('[true 42]', F('[true%korte\n42]'))
-    self.assertEqual('hello world', F('hello \n\t world\n\t'))
-    self.assertEqual('null false', F('null \n\t false\n\t'))
+    self.assertEqual(b'[/Size 42]', F(b'[/Size 42]'))
+    self.assertEqual(b'<</Size 42>>', F(b'<</Size 42>>'))
+    self.assertEqual(b'[true 42]', F(b'[true\n%korte\n42]'))
+    self.assertEqual(b'[true 42]', F(b'[true%korte\n42]'))
+    self.assertEqual(b'hello world', F(b'hello \n\t world\n\t'))
+    self.assertEqual(b'null false', F(b'null \n\t false\n\t'))
     # This is invalid PDF (null is not a name), but we don't catch it.
-    self.assertEqual('<<null false>>', F('\r<<null \n\t false\n\t>>'))
-    self.assertEqual('<<true>>', F('<<true>>'))
-    self.assertEqual('true foo bar', F('true foo bar'))
-    self.assertEqual('true foo', F('true foo'))
-    self.assertEqual('<68656c296c6f0a0877286f72296c64>',
-                     F('(hel\)lo\n\bw(or)ld)'))
-    self.assertRaisesX(main.PdfTokenTruncated, F, '(hel\)lo\n\bw(orld)')
-    self.assertEqual('[<68656c296c6f0a0877286f72296c64>]',
-                     F(' [ (hel\\051lo\\012\\010w\\050or\\051ld) ]'))
+    self.assertEqual(b'<<null false>>', F(b'\r<<null \n\t false\n\t>>'))
+    self.assertEqual(b'<<true>>', F(b'<<true>>'))
+    self.assertEqual(b'true foo bar', F(b'true foo bar'))
+    self.assertEqual(b'true foo', F(b'true foo'))
+    self.assertEqual(b'<68656c296c6f0a0877286f72296c64>',
+                     F(b'(hel\)lo\n\bw(or)ld)'))
+    self.assertRaisesX(main.PdfTokenTruncated, F, b'(hel\)lo\n\bw(orld)')
+    self.assertEqual(b'[<68656c296c6f0a0877286f72296c64>]',
+                     F(b' [ (hel\\051lo\\012\\010w\\050or\\051ld) ]'))
     self.assertRaisesX(main.PdfTokenTruncated,
-                     F, ' [ (hel\\051lo\\012\\010w\\050or\\051ld) ]<')
-    self.assertEqual('<<<5c>', F('<< <5C>'))
-    self.assertEqual('<5c>>>', F('<5C> >>'))
-    self.assertEqual('()<<<5c>', F('()<< <5C>'))
-    self.assertEqual('()<5c>>>', F('()<5C> >>'))
-    self.assertRaisesX(main.PdfTokenParseError, F, '{')
-    self.assertRaisesX(main.PdfTokenParseError, F, '}')
-    self.assertRaisesX(main.PdfTokenParseError, F, '{}')
-    self.assertRaisesX(main.PdfTokenTruncated, F, '<')
-    self.assertRaisesX(main.PdfTokenTruncated, F, '< ')
-    self.assertRaisesX(main.PdfTokenParseError, F, '>')
-    self.assertRaisesX(main.PdfTokenParseError, F, '> >')
-    self.assertRaisesX(main.PdfTokenParseError, F, '>>>')
-    self.assertRaisesX(main.PdfTokenTruncated, F, '<<<')
-    self.assertRaisesX(main.PdfTokenTruncated, F, '<<<ff')
-    self.assertRaisesX(main.PdfTokenParseError, F, '<<<foo')
-    self.assertRaisesX(main.PdfTokenTruncated, F, '<<<')
-    self.assertRaisesX(main.PdfTokenParseError, F, '()>')
-    self.assertRaisesX(main.PdfTokenParseError, F, '()< <')
-    self.assertRaisesX(main.PdfTokenParseError, F, '()> >')
-    self.assertRaisesX(main.PdfTokenParseError, F, '()>>>')
-    self.assertRaisesX(main.PdfTokenTruncated, F, '()<<<')
-    self.assertEqual('[>>', F('[ >>'))
+                     F, b' [ (hel\\051lo\\012\\010w\\050or\\051ld) ]<')
+    self.assertEqual(b'<<<5c>', F(b'<< <5C>'))
+    self.assertEqual(b'<5c>>>', F(b'<5C> >>'))
+    self.assertEqual(b'()<<<5c>', F(b'()<< <5C>'))
+    self.assertEqual(b'()<5c>>>', F(b'()<5C> >>'))
+    self.assertRaisesX(main.PdfTokenParseError, F, b'{')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'}')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'{}')
+    self.assertRaisesX(main.PdfTokenTruncated, F, b'<')
+    self.assertRaisesX(main.PdfTokenTruncated, F, b'< ')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'>')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'> >')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'>>>')
+    self.assertRaisesX(main.PdfTokenTruncated, F, b'<<<')
+    self.assertRaisesX(main.PdfTokenTruncated, F, b'<<<ff')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'<<<foo')
+    self.assertRaisesX(main.PdfTokenTruncated, F, b'<<<')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'()>')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'()< <')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'()> >')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'()>>>')
+    self.assertRaisesX(main.PdfTokenTruncated, F, b'()<<<')
+    self.assertEqual(b'[>>', F(b'[ >>'))
     self.assertRaisesX(main.PdfTokenTruncated,
-                      F, '[ (hel\\)lo\\n\\bw(or)ld) <')
-    self.assertRaisesX(main.PdfTokenTruncated, F, '<\n3\t1\r4f5C5')
-    self.assertRaisesX(main.PdfTokenParseError, F, '<\n3\t1\r4f5C5]>')
+                      F, b'[ (hel\\)lo\\n\\bw(or)ld) <')
+    self.assertRaisesX(main.PdfTokenTruncated, F, b'<\n3\t1\r4f5C5')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'<\n3\t1\r4f5C5]>')
     # 'stream\r' is truncated, we're waiting for 'stream\r\n'.
-    self.assertEqual('<<>>stream', F('<< >>stream\r'))
-    self.assertEqual('<<>>blah', F('<<>>blah\r'))
-    self.assertEqual('<<>>stream', F('<<>>stream\n'))
-    self.assertEqual('<<>>stream', F('<<>>stream\r\n'))
-    self.assertEqual('<</Type/Catalog/Pages 3 0 R>>',
-                     F('<</Type /Catalog /Pages 3 0 R\n>>'))
-    self.assertEqual('42 true R', F(' 42 true R'))
+    self.assertEqual(b'<<>>stream', F(b'<< >>stream\r'))
+    self.assertEqual(b'<<>>blah', F(b'<<>>blah\r'))
+    self.assertEqual(b'<<>>stream', F(b'<<>>stream\n'))
+    self.assertEqual(b'<<>>stream', F(b'<<>>stream\r\n'))
+    self.assertEqual(b'<</Type/Catalog/Pages 3 0 R>>',
+                     F(b'<</Type /Catalog /Pages 3 0 R\n>>'))
+    self.assertEqual(b'42 true R', F(b' 42 true R'))
     eo = []
-    self.assertEqual('442 43 R', F('\t442%foo\r43\fR   ', end_ofs_out=eo))
+    self.assertEqual(b'442 43 R', F(b'\t442%foo\r43\fR   ', end_ofs_out=eo))
     self.assertEqual(16, eo[0])  # spaces not included
     eo = []
-    self.assertEqual('442 43 R/n', F('\t442%foo\r43\fR/n', end_ofs_out=eo))
-    self.assertEqual('+442 +43 R/n', F('\t+442%foo\r+43\fR/n', end_ofs_out=eo))
+    self.assertEqual(b'442 43 R/n', F(b'\t442%foo\r43\fR/n', end_ofs_out=eo))
+    self.assertEqual(b'+442 +43 R/n', F(b'\t+442%foo\r+43\fR/n', end_ofs_out=eo))
     self.assertEqual(15, eo[0])  # spaces not included
-    self.assertEqual('<</Pages -333 -1 R>>', F('<</Pages -333 -1 R\n>>'))
-    self.assertEqual('<</Pages 0 55 R>>', F('<</Pages 0 55 R\n>>'))
-
-    self.assertEqual('<313220332052>', F('(12 3 R)'))
+    self.assertEqual(b'<</Pages -333 -1 R>>', F(b'<</Pages -333 -1 R\n>>'))
+    self.assertEqual(b'<</Pages 0 55 R>>', F(b'<</Pages 0 55 R\n>>'))
+    self.assertEqual(b'<313220332052>', F(b'(12 3 R)'))
     # It's important that this returns a hex string, so that it doesn't trigger a false match on
     # PDF_SIMPLE_REF_RE.
-    self.assertEqual('<61312031322030205273>', F('(a1 12 0 Rs)'))
-
+    self.assertEqual(b'<61312031322030205273>', F(b'(a1 12 0 Rs)'))
     # !!! Copy tests from testPdfObjParse.
 
   def testParseTokensToSafeComplicated(self):

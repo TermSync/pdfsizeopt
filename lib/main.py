@@ -1006,7 +1006,7 @@ class PdfObj(object):
   PDF_TOKENS_SAFE_STRING_RE = re.compile(
       br'([-+A-Za-z0-9_./#\[\] ]+|>>|'
       br'<(?:<|[0-9a-f]*>)|'
-      br'\([^' + re.escape(PDF_STRING_UNSAFE_CHARS) + b']*\))+')
+      br'\([^' + re.escape(PDF_STRING_UNSAFE_CHARS) + br']*\))+')
   """Matches a safe prefix of a PDF token sequence.
 
   This regexp accepts 'foo' and 'fooBar' and '<> <> R' as safe, and it also
@@ -1023,7 +1023,7 @@ class PdfObj(object):
   """
 
   PDF_TOKENS_UNSAFE_CHARS_RE = re.compile(r'[{}\\\v\x00\t\n\r\f%\\]+')
-  """Matches a single unsafe character in a PDF token sequence.
+  r"""Matches a single unsafe character in a PDF token sequence.
 
   * Space is not unsafe, we need it for `/Length 5'.
   * Non-space whitespace is considered unsafe because we normalize to space.
@@ -1056,7 +1056,7 @@ class PdfObj(object):
   trailing >."""
 
   PDF_HEX_STRING_LITERAL_RE = re.compile(br'<[\x00\t\n\r\f 0-9a-fA-F]*>?')
-  """Matches a PDF hex <...> string literal, where the trailing > is optional,
+  r"""Matches a PDF hex <...> string literal, where the trailing > is optional,
   but then anchored to \Z."""
 
   PDF_UNSAFE_NAME_IN_SIMPLE_RE = re.compile(br'[!"$&\'*,:;=?@\\^`|~]')
@@ -1097,7 +1097,7 @@ class PdfObj(object):
       + PDF_STREAM_OR_ENDOBJ_RE.pattern[:-1] + b'|startxref[\0\t\n\r\f ]|xref[\0\t\n\r\f ])' )  # 9. stream or endobj or startxref or xref.
   """Matches interesting parts of a non-simple obj head."""
 
-  PDF_EMPTY_NAME_TOKEN_RE = re.compile(b'/(?:[<>(){}\[\]/\0\t\n\r\f %]|\Z)')
+  PDF_EMPTY_NAME_TOKEN_RE = re.compile(br'/(?:[<>(){}\[\]/\0\t\n\r\f %]|\Z)')
 
   PDF_WHITESPACE_IN_SIMPLE_RE = re.compile(br'([^\x00\t\n\r\f ])[\x00\t\n\r\f ]+(?=([^\x00\t\n\r\f ]|\Z))')
   """Matches whitespace in a simple obj head."""
@@ -1113,10 +1113,10 @@ class PdfObj(object):
   !!! Don't accept it here.
   """
 
-  PDF_KEYWORD_RE = re.compile('[a-z]+')
+  PDF_KEYWORD_RE = re.compile(b'[a-z]+')
   """Matches a PDF keyword."""
 
-  PDF_KEYWORD_OR_NUMBER_AT_EOS_RE = re.compile(b'[a-z]+\Z|[+-]?(?:[.]\d*|\d+(?:[.]\d*)?)\Z')
+  PDF_KEYWORD_OR_NUMBER_AT_EOS_RE = re.compile(br'[a-z]+\Z|[+-]?(?:[.]\d*|\d+(?:[.]\d*)?)\Z')
   """Matches a PDF keyword (e.g. true, false, null, obj) or number."""
 
   PDF_STARTXREF_EOF_RE = re.compile(
@@ -1232,7 +1232,7 @@ class PdfObj(object):
   """Matches PDF string literal special chars ( ) \\ \r ."""
 
   PDF_SIMPLE_STRING_RE = re.compile(br'\(([^()\\\r]*)\)')
-  """Matches a PDF string literal without special chars ( ) \\ \r . No \Z."""
+  r"""Matches a PDF string literal without special chars ( ) \\ \r . No \Z."""
 
   PDF_COMMENT_OR_STRING_RE = re.compile(
       br'%[^\r\n]*|\(([^()\\]*)\)|(\()')
@@ -1254,7 +1254,7 @@ class PdfObj(object):
   """Matches a hex string or <<."""
 
   PDF_SIMPLE_TOKEN_RE = re.compile(
-      b' |(/?[^/{}\[\]()<>\0\t\n\r\f %]+)|<<|>>|[\[\]]|<([a-f0-9]*)>')
+      br' |(/?[^/{}\[\]()<>\0\t\n\r\f %]+)|<<|>>|[\[\]]|<([a-f0-9]*)>')
   """Matches a simple PDF token.
 
   PdfObj.CompressValue(data, do_emit_strings_as_hex=True emits) a string of
@@ -1663,12 +1663,15 @@ class PdfObj(object):
       # to '<<' etc.
       for match in cls.PDF_ANGLE_BRACKET_FOR_SIMPLE_RE.finditer(data):
         a = match.group()
-        if len(a) < 2 or chr(a[-1]) not in '<>':
-          if (len(a) >= 2 and chr(a[0]) == '<' and chr(a[1]) != '<' and end == match.end() and
-              not (do_expect_endobj or do_expect_startxref)):
-            raise PdfTokenTruncated('Truncated hex string.')
-          else:
-            raise PdfTokenParseError('Invalid < or > token.')
+        try:
+          if len(a) < 2 or chr(a[-1]) not in '<>':
+            if (chr(a[0]) == '<' and chr(a[1]) != '<' and end == match.end() and
+                not (do_expect_endobj or do_expect_startxref)):
+              raise PdfTokenTruncated('Truncated hex string.')
+            else:
+              raise PdfTokenParseError('Invalid < or > token.')
+        except IndexError:
+          raise PdfTokenTruncated('Truncated hex string.')
       # !!! Bug: add these tests:
       # to fix, because we want '<< <5c>' changed to '<<<5c>' and '<5c> >>'
       # changed to '<5c>>>'.
@@ -3451,7 +3454,7 @@ class PdfObj(object):
             raise PdfTokenParseError(
                 'invalid R after %r' % output[-2:])
           if stack[-1] == b'-':
-            if re.match(b' -?\d+\Z', output[-1]):
+            if re.match(br' -?\d+\Z', output[-1]):
               # We have parsed `5' from `5 6 R', try to find the rest.
               # TODO(pts): raise PdfTokenTruncated if not available?
               match = cls.REST_OF_R_RE.match(data, i, len(data))
