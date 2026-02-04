@@ -756,9 +756,9 @@ def GetCmdName(cmd_pattern):
 # Allowed in /Encoding of /TypeFont, pdf_reference_1-7.pdf page 414.
 # gs -dNODISPLAY -q -P- -c '/MacRomanEncoding .findencoding === quit'
 PDF_FONT_ENCODINGS = {
-   'WinAnsiEncoding': '/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /space /exclam /quotedbl /numbersign /dollar /percent /ampersand /quotesingle /parenleft /parenright /asterisk /plus /comma /hyphen /period /slash /zero /one /two /three /four /five /six /seven /eight /nine /colon /semicolon /less /equal /greater /question /at /A /B /C /D /E /F /G /H /I /J /K /L /M /N /O /P /Q /R /S /T /U /V /W /X /Y /Z /bracketleft /backslash /bracketright /asciicircum /underscore /grave /a /b /c /d /e /f /g /h /i /j /k /l /m /n /o /p /q /r /s /t /u /v /w /x /y /z /braceleft /bar /braceright /asciitilde /bullet /Euro /bullet /quotesinglbase /florin /quotedblbase /ellipsis /dagger /daggerdbl /circumflex /perthousand /Scaron /guilsinglleft /OE /bullet /Zcaron /bullet /bullet /quoteleft /quoteright /quotedblleft /quotedblright /bullet /endash /emdash /tilde /trademark /scaron /guilsinglright /oe /bullet /zcaron /Ydieresis /space /exclamdown /cent /sterling /currency /yen /brokenbar /section /dieresis /copyright /ordfeminine /guillemotleft /logicalnot /hyphen /registered /macron /degree /plusminus /twosuperior /threesuperior /acute /mu /paragraph /periodcentered /cedilla /onesuperior /ordmasculine /guillemotright /onequarter /onehalf /threequarters /questiondown /Agrave /Aacute /Acircumflex /Atilde /Adieresis /Aring /AE /Ccedilla /Egrave /Eacute /Ecircumflex /Edieresis /Igrave /Iacute /Icircumflex /Idieresis /Eth /Ntilde /Ograve /Oacute /Ocircumflex /Otilde /Odieresis /multiply /Oslash /Ugrave /Uacute /Ucircumflex /Udieresis /Yacute /Thorn /germandbls /agrave /aacute /acircumflex /atilde /adieresis /aring /ae /ccedilla /egrave /eacute /ecircumflex /edieresis /igrave /iacute /icircumflex /idieresis /eth /ntilde /ograve /oacute /ocircumflex /otilde /odieresis /divide /oslash /ugrave /uacute /ucircumflex /udieresis /yacute /thorn /ydieresis'.split(' '),
-   'MacRomanEncoding': '/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /space /exclam /quotedbl /numbersign /dollar /percent /ampersand /quotesingle /parenleft /parenright /asterisk /plus /comma /hyphen /period /slash /zero /one /two /three /four /five /six /seven /eight /nine /colon /semicolon /less /equal /greater /question /at /A /B /C /D /E /F /G /H /I /J /K /L /M /N /O /P /Q /R /S /T /U /V /W /X /Y /Z /bracketleft /backslash /bracketright /asciicircum /underscore /grave /a /b /c /d /e /f /g /h /i /j /k /l /m /n /o /p /q /r /s /t /u /v /w /x /y /z /braceleft /bar /braceright /asciitilde /.notdef /Adieresis /Aring /Ccedilla /Eacute /Ntilde /Odieresis /Udieresis /aacute /agrave /acircumflex /adieresis /atilde /aring /ccedilla /eacute /egrave /ecircumflex /edieresis /iacute /igrave /icircumflex /idieresis /ntilde /oacute /ograve /ocircumflex /odieresis /otilde /uacute /ugrave /ucircumflex /udieresis /dagger /degree /cent /sterling /section /bullet /paragraph /germandbls /registered /copyright /trademark /acute /dieresis /.notdef /AE /Oslash /.notdef /plusminus /.notdef /.notdef /yen /mu /.notdef /.notdef /.notdef /.notdef /.notdef /ordfeminine /ordmasculine /.notdef /ae /oslash /questiondown /exclamdown /logicalnot /.notdef /florin /.notdef /.notdef /guillemotleft /guillemotright /ellipsis /space /Agrave /Atilde /Otilde /OE /oe /endash /emdash /quotedblleft /quotedblright /quoteleft /quoteright /divide /.notdef /ydieresis /Ydieresis /fraction /currency /guilsinglleft /guilsinglright /fi /fl /daggerdbl /periodcentered /quotesinglbase /quotedblbase /perthousand /Acircumflex /Ecircumflex /Aacute /Edieresis /Egrave /Iacute /Icircumflex /Idieresis /Igrave /Oacute /Ocircumflex /.notdef /Ograve /Uacute /Ucircumflex /Ugrave /dotlessi /circumflex /tilde /macron /breve /dotaccent /ring /cedilla /hungarumlaut /ogonek /caron'.split(' '),
-   'MacExpertEncoding': '/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /space /exclamsmall /Hungarumlautsmall /centoldstyle /dollaroldstyle /dollarsuperior /ampersandsmall /Acutesmall /parenleftsuperior /parenrightsuperior /twodotenleader /onedotenleader /comma /hyphen /period /fraction /zerooldstyle /oneoldstyle /twooldstyle /threeoldstyle /fouroldstyle /fiveoldstyle /sixoldstyle /sevenoldstyle /eightoldstyle /nineoldstyle /colon /semicolon /.notdef /threequartersemdash /.notdef /questionsmall /.notdef /.notdef /.notdef /.notdef /Ethsmall /.notdef /.notdef /onequarter /onehalf /threequarters /oneeighth /threeeighths /fiveeighths /seveneighths /onethird /twothirds /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /ff /fi /fl /ffi /ffl /parenleftinferior /.notdef /parenrightinferior /Circumflexsmall /hypheninferior /Gravesmall /Asmall /Bsmall /Csmall /Dsmall /Esmall /Fsmall /Gsmall /Hsmall /Ismall /Jsmall /Ksmall /Lsmall /Msmall /Nsmall /Osmall /Psmall /Qsmall /Rsmall /Ssmall /Tsmall /Usmall /Vsmall /Wsmall /Xsmall /Ysmall /Zsmall /colonmonetary /onefitted /rupiah /Tildesmall /.notdef /.notdef /asuperior /centsuperior /.notdef /.notdef /.notdef /.notdef /Aacutesmall /Agravesmall /Acircumflexsmall /Adieresissmall /Atildesmall /Aringsmall /Ccedillasmall /Eacutesmall /Egravesmall /Ecircumflexsmall /Edieresissmall /Iacutesmall /Igravesmall /Icircumflexsmall /Idieresissmall /Ntildesmall /Oacutesmall /Ogravesmall /Ocircumflexsmall /Odieresissmall /Otildesmall /Uacutesmall /Ugravesmall /Ucircumflexsmall /Udieresissmall /.notdef /eightsuperior /fourinferior /threeinferior /sixinferior /eightinferior /seveninferior /Scaronsmall /.notdef /centinferior /twoinferior /.notdef /Dieresissmall /.notdef /Caronsmall /osuperior /fiveinferior /.notdef /commainferior /periodinferior /Yacutesmall /.notdef /dollarinferior /.notdef /.notdef /Thornsmall /.notdef /nineinferior /zeroinferior /Zcaronsmall /AEsmall /Oslashsmall /questiondownsmall /oneinferior /Lslashsmall /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /Cedillasmall /.notdef /.notdef /.notdef /.notdef /.notdef /OEsmall /figuredash /hyphensuperior /.notdef /.notdef /.notdef /.notdef /exclamdownsmall /.notdef /Ydieresissmall /.notdef /onesuperior /twosuperior /threesuperior /foursuperior /fivesuperior /sixsuperior /sevensuperior /ninesuperior /zerosuperior /.notdef /esuperior /rsuperior /tsuperior /.notdef /.notdef /isuperior /ssuperior /dsuperior /.notdef /.notdef /.notdef /.notdef /.notdef /lsuperior /Ogoneksmall /Brevesmall /Macronsmall /bsuperior /nsuperior /msuperior /commasuperior /periodsuperior /Dotaccentsmall /Ringsmall /.notdef /.notdef /.notdef /.notdef'.split(' '),
+   b'WinAnsiEncoding': b'/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /space /exclam /quotedbl /numbersign /dollar /percent /ampersand /quotesingle /parenleft /parenright /asterisk /plus /comma /hyphen /period /slash /zero /one /two /three /four /five /six /seven /eight /nine /colon /semicolon /less /equal /greater /question /at /A /B /C /D /E /F /G /H /I /J /K /L /M /N /O /P /Q /R /S /T /U /V /W /X /Y /Z /bracketleft /backslash /bracketright /asciicircum /underscore /grave /a /b /c /d /e /f /g /h /i /j /k /l /m /n /o /p /q /r /s /t /u /v /w /x /y /z /braceleft /bar /braceright /asciitilde /bullet /Euro /bullet /quotesinglbase /florin /quotedblbase /ellipsis /dagger /daggerdbl /circumflex /perthousand /Scaron /guilsinglleft /OE /bullet /Zcaron /bullet /bullet /quoteleft /quoteright /quotedblleft /quotedblright /bullet /endash /emdash /tilde /trademark /scaron /guilsinglright /oe /bullet /zcaron /Ydieresis /space /exclamdown /cent /sterling /currency /yen /brokenbar /section /dieresis /copyright /ordfeminine /guillemotleft /logicalnot /hyphen /registered /macron /degree /plusminus /twosuperior /threesuperior /acute /mu /paragraph /periodcentered /cedilla /onesuperior /ordmasculine /guillemotright /onequarter /onehalf /threequarters /questiondown /Agrave /Aacute /Acircumflex /Atilde /Adieresis /Aring /AE /Ccedilla /Egrave /Eacute /Ecircumflex /Edieresis /Igrave /Iacute /Icircumflex /Idieresis /Eth /Ntilde /Ograve /Oacute /Ocircumflex /Otilde /Odieresis /multiply /Oslash /Ugrave /Uacute /Ucircumflex /Udieresis /Yacute /Thorn /germandbls /agrave /aacute /acircumflex /atilde /adieresis /aring /ae /ccedilla /egrave /eacute /ecircumflex /edieresis /igrave /iacute /icircumflex /idieresis /eth /ntilde /ograve /oacute /ocircumflex /otilde /odieresis /divide /oslash /ugrave /uacute /ucircumflex /udieresis /yacute /thorn /ydieresis'.split(b' '),
+   b'MacRomanEncoding': b'/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /space /exclam /quotedbl /numbersign /dollar /percent /ampersand /quotesingle /parenleft /parenright /asterisk /plus /comma /hyphen /period /slash /zero /one /two /three /four /five /six /seven /eight /nine /colon /semicolon /less /equal /greater /question /at /A /B /C /D /E /F /G /H /I /J /K /L /M /N /O /P /Q /R /S /T /U /V /W /X /Y /Z /bracketleft /backslash /bracketright /asciicircum /underscore /grave /a /b /c /d /e /f /g /h /i /j /k /l /m /n /o /p /q /r /s /t /u /v /w /x /y /z /braceleft /bar /braceright /asciitilde /.notdef /Adieresis /Aring /Ccedilla /Eacute /Ntilde /Odieresis /Udieresis /aacute /agrave /acircumflex /adieresis /atilde /aring /ccedilla /eacute /egrave /ecircumflex /edieresis /iacute /igrave /icircumflex /idieresis /ntilde /oacute /ograve /ocircumflex /odieresis /otilde /uacute /ugrave /ucircumflex /udieresis /dagger /degree /cent /sterling /section /bullet /paragraph /germandbls /registered /copyright /trademark /acute /dieresis /.notdef /AE /Oslash /.notdef /plusminus /.notdef /.notdef /yen /mu /.notdef /.notdef /.notdef /.notdef /.notdef /ordfeminine /ordmasculine /.notdef /ae /oslash /questiondown /exclamdown /logicalnot /.notdef /florin /.notdef /.notdef /guillemotleft /guillemotright /ellipsis /space /Agrave /Atilde /Otilde /OE /oe /endash /emdash /quotedblleft /quotedblright /quoteleft /quoteright /divide /.notdef /ydieresis /Ydieresis /fraction /currency /guilsinglleft /guilsinglright /fi /fl /daggerdbl /periodcentered /quotesinglbase /quotedblbase /perthousand /Acircumflex /Ecircumflex /Aacute /Edieresis /Egrave /Iacute /Icircumflex /Idieresis /Igrave /Oacute /Ocircumflex /.notdef /Ograve /Uacute /Ucircumflex /Ugrave /dotlessi /circumflex /tilde /macron /breve /dotaccent /ring /cedilla /hungarumlaut /ogonek /caron'.split(b' '),
+   b'MacExpertEncoding': b'/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /space /exclamsmall /Hungarumlautsmall /centoldstyle /dollaroldstyle /dollarsuperior /ampersandsmall /Acutesmall /parenleftsuperior /parenrightsuperior /twodotenleader /onedotenleader /comma /hyphen /period /fraction /zerooldstyle /oneoldstyle /twooldstyle /threeoldstyle /fouroldstyle /fiveoldstyle /sixoldstyle /sevenoldstyle /eightoldstyle /nineoldstyle /colon /semicolon /.notdef /threequartersemdash /.notdef /questionsmall /.notdef /.notdef /.notdef /.notdef /Ethsmall /.notdef /.notdef /onequarter /onehalf /threequarters /oneeighth /threeeighths /fiveeighths /seveneighths /onethird /twothirds /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /ff /fi /fl /ffi /ffl /parenleftinferior /.notdef /parenrightinferior /Circumflexsmall /hypheninferior /Gravesmall /Asmall /Bsmall /Csmall /Dsmall /Esmall /Fsmall /Gsmall /Hsmall /Ismall /Jsmall /Ksmall /Lsmall /Msmall /Nsmall /Osmall /Psmall /Qsmall /Rsmall /Ssmall /Tsmall /Usmall /Vsmall /Wsmall /Xsmall /Ysmall /Zsmall /colonmonetary /onefitted /rupiah /Tildesmall /.notdef /.notdef /asuperior /centsuperior /.notdef /.notdef /.notdef /.notdef /Aacutesmall /Agravesmall /Acircumflexsmall /Adieresissmall /Atildesmall /Aringsmall /Ccedillasmall /Eacutesmall /Egravesmall /Ecircumflexsmall /Edieresissmall /Iacutesmall /Igravesmall /Icircumflexsmall /Idieresissmall /Ntildesmall /Oacutesmall /Ogravesmall /Ocircumflexsmall /Odieresissmall /Otildesmall /Uacutesmall /Ugravesmall /Ucircumflexsmall /Udieresissmall /.notdef /eightsuperior /fourinferior /threeinferior /sixinferior /eightinferior /seveninferior /Scaronsmall /.notdef /centinferior /twoinferior /.notdef /Dieresissmall /.notdef /Caronsmall /osuperior /fiveinferior /.notdef /commainferior /periodinferior /Yacutesmall /.notdef /dollarinferior /.notdef /.notdef /Thornsmall /.notdef /nineinferior /zeroinferior /Zcaronsmall /AEsmall /Oslashsmall /questiondownsmall /oneinferior /Lslashsmall /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /Cedillasmall /.notdef /.notdef /.notdef /.notdef /.notdef /OEsmall /figuredash /hyphensuperior /.notdef /.notdef /.notdef /.notdef /exclamdownsmall /.notdef /Ydieresissmall /.notdef /onesuperior /twosuperior /threesuperior /foursuperior /fivesuperior /sixsuperior /sevensuperior /ninesuperior /zerosuperior /.notdef /esuperior /rsuperior /tsuperior /.notdef /.notdef /isuperior /ssuperior /dsuperior /.notdef /.notdef /.notdef /.notdef /.notdef /lsuperior /Ogoneksmall /Brevesmall /Macronsmall /bsuperior /nsuperior /msuperior /commasuperior /periodsuperior /Dotaccentsmall /Ringsmall /.notdef /.notdef /.notdef /.notdef'.split(b' '),
 }
 NONE_ENCODING = [None]  * 256
 
@@ -6167,8 +6167,8 @@ class PdfData(object):
   def CheckEncoding(cls, encoding):
     if not isinstance(encoding, (list, tuple)):
       raise TypeError
-    if [name for name in encoding if not isinstance(name, str) or
-        not name.startswith('/')]:
+    if [name for name in encoding if not isinstance(name, bytes) or
+        not name.startswith(b'/')]:
       raise ValueError
     if len(encoding) != 256:
       raise ValueError('Bad encoding length, expected 256: %d' % len(encoding))
@@ -6203,36 +6203,36 @@ class PdfData(object):
       i = 0
       while i < lene:
         while i < lene and (
-            encoding[i] == '/.notdef' or encoding[i] == base_encoding[i]):
+            encoding[i] == b'/.notdef' or encoding[i] == base_encoding[i]):
           i += 1
         if i == lene:
           break
         if output:
-          output.append(' %d' % i)
+          output.append(b' %d' % i)
         else:
-          output.append('<</Differences[%d' % i)
+          output.append(b'<</Differences[%d' % i)
         output.append(encoding[i])
         i += 1
         while i < lene and (
-            encoding[i] != '/.notdef' and encoding[i] != base_encoding[i]):
+            encoding[i] != b'/.notdef' and encoding[i] != base_encoding[i]):
           output.append(encoding[i])
           i += 1
       if not output:
         if base_encoding_name is not None:
-          return '/%s' % base_encoding_name
+          return b'/%s' % base_encoding_name
         else:
-          return '<<>>'
+          return b'<<>>'
       if base_encoding_name is not None:
-        output.append(']/BaseEncoding/%s>>' % base_encoding_name)
+        output.append(b']/BaseEncoding/' + base_encoding_name + b'>>')
       else:
-        output.append(']>>')
-      return ''.join(output)
+        output.append(b']>>')
+      return b''.join(output)
 
     outputs = [FormatWithBaseEncoding(None, NONE_ENCODING)]
-    if outputs[0] == '<<>>':  # All /.notdef.
+    if outputs[0] == b'<<>>':  # All /.notdef.
       return None
     outputs.extend(FormatWithBaseEncoding(*item) for item in
-                   sorted(PDF_FONT_ENCODINGS.iteritems()))
+                   sorted(PDF_FONT_ENCODINGS.items()))
     outputs = [(len(s), s) for s in outputs]
     outputs.sort()
     return outputs[0][1]  # Pick the shortest string.
@@ -6264,10 +6264,10 @@ class PdfData(object):
     encoding_value = font_obj.ResolveReferences(
         font_obj.Get(b'Encoding'), objs=objs)
     if cls.IsFontBuiltInEncodingUsed(encoding_value):
-      if isinstance(encoding_value, str) and encoding_value.startswith('<<'):
+      if isinstance(encoding_value, bytes) and encoding_value.startswith(b'<<'):
         encoding_dict = PdfObj.ParseDict(encoding_value)
-        differences = encoding_dict.get('Differences')
-        if isinstance(differences, str) and differences.startswith('['):
+        differences = encoding_dict.get(b'Differences')
+        if isinstance(differences, bytes) and differences.startswith(b'['):
           differences = PdfObj.ParseArray(differences)
           if differences:
             i = differences[0]
@@ -6280,11 +6280,11 @@ class PdfData(object):
                 if not (0 <= i < 256):
                   raise ValueError('Bad initial index in /Differences: %r' % i)
               else:
-                if not isinstance(x, str) and x.startswith('/'):
+                if not isinstance(x, bytes) and x.startswith(b'/'):
                   raise ValueError('Expected glyph name, got: %r' % x)
                 base_encoding[i] = x
                 i += 1
-      font_obj.Set('Encoding', cls.FormatEncoding(base_encoding))
+      font_obj.Set(b'Encoding', cls.FormatEncoding(base_encoding))
 
   @classmethod
   def SerializeType1CFonts(cls, parsed_fonts, target_objs, objs,

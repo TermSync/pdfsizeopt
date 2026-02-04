@@ -1685,35 +1685,35 @@ class PdfSizeOptTest(unittest.TestCase):
 
   def testMergeBaseEncodingToFontObj(self):
     base_encoding = (
-        ['/.notdef'] * 65 +
-        ['/AAA', '/B', '/C', '/D', '/E', '/F', '/G', '/H', '/I', '/J', '/K', '/L',
-         '/M', '/N', '/O', '/P'] +
-        ['/.notdef'] * 175)
+        [b'/.notdef'] * 65 +
+        [b'/AAA', b'/B', b'/C', b'/D', b'/E', b'/F', b'/G', b'/H', b'/I', b'/J', b'/K', b'/L',
+         b'/M', b'/N', b'/O', b'/P'] +
+        [b'/.notdef'] * 175)
     objs = {}
 
     def F(obj_str):
       font_obj = main.PdfObj(obj_str)
       main.PdfData._MergeBaseEncodingToFontObj(
           font_obj, base_encoding, objs)
-      return font_obj.Get('Encoding')
+      return font_obj.Get(b'Encoding')
 
     # Unchanged.
-    self.assertEqual('/Foo', F('1 0 obj<</Encoding/Foo>>endobj'))
-    self.assertEqual('<</Differences[65/AAA]/BaseEncoding/WinAnsiEncoding>>',
-                     F('1 0 obj<<>>endobj'))
+    self.assertEqual(b'/Foo', F(b'1 0 obj<</Encoding/Foo>>endobj'))
+    self.assertEqual(b'<</Differences[65/AAA]/BaseEncoding/WinAnsiEncoding>>',
+                     F(b'1 0 obj<<>>endobj'))
     # Unchanged.
-    self.assertEqual('<</BaseEncoding/Foo>>',
-                     F('1 0 obj<</Encoding<</BaseEncoding  /Foo>>>>endobj'))
+    self.assertEqual(b'<</BaseEncoding/Foo>>',
+                     F(b'1 0 obj<</Encoding<</BaseEncoding  /Foo>>>>endobj'))
     # Unchanged.
-    self.assertEqual('<</BaseEncoding/Foo'
-                     '/Differences[66/BB/CC 100/dd 101/ee]>>',
-                     F('1 0 obj<</Encoding<</BaseEncoding/Foo/Differences'
-                       '[66/BB/CC 100/dd  101/ee]>>>>endobj'))
-    self.assertEqual('<</Differences[65/AAA/BB/CC'
-                     '/D/E/F/G/H/I/J/K/L/M/N/O/P 100/dd/ee]>>',
-                     F('1 0 obj<</Encoding<</Differences'
-                       '[66/BB/CC 100/dd 101/ee]>>>>endobj'))
-
+    self.assertEqual(b'<</BaseEncoding/Foo'
+                     b'/Differences[66/BB/CC 100/dd 101/ee]>>',
+                     F(b'1 0 obj<</Encoding<</BaseEncoding/Foo/Differences'
+                       b'[66/BB/CC 100/dd  101/ee]>>>>endobj'))
+    self.assertEqual(b'<</Differences[65/AAA/BB/CC'
+                     b'/D/E/F/G/H/I/J/K/L/M/N/O/P 100/dd/ee]>>',
+                     F(b'1 0 obj<</Encoding<</Differences'
+                       b'[66/BB/CC 100/dd 101/ee]>>>>endobj'))
+    
   def testShellQuoteUnix(self):
     F = main.ShellQuoteUnix
     self.assertEqual("''", F(''))
