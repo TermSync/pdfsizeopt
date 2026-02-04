@@ -474,11 +474,11 @@ class PdfSizeOptTest(unittest.TestCase):
 
   def testParseArray(self):
     e = main.PdfObj.ParseArray
-    self.assertRaisesX(main.PdfTokenParseError, e, '[%]')
-    self.assertEqual(['/Indexed', '/DeviceRGB', 42, '43 44 R'],
-                     e('[\t/Indexed/DeviceRGB\f\r42\00043%42\n44\0R\n]'))
-    self.assertEqual(['[ ]', '[\t[\f]]', '<<\t [\f[ >>', True, False, None],
-                     e('[[ ] [\t[\f]] <<\t [\f[ >> true%\nfalse\fnull]'))
+    self.assertRaisesX(main.PdfTokenParseError, e, b'[%]')
+    self.assertEqual([b'/Indexed', b'/DeviceRGB', 42, b'43 44 R'],
+                     e(b'[\t/Indexed/DeviceRGB\f\r42\00043%42\n44\0R\n]'))
+    self.assertEqual([b'[ ]', b'[\t[\f]]', b'<<\t [\f[ >>', True, False, None],
+                     e(b'[[ ] [\t[\f]] <<\t [\f[ >> true%\nfalse\fnull]'))
 
   def testParseValueRecursive(self):
     e = main.PdfObj.ParseValueRecursive

@@ -2328,8 +2328,8 @@ class PdfObj(object):
     Raises:
       PdfTokenParseError:
     """
-    assert data.startswith('[')
-    assert data.endswith(']')
+    assert data.startswith(b'[')
+    assert data.endswith(b']')
     start = 1
     end = len(data) - 1
     return cls._ParseTokens(data, start, end, end)
