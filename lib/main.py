@@ -8012,15 +8012,11 @@ class PdfData(object):
     obj_num_map = {}
     if do_renumber:
 
-      def CompareDesc(desc_a, desc_b):
-        """Order by decreasing inrefs_count, then increasing obj_num."""
-        return (desc_b[4].__cmp__(desc_a[4]) or  # inrefs_count
-                desc_a[0].__cmp__(desc_b[0]))    # original obj_num
-
+      # Order by decreasing inrefs_count, then increasing obj_num.
       descs = [eqclass[0] for eqclass in eqclasses
-               if not isinstance(eqclass[0][0], str) and
+               if not isinstance(eqclass[0][0], (bytes, memoryview)) and
                eqclass[0][0] not in unused_obj_nums]
-      descs.sort(CompareDesc)
+      descs.sort(key=lambda desc: (-desc[4], desc[0]))
       i = 0
       for desc in descs:
         i += 1
