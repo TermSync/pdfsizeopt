@@ -782,27 +782,27 @@ class PdfSizeOptTest(unittest.TestCase):
 
   def testCheckSafePdfTokens(self):
     F = main.PdfObj.CheckSafePdfTokens
-    F('')
-    F('<<')
-    F(']][<<[]>>-12.34 fooBar /Foo#2a (hello) <a>')
-    self.assertRaisesX(main.PdfTokenParseError, F, '\n')
-    self.assertRaisesX(main.PdfTokenParseError, F, 'foo\n')
-    self.assertRaisesX(main.PdfTokenParseError, F, '%')
-    self.assertRaisesX(main.PdfTokenParseError, F, '\1')
-    F('(\200)')
-    self.assertRaisesX(main.PdfTokenParseError, F, '\200')
-    self.assertRaisesX(main.PdfTokenParseError, F, '(\\200)')
-    self.assertRaisesX(main.PdfTokenParseError, F, '(\\101)')
-    self.assertRaisesX(main.PdfTokenParseError, F, '/pedal.*')
-    self.assertRaisesX(main.PdfTokenParseError, F, '<a')
-    self.assertRaisesX(main.PdfTokenParseError, F, '<ag>')
-    F('x<ab>y')
-    self.assertRaisesX(main.PdfTokenParseError, F, 'x<ag>y')
-    self.assertRaisesX(main.PdfTokenParseError, F, '< <')
-    self.assertRaisesX(main.PdfTokenParseError, F, '> >')
-    self.assertRaisesX(main.PdfTokenParseError, F, '<<<')
-    self.assertRaisesX(main.PdfTokenParseError, F, '>>>')
-
+    F(b'')
+    F(b'<<')
+    F(b']][<<[]>>-12.34 fooBar /Foo#2a (hello) <a>')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'\n')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'foo\n')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'%')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'\1')
+    F(b'(\200)')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'\200')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'(\\200)')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'(\\101)')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'/pedal.*')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'<a')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'<ag>')
+    F(b'x<ab>y')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'x<ag>y')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'< <')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'> >')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'<<<')
+    self.assertRaisesX(main.PdfTokenParseError, F, b'>>>')
+    
   def testParseTokensToSafeSimple(self, is_simple_ok=True):
     def F(data, **kwargs):
       return main.PdfObj.ParseTokensToSafe(
