@@ -665,7 +665,7 @@ class PdfSizeOptTest(unittest.TestCase):
     obj = main.PdfObj(b'42 0 obj<</BitsPerComponent\n\n4\f/A ( ) >>\t\tendobj')
     self.assertEqual(b'<</BitsPerComponent 4/A<20>>>', obj.head)
     obj = main.PdfObj(b'42 0 obj<</BitsPerComponent\n\n4\f'
-                      br'/A ((\)\)endobj)x) >>\t\tendobj')
+                      b'/A ((\\)\\)endobj)x) >>\t\tendobj')
     self.assertEqual(b'<</BitsPerComponent 4/A<282929656e646f626a2978>>>',
                      obj.head)
     self.assertRaisesX(  # An empty name token.
@@ -710,8 +710,10 @@ class PdfSizeOptTest(unittest.TestCase):
                       b'42 0 obj [()<g> endobj')
     self.assertRaisesX(main.PdfTokenParseError, main.PdfObj,
                       b'42 0 obj [<a endobj')
+
     self.assertRaisesX(main.PdfTokenParseError, main.PdfObj,
                       b'42 0 obj [<g> endobj')
+
     self.assertRaisesX(main.PdfTokenParseError, main.PdfObj,
                       b'42 0 obj %\n\nendobj')
     end_ofs_out = []

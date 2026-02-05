@@ -1667,11 +1667,12 @@ class PdfObj(object):
         a = match.group()
         try:
           if len(a) < 2 or chr(a[-1]) not in '<>':
-            if (chr(a[0]) == '<' and chr(a[1]) != '<' and end == match.end() and
-                not (do_expect_endobj or do_expect_startxref)):
-              raise PdfTokenTruncated('Truncated hex string.')
-            else:
-              raise PdfTokenParseError('Invalid < or > token.')
+            # Check if it's a truncated hex string (starts with < but too short)
+            if len(a) >= 1 and chr(a[0]) == '<':
+              if len(a) == 1 or (len(a) >= 2 and chr(a[1]) != '<'):
+                if end == match.end() and not (do_expect_endobj or do_expect_startxref):
+                  raise PdfTokenTruncated('Truncated hex string.')
+            raise PdfTokenParseError('Invalid < or > token.')
         except IndexError:
           raise PdfTokenTruncated('Truncated hex string.')
       # !!! Bug: add these tests:
@@ -2785,6 +2786,8 @@ class PdfObj(object):
           obj_num = obj_num_map.get(obj_num, obj_num)
         if obj_num is None:
           return b'null'
+        elif isinstance(obj_num, int):
+          return b'%d 0 R' % obj_num
         else:
           # TODO(pts): Keep the original generation number (match.group(2))
           return b'%s 0 R' % obj_num
@@ -8669,7 +8672,7 @@ class PdfData(object):
     else:
       ret = 0
       for c in s:
-        ret = ret << 8 | ord(c)
+        ret = ret << 8 | c
       return ret
 
   @classmethod
@@ -8837,7 +8840,7 @@ class PdfData(object):
     w0, w1, w2, unused_index, xref_data = trailer_obj.GetXrefStream()
     if (do_generate_xref_stream and
         bool(do_generate_object_stream) == bool(has_objstm_obj)):
-      xref_out = xref_data
+      xref_out = bytearray(xref_data)
     else:
       # We're sure we won't need xref_out, so we're not computing it.
       xref_out = None
