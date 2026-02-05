@@ -4588,28 +4588,28 @@ class PdfData(object):
             data,
             do_ignore_generation_numbers=self.do_ignore_generation_numbers)
 
-      assert 'trailer' in obj_starts, 'no PDF trailer'
+      assert b'trailer' in obj_starts, 'no PDF trailer'
       assert len(obj_starts) > 1, 'no objects found in PDF (file corrupt?)'
       obj_count = len(obj_starts)
       obj_count_extra = ''
-      if 'xref' in obj_starts:
+      if b'xref' in obj_starts:
         obj_count_extra += ' + xref'
         obj_count -= 1
-      if 'trailer' in obj_starts:
+      if b'trailer' in obj_starts:
         obj_count_extra += ' + trailer'
         obj_count -= 1
       LogInfo('separated to %s objs%s' % (obj_count, obj_count_extra), is_proportional)
-      last_ofs = trailer_ofs = obj_starts.pop('trailer')
+      last_ofs = trailer_ofs = obj_starts.pop(b'trailer')
       if isinstance(trailer_ofs, PdfObj):
         self.trailer = trailer_ofs
         trailer_ofs = None
         last_ofs = len(data)
-        obj_starts.pop('xref', None)
+        obj_starts.pop(b'xref', None)
       else:
         self.trailer = PdfObj.ParseTrailer(data, start=trailer_ofs)
         self.trailer.Set(b'Prev', None)
-        if 'xref' in obj_starts:
-          last_ofs = min(trailer_ofs, obj_starts.pop('xref'))
+        if b'xref' in obj_starts:
+          last_ofs = min(trailer_ofs, obj_starts.pop(b'xref'))
       self.CheckNotEncrypted(trailer_obj=self.trailer)  # Also raised earlier.
     except PdfFileEncryptedError:
       # TODO(pts): Add decrypted input support.
@@ -4927,7 +4927,7 @@ class PdfData(object):
             '%d 0 obj\n%s\nendobj\n' % (obj_num, compressed_obj_headbufs[i]))
     for obj_num in sorted(obj_streams):
       del obj_starts[obj_num]
-    obj_starts['trailer'] = trailer_obj
+    obj_starts[b'trailer'] = trailer_obj
 
     # Report number of unused compressed objs.
     all_unused_obj_count = 0
@@ -4988,7 +4988,7 @@ class PdfData(object):
                                       xref_ofs, xref_obj_num, xref_generation)
 
     has_generational_objs = False
-    obj_starts = {'xref': xref_ofs}  # 'xref' is just informational.
+    obj_starts = {b'xref': xref_ofs}  # 'xref' is just informational.
     obj_starts_rev = {}
     # Set of object numbers not to be overwritten.
     keep_obj_nums = set()
@@ -5055,7 +5055,7 @@ class PdfData(object):
         raise NotImplementedError(
             'multiple xref sections (with generation numbers) not implemented')
       # Keep only the very first trailer.
-      obj_starts.setdefault('trailer', xref_ofs)
+      obj_starts.setdefault(b'trailer', xref_ofs)
 
       # TODO(pts): How to test this?
       try:
@@ -5111,7 +5111,7 @@ class PdfData(object):
         # Skip over '\n'
         obj_starts[prev_obj_num] = match.start() + 1
       else:
-        prev_obj_num = 'trailer'
+        prev_obj_num = b'trailer'
         # Allow multiple trailers. Keep the last one. This heuristic works
         # for http://code.google.com/p/pdfsizeopt/issues/detail?id=25 .
         # TODO(pts): Test multiple trailers with: pdf.a9p4/5176.CFF.a9p4.pdf
@@ -5120,7 +5120,7 @@ class PdfData(object):
 
     # TODO(pts): Learn to parse no trailer in PDF-1.5
     # (e.g. pdf_reference_1-7-o.pdf)
-    assert prev_obj_num == 'trailer', prev_obj_num
+    assert prev_obj_num == b'trailer', prev_obj_num
     return obj_starts, has_generational_objs
 
   @classmethod
@@ -7910,6 +7910,7 @@ class PdfData(object):
     by_form = {}
     # List of desc.
     search_todo = []
+    print(objs.keys())
     for obj_num in sorted(objs, key=lambda x: (isinstance(x, bytes), x)):
       refs_to = []  # List of object numbers obj_num refers to).
       head = objs[obj_num].head
@@ -8229,11 +8230,11 @@ class PdfData(object):
       self.
     """
     # TODO(pts): Inline ``obj null endobj'' and ``obj<<>>endobj'' etc.
-    self.objs['trailer'] = self.trailer
+    self.objs[b'trailer'] = self.trailer
     new_objs = self.FindEqclasses(
         self.objs, do_remove_unused=True, do_renumber=True,
         do_unify_pages=do_unify_pages)
-    self.trailer = new_objs.pop('trailer')
+    self.trailer = new_objs.pop(b'trailer')
     self.objs.clear()
     self.objs.update(new_objs)
     return self
