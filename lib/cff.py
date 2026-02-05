@@ -9,17 +9,6 @@ import struct
 
 from lib import float_util
 
-try:
-  from itertools import izip
-except ImportError:
-  def izip(*iterables):  # Fallback for pythonmu2.7-static.
-    iterables = map(iter, iterables)
-    while 1:
-      result = tuple(it.next() for it in iterables)  # Raises StopIteration.
-      if not result:
-        break
-      yield result
-
 
 class Error(Exception):
   """Comon base class for exceptions defined in this module."""
@@ -558,7 +547,7 @@ def ParseCffHeader(data, do_need_single_font=True, do_parse_rest=True):
   if len(font_name_bufs) != 1 and do_need_single_font:
     raise ValueError(
         'CFF name index count should be 1, got %d' % len(font_name_bufs))
-  cff_font_name = str(font_name_bufs[0])
+  cff_font_name = font_name_bufs[0].tobytes()
   if not cff_font_name:
     raise ValueError('Empty CFF font name.')
   ai2, top_dict_bufs = ParseCffIndex(memoryview(data[hdr_size+ai1:]))
@@ -577,7 +566,7 @@ def ParseCffHeader(data, do_need_single_font=True, do_parse_rest=True):
     cff_rest2_ofs = rest_ofs
   return ((major, minor),
           cff_font_name,
-          tuple(izip(font_name_bufs, top_dict_bufs)),
+          tuple(zip(font_name_bufs, top_dict_bufs)),
           cff_string_bufs,
           cff_global_subr_bufs,
           cff_rest_buf,
@@ -697,10 +686,10 @@ def FixFontNameInCff(data, new_font_name, len_deltas_out=None):
   assert top_dict == top_dict_parsed2, (
       'CFF dict serialize mismatch: new=%r parsed=%r' %
       (top_dict, top_dict_parsed2))
-  return ''.join((str(cff_header_buf),  # CFF header.
+  return b''.join((cff_header_buf,  # CFF header.
                   idxhdrfn, new_font_name,  # CFF name index.
                   idxhdrtd, top_dict_data,  # CFF top dict index.
-                  str(cff_rest_buf)))
+                  cff_rest_buf))
 
 
 def IsCffValueEqual(a, b):
@@ -709,7 +698,7 @@ def IsCffValueEqual(a, b):
   elif isinstance(a, (list, tuple)):
     if not isinstance(b, (list, tuple)) or len(a) != len(b):
       return False
-    for av, bv in izip(a, b):
+    for av, bv in zip(a, b):
       if not IsCffValueEqual(av, bv):
         return False
     return True
@@ -1475,7 +1464,7 @@ def ParseCff1(data, is_careful=False):
   charset = parsed_dict.get('charset', 0)  # Default same as _CFF_TOP_OP_MAP.
   charset = ParseCffCharset(
       charset, memoryview(data[charset:]), len(charstring_bufs), cff_all_string_bufs)
-  parsed_dict['CharStrings'] = dict(izip(
+  parsed_dict['CharStrings'] = dict(zip(
       (glyph_name[1:] for glyph_name in charset),
       ('<%s>' % str(buf).encode('hex') for buf in charstring_bufs)))
   del charstring_bufs

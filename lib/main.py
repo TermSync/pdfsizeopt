@@ -3764,7 +3764,7 @@ class PdfObj(object):
         passed to ResolveReferences.
       len_deltas_out: Output list of len_delta values applied, or None.
     """
-    assert self.Get(b'Subtype') == '/Type1C'
+    assert self.Get(b'Subtype') == b'/Type1C'
     data = self.GetUncompressedStream(objs=objs)
     new_data = cff.FixFontNameInCff(data, new_font_name, len_deltas_out)
     # Since in Ghostscript 6.54 it is not possible to specify the ZIP
@@ -3772,11 +3772,11 @@ class PdfObj(object):
     # effort here.
     # TODO(pts): Add generic recompression of all /FlateDecode filters
     #            (because Ghostscript is suboptimal everywhere).
-    if self.Get(b'Filter') != '/FlateDecode' or new_data != data:
+    if self.Get(b'Filter') != b'/FlateDecode' or new_data != data:
       self.stream = zlib.compress(new_data, 9)
-      self.Set('Filter', '/FlateDecode')
-      self.Set('DecodeParms', None)
-      self.Set('Length', len(self.stream))
+      self.Set(b'Filter', b'/FlateDecode')
+      self.Set(b'DecodeParms', None)
+      self.Set(b'Length', len(self.stream))
 
   @classmethod
   def PdfRstripBuffer(cls, data, start, end):

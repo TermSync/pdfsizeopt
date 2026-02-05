@@ -1831,8 +1831,8 @@ class PdfSizeOptTest(unittest.TestCase):
 
   # ---
 
-  CFF_FONT_PROGRAM_FONT_NAME = 'Obj000009'
-  CFF_FONT_PROGRAM_STRINGS = ['Computer Modern Roman', 'Computer Modern']
+  CFF_FONT_PROGRAM_FONT_NAME = b'Obj000009'
+  CFF_FONT_PROGRAM_STRINGS = [b'Computer Modern Roman', b'Computer Modern']
   # This is font `i: 5556' in cff.pgs, Ghostscript has failed to parse it,
   # probably because it has incorrect CharStrings offset (hence the `- 1' in
   # CheckFont).
@@ -2046,8 +2046,8 @@ class PdfSizeOptTest(unittest.TestCase):
                        b'/OrigFontName <33307B686a> def/OrigFontStyle () def'))
 
   def testFixFontNameInType1C(self):
-    new_font_name = 'Hello'
-    font_obj = main.PdfObj('1 0 obj<</Subtype/Type1C>>endobj')
+    new_font_name = b'Hello'
+    font_obj = main.PdfObj(b'1 0 obj<</Subtype/Type1C>>endobj')
     font_obj.stream = self.CFF_FONT_PROGRAM
     old_font_name = cff.ParseCffHeader(font_obj.stream)[1]
     self.assertEqual(self.CFF_FONT_PROGRAM_FONT_NAME, old_font_name)
@@ -2057,7 +2057,7 @@ class PdfSizeOptTest(unittest.TestCase):
     self.assertEqual(
         new_font_name,
         cff.ParseCffHeader(font_obj.GetUncompressedStream())[1])
-    self.assertEqual('/FlateDecode', font_obj.Get('Filter'))
+    self.assertEqual(b'/FlateDecode', font_obj.Get(b'Filter'))
 
   def testFixFontNameInCff(self):
     def CheckFont(font_program, font_name):
