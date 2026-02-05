@@ -5964,7 +5964,6 @@ class PdfData(object):
     return parsed_fonts
 
   def ConvertType1FontsToType1C(self):
-    print("CALLED")
     """Convert all Type1 fonts to Type1C in self, returns self."""
     # GenerateType1CFontsFromType1 removes the tmp files it creates.
     type1c_objs, encodings = self.GenerateType1CFontsFromType1(
