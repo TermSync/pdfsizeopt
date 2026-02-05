@@ -6440,11 +6440,11 @@ class PdfData(object):
           '/Font' in head and '/Type' in head and
           '/Type1' in head and '/Subtype' in head and
           '/FontDescriptor' in head and
-          obj.Get(b'Type') == '/Font' and
-          obj.Get(b'Subtype') == '/Type1' and
+          obj.Get('Type') == '/Font' and
+          obj.Get('Subtype') == '/Type1' and
           self.IsFontBuiltInEncodingUsed(
-              obj.ResolveReferences(obj.Get(b'Encoding'), objs=self.objs))):
-        match = obj.PDF_REF_AT_EOS_RE.match(str(obj.Get(b'FontDescriptor')))
+              obj.ResolveReferences(obj.Get('Encoding'), objs=self.objs))):
+        match = obj.PDF_REF_AT_EOS_RE.match(str(obj.Get('FontDescriptor')))
         if match:
           fd_obj_num = int(match.group(1))  # /Type/FontDescriptor.
           if fd_obj_num in type1c_objs:
@@ -6490,7 +6490,7 @@ class PdfData(object):
       if encoding is not None and obj_num in copy_encoding_dict:
         copy_encoding_dict[obj_num][0] = self.CheckEncoding(encoding)
       encoding = None
-      parsed_font['FontName'] = obj.Get(b'FontName')
+      parsed_font['FontName'] = obj.Get('FontName')
       # Extra, not checked: 'UniqueID'
       if 'FontBBox' in parsed_font:
         # This is part of the /FontDescriptor, we don't need it in the Type1C
@@ -6592,7 +6592,7 @@ class PdfData(object):
 
       # pdf_reference_1-7.pdf says /Type/FontDescriptor is required (even if
       # some software omits it).
-      merged_fontdesc_obj.Set(b'Type' , '/FontDescriptor')
+      merged_fontdesc_obj.Set('Type' , '/FontDescriptor')
       if do_keep_font_optionals:
         # !! remove more optionals
         # New Ghostscript doesn't generate /CharSet. We don't generate it
@@ -6603,7 +6603,7 @@ class PdfData(object):
 
       self.objs[group_obj_nums[0]].head = merged_fontdesc_obj.head
       font_group_names[font_group] = [merged_font['FontName']]
-      for i in range(1, len(group_obj_nums)):
+      for i in xrange(1, len(group_obj_nums)):
         group_obj_num = group_obj_nums[i]
         obj = self.objs[group_obj_num]  # /Type/FontDescriptor
         # !! merge /Type/Font objects (including /FirstChar, /LastChar and
@@ -6630,7 +6630,7 @@ class PdfData(object):
       encoding_obj_nums = [obj_num for obj_num in group_obj_nums
            if obj_num in copy_encoding_dict and
            not [1 for font_obj_num in copy_encoding_dict[obj_num][1]
-                if self.objs[font_obj_num].Get(b'Encoding') is not None]]
+                if self.objs[font_obj_num].Get('Encoding') is not None]]
       encoding = self.MergeEncodings(
           [copy_encoding_dict[obj_num][0] for obj_num in encoding_obj_nums])
       if encoding is not None:  # Some encodings could be merged.
@@ -6640,7 +6640,7 @@ class PdfData(object):
           if obj_num in copy_encoding_dict:
             font_obj_nums = copy_encoding_dict.pop(obj_num)[1]
             for font_obj_num in font_obj_nums:
-              self.objs[font_obj_num].Set(b'Encoding', encoding)
+              self.objs[font_obj_num].Set('Encoding', encoding)
       # Merge the remaining encodings in the group.
       for obj_num in group_obj_nums:
         if obj_num in copy_encoding_dict:
@@ -6789,7 +6789,7 @@ class PdfData(object):
         if master_obj_num is None:
           master_obj_num = target_obj_num
         elif master_obj_num != target_obj_num:
-          obj.Set(b'FontFile3', '%s 0 R' % master_obj_num)
+          obj.Set('FontFile3', '%s 0 R' % master_obj_num)
           # TODO(pts): What if self.objs has another reference to
           # target_obj_num, which is not coming from /FontDescriptor{}s?
           del self.objs[target_obj_num]
