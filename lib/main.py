@@ -2659,12 +2659,12 @@ class PdfObj(object):
     xref_tuple = self.GetXrefStream(
         xref_ofs=xref_ofs, xref_obj_num=xref_obj_num)
     self.stream = None
-    self.Set('Type', None)
-    self.Set('W', None)
-    self.Set('Index', None)
-    self.Set('Filter', None)
-    self.Set('Length', None)
-    self.Set('DecodeParms', None)
+    self.Set(b'Type', None)
+    self.Set(b'W', None)
+    self.Set(b'Index', None)
+    self.Set(b'Filter', None)
+    self.Set(b'Length', None)
+    self.Set(b'DecodeParms', None)
     return xref_tuple
 
   @classmethod
