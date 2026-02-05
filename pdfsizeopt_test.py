@@ -2068,13 +2068,13 @@ class PdfSizeOptTest(unittest.TestCase):
       cff_top_dict_buf = cff_font_items[0][1]
       self.assertEqual(font_name, cff_font_name)
       cff_top_dict = cff.ParseCffDict(cff_top_dict_buf)
-      self.assertEqual(self.CFF_FONT_PROGRAM_STRINGS, map(str, cff_string_bufs))
+      self.assertEqual(self.CFF_FONT_PROGRAM_STRINGS, cff_string_bufs)
       # TODO(pts): Why do we have to subtract 1 here? Is CFF file offset
       # 1-based? Probably so, but we need to run this on other fonts. The test
       # font has CharStrings at offset 181 in the file, but the op says 182.
       # Nothing else (other than the string index) looks like an index.
       _, charstring_bufs = cff.ParseCffIndex(
-          memoryview(font_program, cff_top_dict[charstrings_op][-1] - 1))
+          memoryview(font_program)[cff_top_dict[charstrings_op][-1] - 1:])
       self.assertEqual(25, len(charstring_bufs))
 
     def Check(new_font_name, expected_len_deltas):
@@ -2089,22 +2089,22 @@ class PdfSizeOptTest(unittest.TestCase):
       self.assertEqual(expected_len_deltas, len_deltas)
       CheckFont(new_font_program, new_font_name)
 
-    Check('N', [-8])
-    Check('N' + 'a' * 7, [-1])
-    Check('N' + 'a' * 8, [])
+    Check(b'N', [-8])
+    Check(b'N' + b'a' * 7, [-1])
+    Check(b'N' + b'a' * 8, [])
     # It's a pity unforunate that we have to do 2 iterations here below when
     # the font name gets just a bit longer.
     #
     # TODO(pts): Check with real-world CFF fonts that typically 1 iteration is
     #            sufficient.
-    Check('N' + 'a' * 9, [1, 2])
-    Check('N' + 'a' * 10, [2, 3])
-    Check('N' + 'a' * 11, [3, 4])
-    Check('N' + 'a' * 12, [4, 5])
-    Check('N' + 'a' * 13, [5, 6])
-    Check('N' + 'a' * 99, [91, 92])
-    Check('B' * 260, [251, 254])
-    Check('B' * 100000, [99991, 100007])
+    Check(b'N' + b'a' * 9, [1, 2])
+    Check(b'N' + b'a' * 10, [2, 3])
+    Check(b'N' + b'a' * 11, [3, 4])
+    Check(b'N' + b'a' * 12, [4, 5])
+    Check(b'N' + b'a' * 13, [5, 6])
+    Check(b'N' + b'a' * 99, [91, 92])
+    Check(b'B' * 260, [251, 254])
+    Check(b'B' * 100000, [99991, 100007])
 
   def testFormatFloatShort(self):
     for f, expected in (

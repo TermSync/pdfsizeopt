@@ -644,7 +644,7 @@ def FixFontNameInCff(data, new_font_name, len_deltas_out=None):
     cff_font_name_ofs = GetCffFontNameOfs(data)
     assert data[cff_font_name_ofs : cff_font_name_ofs + len(cff_font_name)] == (
         cff_font_name)  # Guaranteed by GetCffFontNameOfs.
-    return ''.join((
+    return b''.join((
         data[:cff_font_name_ofs], new_font_name,
         data[cff_font_name_ofs + len(cff_font_name):]))
   old_rest_ofs = len(data) - len(cff_rest_buf)
