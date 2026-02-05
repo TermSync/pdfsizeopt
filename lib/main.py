@@ -7029,14 +7029,14 @@ class PdfData(object):
       # We can assume that OptimizeImages has simplified /ColorSpace and
       # /BitsPerComponent for us.
 
-      if ('/JBIG2Decode' in str(obj.Get(b'Filter')) and
-          '/JBIG2Globals' in str(obj.Get(b'DecodeParms'))):
+      if ('/JBIG2Decode' in str(obj.Get('Filter')) and
+          '/JBIG2Globals' in str(obj.Get('DecodeParms'))):
         # TODO(pts): Add support for /JBIG2Globals, also elsewhere in main.py.
         # TODO(pts): At least skip the image.
         raise NotImplementedError('/JBIG2Globals not supported.')
-      if ('/CCITTFaxDecode' in str(obj.Get(b'Filter')) and
-          '/BlackIs1' in str(obj.Get(b'DecodeParms'))):
-        decodeparms = obj.Get(b'DecodeParms')
+      if ('/CCITTFaxDecode' in str(obj.Get('Filter')) and
+          '/BlackIs1' in str(obj.Get('DecodeParms'))):
+        decodeparms = obj.Get('DecodeParms')
         if decodeparms.startswith('['):
           decodeparms = PdfObj.ParseArray(decodeparms)
         else:
@@ -7049,34 +7049,34 @@ class PdfData(object):
             parm.pop('BlackIs1', None)
           decodeparms = map(PdfObj.SerializeDict, decodeparms)
           if len(decodeparms) == 1:
-            obj.Set(b'DecodeParms', decodeparms[0])
+            obj.Set('DecodeParms', decodeparms[0])
           else:
-            obj.Set(b'DecodeParms', '[%s]' % ' '.join(decodeparms))
-          if '/Indexed' in str(obj.Get(b'ColorSpace')):
-            indexed_bpc = obj.Get(b'BitsPerComponent')
+            obj.Set('DecodeParms', '[%s]' % ' '.join(decodeparms))
+          if '/Indexed' in str(obj.Get('ColorSpace')):
+            indexed_bpc = obj.Get('BitsPerComponent')
             assert isinstance(indexed_bpc, int)
           else:
             indexed_bpc = 0
-          if str(obj.Get(b'ColorSpace')) == '/DeviceRGB':
+          if str(obj.Get('ColorSpace')) == '/DeviceRGB':
             samples_per_pixel = 3
           else:
             samples_per_pixel = 1
           decode_kind = PdfObj.ClassifyImageDecode(
-              obj.Get(b'Decode'), indexed_bpc)
+              obj.Get('Decode'), indexed_bpc)
           if decode_kind == 'inverted':
-            obj.Set(b'Decode', None)
+            obj.Set('Decode', None)
           else:
-            obj.Set(b'Decode', PdfObj.GenerateImageDecode(
+            obj.Set('Decode', PdfObj.GenerateImageDecode(
                 True, samples_per_pixel, indexed_bpc))
-      if (obj.Get(b'Decode') is None and
-          '/Indexed' in str(obj.Get(b'ColorSpace'))):
+      if (obj.Get('Decode') is None and
+          '/Indexed' in str(obj.Get('ColorSpace'))):
         obj = PdfObj(obj)
-        assert isinstance(obj.Get(b'BitsPerComponent'), int)
+        assert isinstance(obj.Get('BitsPerComponent'), int)
         # We need to set `/Decode [0 255]', otherwise Ghostscript 9.05
         # misinterprets colors in `/ColorSpace [/Indexed/DeviceGray ...]'.
         # Example: pa8.pdf in https://github.com/pts/pdfsizeopt/issues/29 .
-        obj.Set(b'Decode', PdfObj.GenerateImageDecode(
-            False, 1, obj.Get(b'BitsPerComponent')))
+        obj.Set('Decode', PdfObj.GenerateImageDecode(
+            False, 1, obj.Get('BitsPerComponent')))
 
       # ImageRenderer does the inversion, image won't be inverted after
       # rendering.
