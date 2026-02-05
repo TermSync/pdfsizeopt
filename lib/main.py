@@ -228,13 +228,6 @@ from lib import psproc
 class Error(Exception):
   """Comon base class for exceptions defined in this module."""
 
-try:
-  bytearray_tostring = bytearray.__str__  # Python 2.6 and 2.7.
-except NameError:  # Python 2.4 and Python 2.5
-  import array
-  bytearray = lambda data: array.array('B', data)
-  bytearray_tostring = array.array.tostring
-
 TMP_PREFIX = '///dev/null/psotmp..'  # Will be overridden in main.
 
 # Log everything by default. Will be overridden in main.
