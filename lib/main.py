@@ -2611,7 +2611,7 @@ class PdfObj(object):
         raise PdfXrefStreamError('bad or missing /Size for xref stream')
       index = [0, size]
     else:
-      if not isinstance(index_value, str) or not index_value.startswith('['):
+      if not isinstance(index_value, bytes) or not index_value.startswith(b'['):
         raise PdfTokenParseError('item /Index in xref object is not an array')
       index = tuple(PdfObj.ParseArray(index_value))
       if (not index or len(index) % 2 != 0 or
