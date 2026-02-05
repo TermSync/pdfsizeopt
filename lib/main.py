@@ -3275,7 +3275,7 @@ class PdfObj(object):
     if (image_obj.Get(b'Width') != width or
         image_obj.Get(b'Height') != height):
       return None
-    image_obj.Set('Length', len(stream))
+    image_obj.Set(b'Length', len(stream))
     image_obj.stream = stream
     return width, height, image_obj
 
@@ -4112,14 +4112,14 @@ class ImageData(object):
       assert pdf_obj.Get(b'Height') == pdf_image_data['Height'], (
           'image Height mismatch: %r vs %r' % (pdf_obj.head, pdf_image_data))
     else:
-      pdf_obj.Set('Width', pdf_image_data['Width'])
-      pdf_obj.Set('Height', pdf_image_data['Height'])
+      pdf_obj.Set(b'Width', pdf_image_data['Width'])
+      pdf_obj.Set(b'Height', pdf_image_data['Height'])
 
     if pdf_obj.Get(b'ImageMask'):
       assert self.CanUpdateImageMask()
       assert pdf_image_data['BitsPerComponent'] == 1
       assert pdf_image_data['ColorSpace'] == '/DeviceGray'
-      pdf_obj.Set('ColorSpace', None)
+      pdf_obj.Set(b'ColorSpace', None)
       image_decode = pdf_image_data.get('Decode')
       # pdf_reference_1-7.pdf says: for /ImageMask true, /Decode must be [0 1]
       # or [1 0]. No need to check for 1.0 etc., because GetPdfImageData
@@ -4132,17 +4132,17 @@ class ImageData(object):
       else:
         assert False, 'unknown decode value: %r' % image_decode
     else:
-      pdf_obj.Set('BitsPerComponent', pdf_image_data['BitsPerComponent'])
-      pdf_obj.Set('ColorSpace', pdf_image_data['ColorSpace'])
-    pdf_obj.Set('Filter', pdf_image_data['Filter'])
-    pdf_obj.Set('DecodeParms', pdf_image_data.get('DecodeParms'))
-    pdf_obj.Set('Length', len(pdf_image_data['.stream']))
+      pdf_obj.Set(b'BitsPerComponent', pdf_image_data['BitsPerComponent'])
+      pdf_obj.Set(b'ColorSpace', pdf_image_data['ColorSpace'])
+    pdf_obj.Set(b'Filter', pdf_image_data['Filter'])
+    pdf_obj.Set(b'DecodeParms', pdf_image_data.get('DecodeParms'))
+    pdf_obj.Set(b'Length', len(pdf_image_data['.stream']))
     if is_inverted:
       indexed_bpc = int(self.color_type.startswith('indexed-') and self.bpc)
-      pdf_obj.Set('Decode', pdf_obj.GenerateImageDecode(
+      pdf_obj.Set(b'Decode', pdf_obj.GenerateImageDecode(
           is_inverted, self.samples_per_pixel, indexed_bpc))
     else:
-      pdf_obj.Set('Decode', None)  # Use the default, it's shorter.
+      pdf_obj.Set(b'Decode', None)  # Use the default, it's shorter.
     pdf_obj.stream = pdf_image_data['.stream']
 
   def CanCompressToZipPng(self):
@@ -4351,11 +4351,11 @@ class ImageData(object):
         palette = color2 + color1
       else:
         palette = color1 + color2
-      obj.Set('Decode', None)
+      obj.Set(b'Decode', None)
       colorspace = '[/Indexed/DeviceRGB %d%s]' % (
           len(palette) / 3 - 1, PdfObj.SerializePdfStringSafe(palette))
-      obj.Set('ColorSpace', colorspace)
-      obj.Set('ImageMask', None)
+      obj.Set(b'ColorSpace', colorspace)
+      obj.Set(b'ImageMask', None)
 
     return self.LoadPdfImageObj(obj=obj, do_zip=True)
 
@@ -4841,7 +4841,7 @@ class PdfData(object):
       prev = xref_obj.Get(b'Prev')
       if prev is None:
         break
-      trailer_obj.Set('Prev', None)
+      trailer_obj.Set(b'Prev', None)
       # TODO(pts): For testing: issue58.pdf.
       if not isinstance(prev, int) or prev < 9:
         raise PdfXrefStreamError('invalid /Prev at %d: %r' % (xref_ofs, prev))
@@ -5729,7 +5729,7 @@ class PdfData(object):
       if obj.Get(b'Metadata') is not None:
         if not new_obj:
           new_obj = obj = PdfObj(obj)
-        obj.Set('Metadata', None)
+        obj.Set(b'Metadata', None)
 
       obj.AppendTo(output, obj_num)
     output.append('(Type1CConverter: all OK\\n) print flush\n%%EOF\n')
@@ -5986,8 +5986,8 @@ class PdfData(object):
       assert match, obj.Get(b'FontFile')
       font_file_obj_num = int(match.group(1))
       new_obj = PdfObj(obj)
-      new_obj.Set('FontFile', None)
-      new_obj.Set('FontFile3', '%d 0 R' % font_file_obj_num)
+      new_obj.Set(b'FontFile', None)
+      new_obj.Set(b'FontFile3', '%d 0 R' % font_file_obj_num)
       old_size = self.objs[font_file_obj_num].size + obj.size
       new_size = type1c_obj.size + new_obj.size
       if new_size < old_size:
@@ -6600,7 +6600,7 @@ class PdfData(object):
 
       # pdf_reference_1-7.pdf says /Type/FontDescriptor is required (even if
       # some software omits it).
-      merged_fontdesc_obj.Set('Type' , '/FontDescriptor')
+      merged_fontdesc_obj.Set(b'Type' , '/FontDescriptor')
       if do_keep_font_optionals:
         # !! remove more optionals
         # New Ghostscript doesn't generate /CharSet. We don't generate it
@@ -6648,7 +6648,7 @@ class PdfData(object):
           if obj_num in copy_encoding_dict:
             font_obj_nums = copy_encoding_dict.pop(obj_num)[1]
             for font_obj_num in font_obj_nums:
-              self.objs[font_obj_num].Set('Encoding', encoding)
+              self.objs[font_obj_num].Set(b'Encoding', encoding)
       # Merge the remaining encodings in the group.
       for obj_num in group_obj_nums:
         if obj_num in copy_encoding_dict:
@@ -6740,21 +6740,21 @@ class PdfData(object):
           obj.Get(b'FontBBox'), objs=self.objs)
       assert str(fontbbox).startswith('['), fontbbox
       if fontbbox_has_changed:
-        obj.Set('FontBBox', fontbbox)  # Resolve the reference.
+        obj.Set(b'FontBBox', fontbbox)  # Resolve the reference.
       # These entries are important only for finding substitute fonts, so
       # we can get rid of them.
       #
       # TODO(pts): Why not remove StemV?
-      obj.Set('FontFamily', None)
-      obj.Set('FontStretch', None)
-      obj.Set('FontWeight', None)
-      obj.Set('Leading', None)
-      obj.Set('XHeight', None)
-      obj.Set('StemH', None)
-      obj.Set('AvgWidth', None)
-      obj.Set('MaxWidth', None)
+      obj.Set(b'FontFamily', None)
+      obj.Set(b'FontStretch', None)
+      obj.Set(b'FontWeight', None)
+      obj.Set(b'Leading', None)
+      obj.Set(b'XHeight', None)
+      obj.Set(b'StemH', None)
+      obj.Set(b'AvgWidth', None)
+      obj.Set(b'MaxWidth', None)
       # Optional.
-      obj.Set('CharSet', None)
+      obj.Set(b'CharSet', None)
       orig_type1c_size += type1c_objs[obj_num].size + obj.size
 
     # Merge byte-by-byte identical fonts.
@@ -6797,7 +6797,7 @@ class PdfData(object):
         if master_obj_num is None:
           master_obj_num = target_obj_num
         elif master_obj_num != target_obj_num:
-          obj.Set('FontFile3', '%s 0 R' % master_obj_num)
+          obj.Set(b'FontFile3', '%s 0 R' % master_obj_num)
           # TODO(pts): What if self.objs has another reference to
           # target_obj_num, which is not coming from /FontDescriptor{}s?
           del self.objs[target_obj_num]
@@ -6975,10 +6975,10 @@ class PdfData(object):
       if colorspace.startswith('[/Interpolate/'):
         # Fix bad decoding in PDF_NAME_ABBREVIATIONS.
         colorspace = '[/Indexed' + colorspace[13:]
-        image_obj.Set('ColorSpace', colorspace)
+        image_obj.Set(b'ColorSpace', colorspace)
       # TODO(pts): Get rid of /Type/XObject etc. from other objects as well
-      image_obj.Set('Type', None)  # /XObject, but optimized
-      image_obj.Set('Subtype', '/Image')
+      image_obj.Set(b'Type', None)  # /XObject, but optimized
+      image_obj.Set(b'Subtype', '/Image')
       image_obj.head = PdfObj.CompressValue(image_obj.head)
       # We cannot just replace obj by image_obj here, because we have to scale
       # (with the `cm' operator).
@@ -6989,7 +6989,7 @@ class PdfData(object):
       # Currently, typically resources_obj.head ==
       # '<</ProcSet[/PDF/ImageB]>>'. /ProcSet is optional since PDF 1.2.
       # TODO(pts): Remove /ProcSet from resources_obj.
-      resources_obj.Set('XObject', '<</S %s 0 R>>' % image_obj_num)
+      resources_obj.Set(b'XObject', '<</S %s 0 R>>' % image_obj_num)
       # TODO(pts): Instead of creating a /Subtype/Form which references a
       # /Subtype/Image (in its `/Resources<</XObject</S x 0 r>> >>'), we
       # should make content streams reference the /Subtype/Image directly,
@@ -6999,9 +6999,9 @@ class PdfData(object):
       # `q 1 0 0 1 0 0 cm /Im1 Do Q', which can conveniently be replaced.
       form_obj = PdfObj('0 0 obj<</Subtype/Form>>endobj')
       form_obj.stream = 'q %s 0 0 %s 0 0 cm/S Do Q' % (width, height)
-      form_obj.Set('BBox', '[0 0 %s %s]' % (width, height))
-      form_obj.Set('Resources', resources_obj.head)
-      form_obj.Set('Length', len(form_obj.stream))
+      form_obj.Set(b'BBox', '[0 0 %s %s]' % (width, height))
+      form_obj.Set(b'Resources', resources_obj.head)
+      form_obj.Set(b'Length', len(form_obj.stream))
       form_obj.head = PdfObj.CompressValue(form_obj.head)
       uninline_bytes_saved += obj.size - form_obj.size - image_obj.size
       # Throw away /Type, /Subtype/Form, /FormType, /PTEX.FileName,
@@ -7057,9 +7057,9 @@ class PdfData(object):
             parm.pop('BlackIs1', None)
           decodeparms = map(PdfObj.SerializeDict, decodeparms)
           if len(decodeparms) == 1:
-            obj.Set('DecodeParms', decodeparms[0])
+            obj.Set(b'DecodeParms', decodeparms[0])
           else:
-            obj.Set('DecodeParms', '[%s]' % ' '.join(decodeparms))
+            obj.Set(b'DecodeParms', '[%s]' % ' '.join(decodeparms))
           if '/Indexed' in str(obj.Get(b'ColorSpace')):
             indexed_bpc = obj.Get(b'BitsPerComponent')
             assert isinstance(indexed_bpc, int)
@@ -7072,9 +7072,9 @@ class PdfData(object):
           decode_kind = PdfObj.ClassifyImageDecode(
               obj.Get(b'Decode'), indexed_bpc)
           if decode_kind == 'inverted':
-            obj.Set('Decode', None)
+            obj.Set(b'Decode', None)
           else:
-            obj.Set('Decode', PdfObj.GenerateImageDecode(
+            obj.Set(b'Decode', PdfObj.GenerateImageDecode(
                 True, samples_per_pixel, indexed_bpc))
       if (obj.Get(b'Decode') is None and
           '/Indexed' in str(obj.Get(b'ColorSpace'))):
@@ -7083,7 +7083,7 @@ class PdfData(object):
         # We need to set `/Decode [0 255]', otherwise Ghostscript 9.05
         # misinterprets colors in `/ColorSpace [/Indexed/DeviceGray ...]'.
         # Example: pa8.pdf in https://github.com/pts/pdfsizeopt/issues/29 .
-        obj.Set('Decode', PdfObj.GenerateImageDecode(
+        obj.Set(b'Decode', PdfObj.GenerateImageDecode(
             False, 1, obj.Get(b'BitsPerComponent')))
 
       # ImageRenderer does the inversion, image won't be inverted after
@@ -7241,14 +7241,14 @@ class PdfData(object):
       if obj.Get(b'Type') is not None:
         if obj.Get(b'Type') != '/XObject':
           continue  # Something is wrong with this object, don't touch it.
-        obj.Set('Type', None)  # Remove explicit default.
+        obj.Set(b'Type', None)  # Remove explicit default.
 
       filter_value, filter_has_changed = PdfObj.ResolveReferencesChanged(
           obj.Get(b'Filter'), objs=self.objs)
       filter2 = (filter_value or '').replace(']', ' ]') + ' '
 
       if not obj.Get(b'Interpolate'):
-        obj.Set('Interpolate', None)  # Remove explicit default.
+        obj.Set(b'Interpolate', None)  # Remove explicit default.
 
       # Don't touch lossy-compressed images.
       # TODO(pts): Read lossy-compressed images, maybe a small, uncompressed
@@ -7326,19 +7326,19 @@ class PdfData(object):
       if filter_has_changed:
         if obj is obj0:
           obj = PdfObj(obj)
-        obj.Set('Filter', filter_value)
+        obj.Set(b'Filter', filter_value)
       if bpc_has_changed:
         if obj is obj0:
           obj = PdfObj(obj)
-        obj.Set('BitsPerComponent', bpc)
+        obj.Set(b'BitsPerComponent', bpc)
       if colorspace_has_changed:
         if obj is obj0:
           obj = PdfObj(obj)
-        obj.Set('ColorSpace', colorspace)
+        obj.Set(b'ColorSpace', colorspace)
       if obj.Get(b'Mask') and do_remove_mask:
         if obj is obj0:
           obj = PdfObj(obj)
-        obj.Set('Mask', None)
+        obj.Set(b'Mask', None)
       for name in ('Width', 'Height', 'Decode', 'DecodeParms', 'ImageMask'):
         value = obj.Get(name)
         value, value_has_changed = PdfObj.ResolveReferencesChanged(
@@ -7353,9 +7353,9 @@ class PdfData(object):
           obj = PdfObj(obj)
         assert colorspace == '/DeviceGray'  # Set above.
         assert obj.Get(b'ColorSpace') == '/DeviceGray'  # Set above.
-        obj.Set('ImageMask', None)
+        obj.Set(b'ImageMask', None)
         # We don't remove /Decode here, because /Decode [1 0] signals inversion.
-        obj.Set('BitsPerComponent', 1)
+        obj.Set(b'BitsPerComponent', 1)
 
       # Ignore images with exotic color spaces (e.g. DeviceCMYK, CalGray,
       # DeviceN).
@@ -7452,8 +7452,8 @@ class PdfData(object):
         obj2.stream = obj.stream
         if len(obj2.stream) > int(obj.Get(b'Length')):
            obj2.stream = obj2.stream[:int(obj.Get(b'Length'))]
-        obj2.Set('Length', len(obj2.stream))
-        obj2.Set('Subtype', '/Image')
+        obj2.Set(b'Length', len(obj2.stream))
+        obj2.Set(b'Subtype', '/Image')
         for name in ('Width', 'Height', 'ColorSpace', 'Decode', 'Filter',
                      'DecodeParms', 'BitsPerComponent'):
           obj2.Set(name, obj.Get(name))
@@ -7762,8 +7762,8 @@ class PdfData(object):
           continue
         new_obj = PdfObj(obj)
         # Resolve references.
-        new_obj.Set('Width', obj_width)
-        new_obj.Set('Height', obj_height)
+        new_obj.Set(b'Width', obj_width)
+        new_obj.Set(b'Height', obj_height)
         image_data.UpdatePdfObj(new_obj)
         obj_infos.append((new_obj.size, cmd_name, image_data.file_name,
                           new_obj, image_data))
@@ -8189,9 +8189,9 @@ class PdfData(object):
                 '/JPXDecode' not in filter_value)
           if do_decompress:
             pdf_obj.stream = pdf_obj.GetUncompressedStream(self.objs)
-            pdf_obj.Set('Filter', None)
-            pdf_obj.Set('DecodeParms', None)
-            pdf_obj.Set('Length', len(pdf_obj.stream))
+            pdf_obj.Set(b'Filter', None)
+            pdf_obj.Set(b'DecodeParms', None)
+            pdf_obj.Set(b'Length', len(pdf_obj.stream))
             uncompress_count += 1
     LogInfo('decompressed %d %s' % (uncompress_count, msg_word))
 
@@ -8366,7 +8366,7 @@ class PdfData(object):
         if self.trailer.Get(b'Type') is not None:
           raise PdfTokenParseError(
               'unexpected trailer obj type: %s' % self.trailer.Get(b'Type'))
-        self.trailer.Set('Prev', None)  # Why?
+        self.trailer.Set(b'Prev', None)  # Why?
         i = end_ofs_out[-1]
         if data[i : i + 1] in ws:
           i += 1
