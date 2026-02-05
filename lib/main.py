@@ -5611,14 +5611,14 @@ class PdfData(object):
             'FontFile3': obj.Get(b'FontFile3'),
         }
         font_file_count = sum(
-            1 for v in font_file_dict.itervalues() if v is not None)
+            1 for v in font_file_dict.values() if v is not None)
         if font_file_count != 1:
           continue
         if (good_font_file_tag is not None and
             font_file_dict.get(good_font_file_tag) is None):
           continue
         font_file_tag, font_file_value = (  # Get the only non-None value.
-            (k, v) for k, v in font_file_dict.iteritems() if v is not None
+            (k, v) for k, v in font_file_dict.items() if v is not None
             ).next()
         match = PdfObj.PDF_REF_AT_EOS_RE.match(str(font_file_value))
         if not match:
@@ -8169,7 +8169,7 @@ class PdfData(object):
     else:
       substring = ''
       msg_word = 'streams'
-    for pdf_obj in self.objs.itervalues():
+    for pdf_obj in self.objs.values():
       if pdf_obj.head.startswith('<<') and substring in pdf_obj.head:
         filter_value = pdf_obj.Get(b'Filter')
         if isinstance(filter_value, str):  # Should always be true (except None).
@@ -8195,7 +8195,7 @@ class PdfData(object):
     the original will be kept.
     """
     compress_count = uncompressed_count = 0
-    for pdf_obj in self.objs.itervalues():
+    for pdf_obj in self.objs.values():
       if (pdf_obj.stream is not None and
           pdf_obj.head.startswith('<<') and
           pdf_obj.Get(b'Filter') in (None, '[]')):
@@ -8642,9 +8642,9 @@ class PdfData(object):
           'stat %s = %s bytes (%s)' %
           (key, stats[key], FormatPercentTwoDigits(stats[key], len(data))))
     LogInfo('end of stats')
-    assert not [1 for value in stats.itervalues() if value < 0], (
+    assert not [1 for value in stats.values() if value < 0], (
         'stats has negative values')
-    sum_stats = sum(stats.itervalues())
+    sum_stats = sum(stats.values())
     assert sum_stats == len(data), (
         'stats size mismatch: total_stats_size=%r, file_size=%r' %
         (sum_stats, len(data)))
@@ -9182,7 +9182,7 @@ class PdfData(object):
     # because it assumes do_generate_xref_stream=False and
     # do_generate_object_stream=False.
     estimated_size = 40 + self.trailer.size + sum(
-        pdf_obj.size for pdf_obj in self.objs.itervalues())
+        pdf_obj.size for pdf_obj in self.objs.values())
     if estimated_size < 10000 and len(self.objs) < 40:
       # The file is small, so it may be worth trying other settings.
       if do_generate_xref_stream and do_generate_object_stream:
@@ -9659,7 +9659,7 @@ def main(argv, script_dir=None, zip_file=None):
     pdf.OptimizeObjs(do_unify_pages=f.do_unify_pages)
   elif f.do_optimize_obj_heads:
     pdf.trailer.head = PdfObj.CompressValue(pdf.trailer.head)
-    for obj in pdf.objs.itervalues():
+    for obj in pdf.objs.values():
       obj.head = PdfObj.CompressValue(obj.head)
   if f.do_decompress_most_streams:
     # TODO(pts): Also decompress in Multivalent output.
