@@ -5322,8 +5322,8 @@ class PdfData(object):
   def _AssertBeforeWrite(self):
     """Do some assertions before saving or serializing the PDF."""
     assert self.objs
-    assert self.trailer.head.startswith('<<')
-    assert self.trailer.head.endswith('>>')
+    assert self.trailer.head.startswith(b'<<')
+    assert self.trailer.head.endswith(b'>>')
 
   def AppendSerializedPdf(self, output,
                           do_hide_images=False,
