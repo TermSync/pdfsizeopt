@@ -8075,8 +8075,8 @@ class PdfData(object):
       if obj.stream is None:
         skipped_count += 1
         continue
-      if ('/Subtype' in obj.head and '/Image' in obj.head and
-          obj.Get(b'Subtype') == '/Image'):
+      if (b'/Subtype' in obj.head and b'/Image' in obj.head and
+          obj.Get(b'Subtype') == b'/Image'):
         # Force regeneration from obj._cache, give self.OptimizeObjs a better
         # chance to find duplicates.
         #
@@ -8089,14 +8089,14 @@ class PdfData(object):
       obj_infos = []
       if obj.HasUncompressedStream():
         data, filter_value = obj.stream, None
-        obj.Set('Filter', None)
-        obj.Set('DecodeParms', None)
+        obj.Set(b'Filter', None)
+        obj.Set(b'DecodeParms', None)
         # '#' has a small ASCII code, so prefer '#orig' to 'zip'.
         obj_infos.append((obj.size, '#orig', obj))
       else:
-        filter_value = str(obj.Get(b'Filter'))
+        filter_value = obj.Get(b'Filter')
         # Keep objects with lossy filters untouched.
-        if ('/DCTDecode' in filter_value or '/JPXDecode' in filter_value):
+        if (b'/DCTDecode' in filter_value or b'/JPXDecode' in filter_value):
           skipped_count += 1
           continue
         try:
@@ -8110,9 +8110,9 @@ class PdfData(object):
         obj_infos.append((obj.size, '#orig', obj))
         obj2 = PdfObj(obj)
         obj2.stream = data
-        obj2.Set('Filter', None)
-        obj2.Set('DecodeParms', None)
-        obj2.Set('Length', len(obj2.stream))
+        obj2.Set(b'Filter', None)
+        obj2.Set(b'DecodeParms', None)
+        obj2.Set(b'Length', len(obj2.stream))
         obj_infos.append((obj2.size, 'uncompressed', obj2))
         del obj2  # Save memory.
 
@@ -8122,9 +8122,9 @@ class PdfData(object):
         # Try flate with maximum effort.
         obj2 = PdfObj(obj)
         obj2.stream = zlib.compress(data, 9)
-        obj2.Set('Length', len(obj2.stream))
-        obj2.Set('Filter', '/FlateDecode')
-        obj2.Set('DecodeParms', None)
+        obj2.Set(b'Length', len(obj2.stream))
+        obj2.Set(b'Filter', b'/FlateDecode')
+        obj2.Set(b'DecodeParms', None)
         obj_infos.append((obj2.size, 'zip', obj2))
         del obj2  # Save memory.
 
@@ -8142,7 +8142,7 @@ class PdfData(object):
     else:
       what = 'optimized'
     if counts:
-      msg = ', '.join('%d %s' % (c, k) for k, c in sorted(counts.iteritems()))
+      msg = ', '.join('%d %s' % (c, k) for k, c in sorted(counts.items()))
     else:
       msg = 'none'
     LogInfo(
