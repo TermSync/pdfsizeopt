@@ -5964,6 +5964,7 @@ class PdfData(object):
     return parsed_fonts
 
   def ConvertType1FontsToType1C(self):
+    print("CALLED")
     """Convert all Type1 fonts to Type1C in self, returns self."""
     # GenerateType1CFontsFromType1 removes the tmp files it creates.
     type1c_objs, encodings = self.GenerateType1CFontsFromType1(
@@ -5971,15 +5972,15 @@ class PdfData(object):
         TMP_PREFIX + 'conv.tmp.ps', TMP_PREFIX + 'conv.tmp.pdf')
     for obj_num in type1c_objs:
       obj = self.objs[obj_num]  # obj.get('Type') == 'FontDescriptor'.
-      assert str(obj.Get(b'FontName')).startswith('/')
+      assert str(obj.Get('FontName')).startswith('/')
       type1c_obj = type1c_objs[obj_num]
       type1c_obj.FixFontNameInType1C(objs=self.objs)
-      match = PdfObj.PDF_REF_AT_EOS_RE.match(str(obj.Get(b'FontFile')))
-      assert match, obj.Get(b'FontFile')
+      match = PdfObj.PDF_REF_AT_EOS_RE.match(str(obj.Get('FontFile')))
+      assert match, obj.Get('FontFile')
       font_file_obj_num = int(match.group(1))
       new_obj = PdfObj(obj)
-      new_obj.Set(b'FontFile', None)
-      new_obj.Set(b'FontFile3', '%d 0 R' % font_file_obj_num)
+      new_obj.Set('FontFile', None)
+      new_obj.Set('FontFile3', '%d 0 R' % font_file_obj_num)
       old_size = self.objs[font_file_obj_num].size + obj.size
       new_size = type1c_obj.size + new_obj.size
       if new_size < old_size:
@@ -6007,9 +6008,9 @@ class PdfData(object):
             '/Font' in head and '/Type' in head and
             '/Type1' in head and '/Subtype' in head and
             '/FontDescriptor' in head and
-            obj.Get(b'Type') == '/Font' and
-            obj.Get(b'Subtype') == '/Type1'):
-          match = obj.PDF_REF_AT_EOS_RE.match(str(obj.Get(b'FontDescriptor')))
+            obj.Get('Type') == '/Font' and
+            obj.Get('Subtype') == '/Type1'):
+          match = obj.PDF_REF_AT_EOS_RE.match(str(obj.Get('FontDescriptor')))
           if match:
             fd_obj_num = int(match.group(1))  # /Type/FontDescriptor.
             if fd_obj_num in encodings:
@@ -6718,35 +6719,35 @@ class PdfData(object):
     for obj_num in sorted(type1c_objs):
       obj = self.objs[obj_num]  # /Type/FontDescriptor
       assert obj.stream is None
-      assert obj.Get(b'Flags') is not None
-      if obj.Get(b'StemV') is None:
+      assert obj.Get('Flags') is not None
+      if obj.Get('StemV') is None:
         # According to pdf_reference_1-7.pdf, /StemV is required.
         # Counterexample: W16-36.pdf in https://github.com/pts/pdfsizeopt/issues/78
         LogWarning('missing /StemV in Type1C font obj %d' % obj_num)
-      assert str(obj.Get(b'FontName')).startswith('/')
+      assert str(obj.Get('FontName')).startswith('/')
       # For testing when ResolveReferences is needed:
       # combinatorics-of-compositions-and-words.pdf
       #
       # TODO(pts): Find and fix more mossing-reference-resolving bugs.
       fontbbox, fontbbox_has_changed = PdfObj.ResolveReferencesChanged(
-          obj.Get(b'FontBBox'), objs=self.objs)
+          obj.Get('FontBBox'), objs=self.objs)
       assert str(fontbbox).startswith('['), fontbbox
       if fontbbox_has_changed:
-        obj.Set(b'FontBBox', fontbbox)  # Resolve the reference.
+        obj.Set('FontBBox', fontbbox)  # Resolve the reference.
       # These entries are important only for finding substitute fonts, so
       # we can get rid of them.
       #
       # TODO(pts): Why not remove StemV?
-      obj.Set(b'FontFamily', None)
-      obj.Set(b'FontStretch', None)
-      obj.Set(b'FontWeight', None)
-      obj.Set(b'Leading', None)
-      obj.Set(b'XHeight', None)
-      obj.Set(b'StemH', None)
-      obj.Set(b'AvgWidth', None)
-      obj.Set(b'MaxWidth', None)
+      obj.Set('FontFamily', None)
+      obj.Set('FontStretch', None)
+      obj.Set('FontWeight', None)
+      obj.Set('Leading', None)
+      obj.Set('XHeight', None)
+      obj.Set('StemH', None)
+      obj.Set('AvgWidth', None)
+      obj.Set('MaxWidth', None)
       # Optional.
-      obj.Set(b'CharSet', None)
+      obj.Set('CharSet', None)
       orig_type1c_size += type1c_objs[obj_num].size + obj.size
 
     # Merge byte-by-byte identical fonts.
@@ -6781,7 +6782,7 @@ class PdfData(object):
       master_obj_num = None
       for data_len, obj_num in same_type1c_objs:
         obj = self.objs[obj_num]
-        target_obj_num = PdfObj.GetReferenceTarget(obj.Get(b'FontFile3'))
+        target_obj_num = PdfObj.GetReferenceTarget(obj.Get('FontFile3'))
         assert (
             target_obj_num is not None and
             self.objs[target_obj_num] is type1c_objs[obj_num]), (
@@ -9632,6 +9633,7 @@ def main(argv, script_dir=None, zip_file=None):
   pdf.RemoveUnusedObjs()
   pdf.FixAllBadNumbers()
   if f.do_optimize_fonts:
+    raise NotImplementedError("Font Optimization Not Supported in Python 3")
     pdf.ConvertType1FontsToType1C()
     pdf.OptimizeType1CFonts(
         do_keep_font_optionals=f.do_keep_font_optionals,
@@ -9639,6 +9641,7 @@ def main(argv, script_dir=None, zip_file=None):
         do_unify_fonts=f.do_unify_fonts,
         do_regenerate_all_fonts=f.do_regenerate_all_fonts)
   if f.do_optimize_images:
+    raise NotImplementedError("Image Optimization Not Supported in Python 3")
     pdf.ConvertInlineImagesToXObjects()
     pdf.OptimizeImages(
         img_cmd_patterns=img_cmd_patterns,
