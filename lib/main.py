@@ -4353,18 +4353,18 @@ class ImageData(object):
 
   def LoadPdfImageObj(self, obj, do_zip, decode_kind=None):
     """Load image from PDF obj to self. Doesn't modify `obj'."""
-    assert obj.Get(b'Subtype') == '/Image'
+    assert obj.Get('Subtype') == '/Image'
     assert isinstance(obj.stream, str)
     idat = obj.stream
-    filter_value = obj.Get(b'Filter')
+    filter_value = obj.Get('Filter')
     if filter_value not in ('/FlateDecode', None):
       raise FormatUnsupported('image in PDF is not ZIP-compressed')
-    width = int(obj.Get(b'Width'))
-    height = int(obj.Get(b'Height'))
+    width = int(obj.Get('Width'))
+    height = int(obj.Get('Height'))
     palette = None
-    if obj.Get(b'ImageMask'):
+    if obj.Get('ImageMask'):
       raise FormatUnsupported('unsupported /ImageMask')
-    colorspace = obj.Get(b'ColorSpace')
+    colorspace = obj.Get('ColorSpace')
     assert colorspace
     if colorspace in ('/DeviceRGB', '/DeviceGray'):
       pass
@@ -4375,12 +4375,12 @@ class ImageData(object):
       raise FormatUnsupported('unsupported /ColorSpace %r' % colorspace)
 
     decodeparms = PdfObj(None)
-    decodeparms.head = obj.Get(b'DecodeParms') or '<<\n>>'
+    decodeparms.head = obj.Get('DecodeParms') or '<<\n>>'
     # Since we support only /FlateDecode, we don't have to support DecodeParms
     # being an array.
     assert not decodeparms.head.startswith('[')
 
-    predictor = decodeparms.Get(b'Predictor')
+    predictor = decodeparms.Get('Predictor')
     assert predictor is None or isinstance(predictor, int), (
         'expected integer predictor, got %r' % predictor)
     if filter_value is None:
@@ -4400,24 +4400,24 @@ class ImageData(object):
     else:
       assert False, 'expected valid predictor, got %r' % predictor
     if compression in ('zip-tiff', 'zip-png'):
-      pr_bpc_ok = [obj.Get(b'BitsPerComponent')]
+      pr_bpc_ok = [obj.Get('BitsPerComponent')]
       if pr_bpc_ok[-1] == 8:
         pr_bpc_ok.append(None)
-      if decodeparms.Get(b'BitsPerComponent') not in pr_bpc_ok:
+      if decodeparms.Get('BitsPerComponent') not in pr_bpc_ok:
         raise FormatUnsupported('unsupported predictor /BitsPerComponent')
-      if decodeparms.Get(b'Columns') != obj.Get(b'Width'):
+      if decodeparms.Get('Columns') != obj.Get('Width'):
         raise FormatUnsupported('unsupported predictor /Columns')
       if colorspace == '/DeviceRGB':
         pr_colors_ok = [3]
       else:
         pr_colors_ok = [1, None]
-      if decodeparms.Get(b'Colors') not in pr_colors_ok:
+      if decodeparms.Get('Colors') not in pr_colors_ok:
         raise FormatUnsupported('unsupported predictor /Colors')
-    bpc = int(obj.Get(b'BitsPerComponent'))
+    bpc = int(obj.Get('BitsPerComponent'))
 
     if decode_kind is None:
       decode_kind = PdfObj.ClassifyImageDecode(
-          obj.Get(b'Decode'),
+          obj.Get('Decode'),
           int(palette is not None and bpc))
       if decode_kind not in ('normal', 'inverted'):
         raise FormatUnsupported('unsupported /Decode')
@@ -7158,8 +7158,8 @@ class PdfData(object):
 
   # !!! Do proper PDF token sequence parsing (ParseTokensToSafe).
   PDFDATA_INDEXED_COLORSPACE_FOR_SUB_RE = re.compile(
-      r'\A\[[\x00\t\n\r\f ]*/Indexed[\x00\t\n\r\f ]*'
-      r'/([^\x00\t\n\r\f /<(]+)(.|\n)*')
+      r'\A\[[\0\t\n\r\f ]*/Indexed[\0\t\n\r\f ]*'
+      r'/([^\0\t\n\r\f /<(]+)(.|\n)*')
 
   @classmethod
   def _IsSlowCmdName(cls, cmd_name):
@@ -8164,9 +8164,9 @@ class PdfData(object):
     else:
       substring = ''
       msg_word = 'streams'
-    for pdf_obj in self.objs.values():
+    for pdf_obj in self.objs.itervalues():
       if pdf_obj.head.startswith('<<') and substring in pdf_obj.head:
-        filter_value = pdf_obj.Get(b'Filter')
+        filter_value = pdf_obj.Get('Filter')
         if isinstance(filter_value, str):  # Should always be true (except None).
           if is_flate_only:
             do_decompress = '/FlateDecode' in filter_value
@@ -8177,9 +8177,9 @@ class PdfData(object):
                 '/JPXDecode' not in filter_value)
           if do_decompress:
             pdf_obj.stream = pdf_obj.GetUncompressedStream(self.objs)
-            pdf_obj.Set(b'Filter', None)
-            pdf_obj.Set(b'DecodeParms', None)
-            pdf_obj.Set(b'Length', len(pdf_obj.stream))
+            pdf_obj.Set('Filter', None)
+            pdf_obj.Set('DecodeParms', None)
+            pdf_obj.Set('Length', len(pdf_obj.stream))
             uncompress_count += 1
     LogInfo('decompressed %d %s' % (uncompress_count, msg_word))
 
