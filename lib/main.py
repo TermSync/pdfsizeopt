@@ -1783,7 +1783,7 @@ class PdfObj(object):
     a = data1[-1]
     b = data2[0]
     # We don't cate about `{' or `}', because they can't appear in PDF values.
-    return not (a in ')>]' or b in '(<[/')
+    return not (a in b')>]' or b in b'(<[/')
 
   @classmethod
   def GetNumber(cls, data):
@@ -5355,10 +5355,10 @@ class PdfData(object):
     assert not output
     # Emit header.
     if do_generate_xref_stream:
-      version = max(self.version, '1.5')
+      version = max(self.version, b'1.5')
     else:
       version = self.version
-    output.extend(('%PDF-', version, '\n%\xD0\xD4\xC5\xD0\n'))
+    output.extend((b'%PDF-', version, b'\n%\xD0\xD4\xC5\xD0\n'))
 
     output_size = [0]
     output_size_idx = [0]
@@ -5384,7 +5384,7 @@ class PdfData(object):
     objstm_obj_numbers = None
 
     if do_generate_object_stream:
-      objstm_output = ['', '>']  # Sentinel for IsSpaceNeeded below.
+      objstm_output = [b'', b'>']  # Sentinel for IsSpaceNeeded below.
       objstm_size = 0  # In bytes.
       objstm_numbers = []
       objstm_objcount = 0
@@ -5411,7 +5411,7 @@ class PdfData(object):
           head = pdf_obj.head
           # The PDF reference says that objects who are just `X Y R' must
           # not be part of an object stream. So we skip them here.
-          if not (head.endswith('R') and PdfObj.PDF_REF_END_RE.search(head)):
+          if not (head.endswith(b'R') and PdfObj.PDF_REF_END_RE.search(head)):
             if do_emit_short_unsafe:
               # To Call this in the final objstm_output insted, we'd have to
               # fix the offsets (objstm_numbers). See also
@@ -5419,8 +5419,8 @@ class PdfData(object):
               head = PdfObj.CompressValue(
                   head,
                   do_emit_safe_names=False, do_emit_safe_strings=False)
-            if PdfObj.IsSpaceNeeded(objstm_output[-1], head[0]):
-              objstm_output.append(' ')
+            if PdfObj.IsSpaceNeeded(objstm_output[-1], head[0:1]):
+              objstm_output.append(b' ')
               objstm_size += 1
             objstm_numbers.append(obj_num)
             # If we append the wrong offset here, Ghostscript can still process
@@ -5440,23 +5440,23 @@ class PdfData(object):
         # TODO(pts): If the generated object stream is longer than the
         # sum of the individual objects, don't use it.
         # Replace the simulated digit.
-        objstm_output[0] = ' '.join(str(i) for i in objstm_numbers)
-        objstm_output[1] = ' ' * (
+        objstm_output[0] = b' '.join(b'%d' % i for i in objstm_numbers)
+        objstm_output[1] = b' ' * (
             len(objstm_output) > 2 and
             PdfObj.IsSpaceNeeded(objstm_output[0], objstm_output[2]))
         objstm_first = len(objstm_output[0]) + len(objstm_output[1])
-        objstm_output = ''.join(objstm_output)
+        objstm_output = b''.join(objstm_output)
         objstm_obj = PdfObj(None)
         #sys.stdout.write(objstm_output)
         #sys.stdout.write('\n')
-        objstm_obj.head = '<<>>'
+        objstm_obj.head = b'<<>>'
         # For the statistics below.
         objstm_size = len(objstm_output) + objstm_overhead_size
-        objstm_obj.SetStreamAndCompress(objstm_output, is_flate_ok=is_flate_ok)
+        objstm_obj.SetStreamAndCompress(bytearray(objstm_output), is_flate_ok=is_flate_ok)
         del objstm_output  # Save memory.
-        objstm_obj.Set('Type', '/ObjStm')
-        objstm_obj.Set('N', objstm_objcount)
-        objstm_obj.Set('First', objstm_first)
+        objstm_obj.Set(b'Type', b'/ObjStm')
+        objstm_obj.Set(b'N', objstm_objcount)
+        objstm_obj.Set(b'First', objstm_first)
         LogInfo(
             'generated object stream of %d bytes in %d objects (%s)' %
             (len(objstm_obj.stream), objstm_objcount,
@@ -5486,20 +5486,20 @@ class PdfData(object):
         # it (suboptimally).
         assert pdf_obj.Get(b'FilteR') is None
         assert pdf_obj.Get(b'DecodeParmS') is None
-        pdf_obj.Set('Subtype', '/ImagE')
+        pdf_obj.Set(b'Subtype', b'/ImagE')
         filter_value = pdf_obj.Get(b'Filter')
         if filter_value is not None:
-          pdf_obj.Set('FilteR', filter_value)
-          pdf_obj.Set('Filter', None)
+          pdf_obj.Set(b'FilteR', filter_value)
+          pdf_obj.Set(b'Filter', None)
         decodeparms = pdf_obj.Get(b'DecodeParms')
         if decodeparms is not None:
-          pdf_obj.Set('DecodeParmS', decodeparms)
-          pdf_obj.Set('DecodeParms', None)
+          pdf_obj.Set(b'DecodeParmS', decodeparms)
+          pdf_obj.Set(b'DecodeParms', None)
 
         # Trick to force Multivalent not to uncompress + compress the
         # object.
         # For testing: multivalent_filter_test.pdf
-        pdf_obj.Set('Filter', '/JPXDecode')
+        pdf_obj.Set(b'Filter', b'/JPXDecode')
       pdf_obj.AppendTo(output, obj_num,
                        do_emit_short_unsafe=do_emit_short_unsafe)
 
@@ -5516,14 +5516,14 @@ class PdfData(object):
     trailer_obj_num = next_obj_num
     next_obj_num += 1
     trailer_obj = PdfObj(self.trailer)
-    trailer_obj.Set('Prev', None)
-    trailer_obj.Set('XRefStm', None)
-    trailer_obj.Set('Compress', None)  # emitted by Multivalent.jar
+    trailer_obj.Set(b'Prev', None)
+    trailer_obj.Set(b'XRefStm', None)
+    trailer_obj.Set(b'Compress', None)  # emitted by Multivalent.jar
     # Emitted by Multivalent.jar etc., see section 10.3 in
     # pdf_reference_1-7.pdf .
-    trailer_obj.Set('ID', None)
-    assert trailer_obj.head.startswith('<<')
-    assert trailer_obj.head.endswith('>>')
+    trailer_obj.Set(b'ID', None)
+    assert trailer_obj.head.startswith(b'<<')
+    assert trailer_obj.head.endswith(b'>>')
     assert trailer_obj.stream is None
 
     xref_ofs = GetOutputSize()
@@ -5538,18 +5538,18 @@ class PdfData(object):
       trailer_obj.AppendTo(output, trailer_obj_num,
                            do_emit_short_unsafe=do_emit_short_unsafe)
     else:  # Emit xref and trailer.
-      trailer_obj.Set('Size', obj_numbers[-1] + 1)  # max_obj_num + 1.
+      trailer_obj.Set(b'Size', obj_numbers[-1] + 1)  # max_obj_num + 1.
       if obj_numbers[0] == 1:
         i = 0
         j = i + 1
         while j < obj_count and obj_numbers[j] - 1 == obj_numbers[j - 1]:
           j += 1
-        output.append('xref\n0 %s\n0000000000 65535 f \n' % (j + 1))
+        output.append(b'xref\n0 %s\n0000000000 65535 f \n' % (j + 1))
         while i < j:
-          output.append('%010d 00000 n \n' % obj_ofs[obj_numbers[i]])
+          output.append(b'%010d 00000 n \n' % obj_ofs[obj_numbers[i]])
           i += 1
       else:
-        output.append('xref\n0 1\n0000000000 65535 f \n')
+        output.append(b'xref\n0 1\n0000000000 65535 f \n')
         i = 0
 
       # Add subsequent xref subsections.
@@ -5557,15 +5557,15 @@ class PdfData(object):
         j = i + 1
         while j < obj_count and obj_numbers[j] - 1 == obj_numbers[j - 1]:
           j += 1
-        output.append('%s %s\n' % (obj_numbers[i], j - i))
+        output.append(b'%s %s\n' % (obj_numbers[i], j - i))
         while i < j:
-          output.append('%010d 00000 n \n' % obj_ofs[obj_numbers[i]])
+          output.append(b'%010d 00000 n \n' % obj_ofs[obj_numbers[i]])
           i += 1
 
-      output.append('trailer\n%s\n' % trailer_obj.head)
+      output.append(b'trailer\n%s\n' % trailer_obj.head)
 
-    output.append('startxref\n%d\n' % xref_ofs)
-    output.append('%%EOF\n')  # Avoid doubling % in printf().
+    output.append(b'startxref\n%d\n' % xref_ofs)
+    output.append(b'%%EOF\n')  # Avoid doubling % in printf().
     return GetOutputSize()
 
 
@@ -7910,7 +7910,6 @@ class PdfData(object):
     by_form = {}
     # List of desc.
     search_todo = []
-    print(objs.keys())
     for obj_num in sorted(objs, key=lambda x: (isinstance(x, bytes), x)):
       refs_to = []  # List of object numbers obj_num refers to).
       head = objs[obj_num].head
