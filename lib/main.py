@@ -8197,8 +8197,8 @@ class PdfData(object):
     compress_count = uncompressed_count = 0
     for pdf_obj in self.objs.values():
       if (pdf_obj.stream is not None and
-          pdf_obj.head.startswith('<<') and
-          pdf_obj.Get(b'Filter') in (None, '[]')):
+          pdf_obj.head.startswith(b'<<') and
+          pdf_obj.Get(b'Filter') in (None, b'[]')):
         pdf_obj.SetStreamAndCompress(
             pdf_obj.GetUncompressedStream(self.objs), pdf=self)
         if pdf_obj.Get(b'Filter'):
