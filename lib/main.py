@@ -3809,7 +3809,7 @@ class PdfObj(object):
       PdfXrefStreamError:
       NotImplementedError:
     """
-    if self.Get(b'Type') != '/ObjStm':
+    if self.Get(b'Type') != b'/ObjStm':
       raise PdfXrefStreamError(
           'expected /Type/ObjStm for obj %d' % obj_num)
     n = self.Get(b'N')  # Number of objects in self.
@@ -4729,7 +4729,7 @@ class PdfData(object):
     has_generational_objs = False
     # Parse the cross-reference stream (xref stream).
     # Maps object numbers to offset or (objstm_obj_num, index) values.
-    obj_starts = {'xref': xref_ofs}  # 'xref' is just informational.
+    obj_starts = {b'xref': xref_ofs}  # 'xref' is just informational.
     # Maps /Type/ObjStm object numbers to compressed_obj_headbufs, or
     # None if that object stream is not loaded yet.
     obj_streams = {}
@@ -4869,7 +4869,7 @@ class PdfData(object):
       if obj_start is None:
         if max_obj_num is None:
           max_obj_num = max(
-              (obj_num != 'xref' and obj_num or 0) for obj_num in obj_starts)
+              (obj_num != b'xref' and obj_num or 0) for obj_num in obj_starts)
         if xref_obj_num != max_obj_num + 1:
           # pgfmanual.pdf in
           # https://code.google.com/p/pdfsizeopt/issues/detail?id=75
@@ -4913,7 +4913,7 @@ class PdfData(object):
 
     # Parse used compressed objs (in objstm objs), and add them to
     # obj_starts with the PdfObj (instead of the offset) as a value.
-    for obj_num in sorted(obj_starts):
+    for obj_num in sorted(obj_starts, key=lambda x: (isinstance(x, bytes), x)):
       obj_start = obj_starts.get(obj_num)
       if not isinstance(obj_start, int):
         objstm_obj_num, i = obj_start
@@ -4932,7 +4932,7 @@ class PdfData(object):
         compressed_obj_nums[i] = None
         assert isinstance(compressed_obj_headbufs[i], (memoryview, str))
         obj_starts[obj_num] = compressed_obj_headbufs[i] = PdfObj(
-            '%d 0 obj\n%s\nendobj\n' % (obj_num, compressed_obj_headbufs[i]))
+            b'%d 0 obj\n%s\nendobj\n' % (obj_num, compressed_obj_headbufs[i]))
     for obj_num in sorted(obj_streams):
       del obj_starts[obj_num]
     obj_starts[b'trailer'] = trailer_obj
@@ -8353,7 +8353,7 @@ class PdfData(object):
           j -= 1
         if data[j : j + 2] in (' \n', ' \r', '\r\n'):
           j += 2
-        callback_calls = [(None, data[i : j], 'xref')]
+        callback_calls = [(None, data[i : j], b'xref')]
         if trailer_ofs > j:
           # TODO(pts): Also add comments in here.
           callback_calls.append(
