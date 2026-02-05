@@ -9216,7 +9216,7 @@ class PdfData(object):
             'job %s generated %d bytes %s(%s)' %
             (job[1], output_size, with_multivalent_msg,
              FormatPercent(output_size, self.file_size)))
-      job[3] = ''.join(output)
+      job[3] = b''.join(output)
       del output  # Save memory.
       assert len(job[3]) == output_size
 
