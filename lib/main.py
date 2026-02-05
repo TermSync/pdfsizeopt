@@ -5155,7 +5155,7 @@ class PdfData(object):
         streams with /Filter/FlateDecode.
     """
     assert obj_numbers or objstm_obj_numbers
-    assert trailer_obj.head.startswith('<<')
+    assert trailer_obj.head.startswith(b'<<')
     assert trailer_obj.stream is None
     assert not [obj_num for obj_num in obj_numbers if obj_ofs[obj_num] <= 0]
     assert xref_ofs not in obj_ofs
@@ -5196,20 +5196,20 @@ class PdfData(object):
     ofs_list.append(xref_ofs)
     max_obj_num = max(max_obj_num, trailer_obj_num)
 
-    trailer_obj.Set('Size', max_obj_num + 1)
-    trailer_obj.Set('Type', '/XRef')
+    trailer_obj.Set(b'Size', max_obj_num + 1)
+    trailer_obj.Set(b'Type', b'/XRef')
     max_ofs = xref_ofs
     if obj_numbers[0] != 0:  # /Index [0 Size] is the default.
       # Usually obj_numbers[0] == 1, and we'll take care of emitting a
       # free_entry later for that, and removing /Index (so it can be the
       # default).
-      index_data = '[%d %d]' % (
+      index_data = b'[%d %d]' % (
           obj_numbers[0], max_obj_num - obj_numbers[0] + 1)
-      trailer_obj.Set('Index', index_data)
+      trailer_obj.Set(b'Index', index_data)
       index_size = len(index_data) + 7  # 7 == len('/Index ').
       del index_data
     else:
-      trailer_obj.Set('Index', None)
+      trailer_obj.Set(b'Index', None)
       index_size = 0
 
     for i in range(1, len(obj_numbers)):
@@ -5240,10 +5240,10 @@ class PdfData(object):
           max_w2_size += 1
       else:
         max_w2_size = 0
-      w2_zero_str = '\0' * max_w2_size
+      w2_zero_str = b'\0' * max_w2_size
       ofs_output = []
-      trailer_obj.Set('W', '[1 %d %d]' % (max_ofs_size, max_w2_size))
-      free_entry = '\x00' * (1 + max_ofs_size + max_w2_size)
+      trailer_obj.Set(b'W', b'[1 %d %d]' % (max_ofs_size, max_w2_size))
+      free_entry = b'\x00' * (1 + max_ofs_size + max_w2_size)
       done_obj_num = 0
       if index_size:
         assert obj_numbers[0] != 0
@@ -5252,7 +5252,7 @@ class PdfData(object):
           # --do-generate-object-stream=yes /mnt/mandel/warez/tmp/issue57.pdf
           done_obj_num = obj_numbers[0]
           ofs_output.append(free_entry * done_obj_num)
-          trailer_obj.Set('Index', None)
+          trailer_obj.Set(b'Index', None)
       i = 0
       for ofs in ofs_list:
         if i < len(obj_numbers):
@@ -5265,7 +5265,7 @@ class PdfData(object):
           done_obj_num += 1
         i += 1
         if ofs <= 0:  # An object from the /Type/ObjStm obj.
-          ofs_output.append('\x02')
+          ofs_output.append(b'\x02')
           if max_ofs_size <= 4:
             ofs_output.append(
                 struct.pack('>L', objstm_obj_num)[4 - max_ofs_size:])
@@ -5277,7 +5277,7 @@ class PdfData(object):
           else:
             ofs_output.append(struct.pack('>Q', -ofs)[8 - max_w2_size:])
         else:
-          ofs_output.append('\x01')
+          ofs_output.append(b'\x01')
           if max_ofs_size <= 4:
             ofs_output.append(struct.pack('>L', ofs)[4 - max_ofs_size:])
           else:
@@ -5285,11 +5285,11 @@ class PdfData(object):
           if max_w2_size:
             ofs_output.append(w2_zero_str)
         done_obj_num += 1
-      data = ''.join(ofs_output)
+      data = b''.join(ofs_output)
       del ofs_output
       extra_width = 1 + max_w2_size
     else:
-      data = ''
+      data = b''
       if index_size:
         assert obj_numbers[0] != 0
         if obj_numbers[0] <= (index_size - 1) / max_ofs_size:
@@ -5298,25 +5298,25 @@ class PdfData(object):
           #
           # For testing: --use-multivalent=no --do-generate-xref-stream=yes
           # --do-generate-object-stream=no issue57.pdf
-          data = '\0' * (obj_numbers[0] * max_ofs_size)
-          trailer_obj.Set('Index', None)
+          data = b'\0' * (obj_numbers[0] * max_ofs_size)
+          trailer_obj.Set(b'Index', None)
       assert max_w2 == -1
-      trailer_obj.Set('W', '[0 %d 0]' % max_ofs_size)
+      trailer_obj.Set(b'W', b'[0 %d 0]' % max_ofs_size)
       if max_ofs_size == 1:
         data += struct.pack('>%dB' % len(ofs_list), *ofs_list)
       elif max_ofs_size == 2:
         data += struct.pack('>%dH' % len(ofs_list), *ofs_list)
       elif max_ofs_size == 3:
-        data += ''.join(struct.pack('>L', ofs)[1:] for ofs in ofs_list)
+        data += b''.join(struct.pack('>L', ofs)[1:] for ofs in ofs_list)
       elif max_ofs_size == 4:
         data += struct.pack('>%dL' % len(ofs_list), *ofs_list)
       else:
         i = 8 - max_ofs_size
-        data += ''.join(struct.pack('>Q', ofs)[i:] for ofs in ofs_list)
+        data += b''.join(struct.pack('>Q', ofs)[i:] for ofs in ofs_list)
       extra_width = 0
       #assert False, (len(data), max_ofs_size, extra_width)
     trailer_obj.SetStreamAndCompress(
-        data, predictor_width=(max_ofs_size + extra_width),
+        bytearray(data), predictor_width=(max_ofs_size + extra_width),
         is_flate_ok=is_flate_ok)
 
   def _AssertBeforeWrite(self):
