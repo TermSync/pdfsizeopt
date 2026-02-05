@@ -5718,10 +5718,10 @@ class PdfData(object):
 
       # We don't need it, and if we kept it, it may do harm if it
       # contains indirect references.
-      if obj.Get(b'Metadata') is not None:
+      if obj.Get('Metadata') is not None:
         if not new_obj:
           new_obj = obj = PdfObj(obj)
-        obj.Set(b'Metadata', None)
+        obj.Set('Metadata', None)
 
       obj.AppendTo(output, obj_num)
     output.append('(Type1CConverter: all OK\\n) print flush\n%%EOF\n')
@@ -5764,7 +5764,7 @@ class PdfData(object):
           data = PdfObj.PDF_HEXTOKENS_SAFE_HEX_ESCAPE_RE.sub(
               lambda match: '#%02X' % ord(match.group()), data)
           encoding = PdfObj.ParseArray(data)
-          for i in range(len(encoding)):
+          for i in xrange(len(encoding)):
             char_name = encoding[i]
             if char_name is None:
               encoding[i] = '/.notdef'
@@ -5772,7 +5772,7 @@ class PdfData(object):
               char_name = str(char_name)
               assert char_name.startswith('/'), [char_name]
               encoding[i] = str(char_name)
-          encoding.extend('/.notdef' for i in range(len(encoding), 256))
+          encoding.extend('/.notdef' for i in xrange(len(encoding), 256))
           if len(encoding) > 256:
             raise ValueError('Encoding for obj %d too long.' % obj_num)
           encodings[obj_num] = encoding
@@ -5813,7 +5813,7 @@ class PdfData(object):
     type1c_size = 0
     for obj_num in type1c_objs:
       # TODO(pts): Also cross-check /FontFile3 with pdf.GetFonts.
-      if type1c_objs[obj_num].Get(b'Subtype') != '/Type1C':
+      if type1c_objs[obj_num].Get('Subtype') != '/Type1C':
         raise ValueError('Could not convert font obj %d to Type1C.' % obj_num)
       type1c_size += type1c_objs[obj_num].size
       if obj_num not in encodings:
