@@ -7209,12 +7209,12 @@ class PdfData(object):
     for obj_num in sorted(self.objs):
       obj = self.objs[obj_num]
       if (not obj.head.startswith('<<') or '/Image' not in obj.head or
-          not re.search(r'/Subtype[\x00\t\n\r\f ]*/Image\b', obj.head) or
+          not re.search(r'/Subtype[\0\t\n\r\f ]*/Image\b', obj.head) or
           not obj.stream is not None or
-          obj.Get(b'Subtype') != '/Image'):
+          obj.Get('Subtype') != '/Image'):
         continue
 
-      smask = obj.Get(b'SMask')
+      smask = obj.Get('SMask')
       if isinstance(smask, str):
         try:
           smask = PdfObj.ParseSimpleValue(smask)
@@ -7226,17 +7226,17 @@ class PdfData(object):
           # The target image of an /SMask must be /ColorSpace /DeviceGray.
           force_grayscale_obj_nums.add(int(match.group(1)))
 
-      if obj.Get(b'Type') is not None:
-        if obj.Get(b'Type') != '/XObject':
+      if obj.Get('Type') is not None:
+        if obj.Get('Type') != '/XObject':
           continue  # Something is wrong with this object, don't touch it.
-        obj.Set(b'Type', None)  # Remove explicit default.
+        obj.Set('Type', None)  # Remove explicit default.
 
       filter_value, filter_has_changed = PdfObj.ResolveReferencesChanged(
-          obj.Get(b'Filter'), objs=self.objs)
+          obj.Get('Filter'), objs=self.objs)
       filter2 = (filter_value or '').replace(']', ' ]') + ' '
 
-      if not obj.Get(b'Interpolate'):
-        obj.Set(b'Interpolate', None)  # Remove explicit default.
+      if not obj.Get('Interpolate'):
+        obj.Set('Interpolate', None)  # Remove explicit default.
 
       # Don't touch lossy-compressed images.
       # TODO(pts): Read lossy-compressed images, maybe a small, uncompressed
@@ -7250,7 +7250,7 @@ class PdfData(object):
       # differences as well.
       # TODO(pts): Support an image mask (with /Mask x 0 R pointing to
       # an obj << /Subtype/Image /ImageMask true >>).
-      mask = obj.Get(b'Mask')
+      mask = obj.Get('Mask')
       do_remove_mask = False
       try:
         mask = PdfObj.ResolveReferences(mask, objs=self.objs)
@@ -7261,19 +7261,19 @@ class PdfData(object):
       if (isinstance(mask, str) and mask and
           not do_remove_mask and
           # TODO(pts): Remove /Mask [].
-          not re.match(r'\[[\x00\t\n\r\f ]*\]\Z', mask)):
+          not re.match(r'\[[\0\t\n\r\f ]*\]\Z', mask)):
         continue
 
       bpc, bpc_has_changed = PdfObj.ResolveReferencesChanged(
-          obj.Get(b'BitsPerComponent'), objs=self.objs)
-      if obj.Get(b'ImageMask'):
+          obj.Get('BitsPerComponent'), objs=self.objs)
+      if obj.Get('ImageMask'):
         if bpc != 1:
           bpc_has_changed = True
           bpc = 1
       if bpc not in (1, 2, 4, 8):
         continue
 
-      decodeparms = obj.Get(b'DecodeParms') or ''
+      decodeparms = obj.Get('DecodeParms') or ''
       if isinstance(decodeparms, str) and '/JBIG2Globals' in decodeparms:
         # We don't support optimizing JBIG2 images with global references.
         # For testing: /mnt/mandel/warez/tmp/linux.pdf
@@ -7300,8 +7300,8 @@ class PdfData(object):
       # TODO(pts): Inline this to reduce PDF size.
       # pdftex emits: /ColorSpace [/Indexed /DeviceRGB <n> <obj_num> 0 R]
       colorspace, colorspace_has_changed = PdfObj.ResolveReferencesChanged(
-          obj.Get(b'ColorSpace'), objs=self.objs, do_strings=True)
-      if obj.Get(b'ImageMask'):
+          obj.Get('ColorSpace'), objs=self.objs, do_strings=True)
+      if obj.Get('ImageMask'):
         if colorspace != '/DeviceGray':  # can be None
           colorspace = '/DeviceGray'
           colorspace_has_changed = True
@@ -7314,19 +7314,19 @@ class PdfData(object):
       if filter_has_changed:
         if obj is obj0:
           obj = PdfObj(obj)
-        obj.Set(b'Filter', filter_value)
+        obj.Set('Filter', filter_value)
       if bpc_has_changed:
         if obj is obj0:
           obj = PdfObj(obj)
-        obj.Set(b'BitsPerComponent', bpc)
+        obj.Set('BitsPerComponent', bpc)
       if colorspace_has_changed:
         if obj is obj0:
           obj = PdfObj(obj)
-        obj.Set(b'ColorSpace', colorspace)
-      if obj.Get(b'Mask') and do_remove_mask:
+        obj.Set('ColorSpace', colorspace)
+      if obj.Get('Mask') and do_remove_mask:
         if obj is obj0:
           obj = PdfObj(obj)
-        obj.Set(b'Mask', None)
+        obj.Set('Mask', None)
       for name in ('Width', 'Height', 'Decode', 'DecodeParms', 'ImageMask'):
         value = obj.Get(name)
         value, value_has_changed = PdfObj.ResolveReferencesChanged(
@@ -7336,14 +7336,14 @@ class PdfData(object):
             obj = PdfObj(obj)
           obj.Set(name, value)
 
-      if obj.Get(b'ImageMask'):
+      if obj.Get('ImageMask'):
         if obj is obj0:
           obj = PdfObj(obj)
         assert colorspace == '/DeviceGray'  # Set above.
-        assert obj.Get(b'ColorSpace') == '/DeviceGray'  # Set above.
-        obj.Set(b'ImageMask', None)
+        assert obj.Get('ColorSpace') == '/DeviceGray'  # Set above.
+        obj.Set('ImageMask', None)
         # We don't remove /Decode here, because /Decode [1 0] signals inversion.
-        obj.Set(b'BitsPerComponent', 1)
+        obj.Set('BitsPerComponent', 1)
 
       # Ignore images with exotic color spaces (e.g. DeviceCMYK, CalGray,
       # DeviceN).
@@ -7353,9 +7353,9 @@ class PdfData(object):
       # convert it to RGB, though.
       #
       # !!! Do proper PDF token sequence parsing.
-      if not re.match(r'(?:/Device(?:RGB|Gray)\Z|\[[\x00\t\n\r\f ]*'
-                      r'/Indexed[\x00\t\n\r\f ]*'
-                      r'/Device(?:RGB|Gray)[\x00\t\n\r\f (<\[/])', colorspace):
+      if not re.match(r'(?:/Device(?:RGB|Gray)\Z|\[[\0\t\n\r\f ]*'
+                      r'/Indexed[\0\t\n\r\f ]*'
+                      r'/Device(?:RGB|Gray)[\0\t\n\r\f (<\[/])', colorspace):
         continue
 
       # We've already called ResolveReferences on /Filter, /BitsPerComponent,
@@ -7369,10 +7369,10 @@ class PdfData(object):
       if 'R' in obj.head and PdfObj.PDF_REF_RE.search(obj.head):
         continue
 
-      width = obj.Get(b'Width')
+      width = obj.Get('Width')
       assert isinstance(width, int)
       assert width > 0
-      height = obj.Get(b'Height')
+      height = obj.Get('Height')
       assert isinstance(height, int)
       assert height > 0
 
@@ -7385,12 +7385,12 @@ class PdfData(object):
         gs_device = 'pngmono'
 
       decode_kind = PdfObj.ClassifyImageDecode(
-          obj.Get(b'Decode'),
+          obj.Get('Decode'),
           int('/Indexed' in colorspace and bpc))
       if decode_kind not in ('normal', 'inverted'):
         LogWarning(
             'ignoring image XObject %d with %s /Decode value: %s' %
-            (obj_num, decode_kind, obj.Get(b'Decode')))
+            (obj_num, decode_kind, obj.Get('Decode')))
         continue
 
       image_count += 1
@@ -7402,9 +7402,9 @@ class PdfData(object):
           'will optimize image XObject %s; orig width=%s height=%s '
           'colorspace=%s bpc=%s inv=%s filter=%s dp=%s size=%s '
           'gs_device=%s' %
-          (obj_num, obj.Get(b'Width'), obj.Get(b'Height'),
-           colorspace_short, bpc, decode_kind == 'inverted', obj.Get(b'Filter'),
-           int(bool(obj.Get(b'DecodeParms'))), obj.size, gs_device))
+          (obj_num, obj.Get('Width'), obj.Get('Height'),
+           colorspace_short, bpc, decode_kind == 'inverted', obj.Get('Filter'),
+           int(bool(obj.Get('DecodeParms'))), obj.size, gs_device))
 
       # TODO(pts): Is this necessary? If so, add it back.
       #obj = PdfObj(obj)
@@ -7438,10 +7438,10 @@ class PdfData(object):
         obj2 = PdfObj(None)
         obj2.head = '<<>>'
         obj2.stream = obj.stream
-        if len(obj2.stream) > int(obj.Get(b'Length')):
-           obj2.stream = obj2.stream[:int(obj.Get(b'Length'))]
-        obj2.Set(b'Length', len(obj2.stream))
-        obj2.Set(b'Subtype', '/Image')
+        if len(obj2.stream) > int(obj.Get('Length')):
+           obj2.stream = obj2.stream[:int(obj.Get('Length'))]
+        obj2.Set('Length', len(obj2.stream))
+        obj2.Set('Subtype', '/Image')
         for name in ('Width', 'Height', 'ColorSpace', 'Decode', 'Filter',
                      'DecodeParms', 'BitsPerComponent'):
           obj2.Set(name, obj.Get(name))
@@ -7526,8 +7526,8 @@ class PdfData(object):
       #   image optimizers are tried: img_cmd_patterns. It's essential that
       #   each image optimizer can read PNG files, because oi_image is a PNG.
       obj_images = images[obj_num]
-      obj_width = PdfObj.ResolveReferences(obj.Get(b'Width'), self.objs)
-      obj_height = PdfObj.ResolveReferences(obj.Get(b'Height'), self.objs)
+      obj_width = PdfObj.ResolveReferences(obj.Get('Width'), self.objs)
+      obj_height = PdfObj.ResolveReferences(obj.Get('Height'), self.objs)
       for method, image in obj_images:
         wd_ht = (obj_width, obj_height)
         i_wd_ht = (image.width, image.height)
@@ -7729,7 +7729,7 @@ class PdfData(object):
       obj_infos = [(obj.size, '#orig', '', obj, None)]
       # Populate obj_infos from obj_images.
       for cmd_name, image_data in obj_images:
-        if obj.Get(b'ImageMask') and not image_data.CanUpdateImageMask():
+        if obj.Get('ImageMask') and not image_data.CanUpdateImageMask():
           # We can't use this optimized image, so we skip it.
           # No warning for what was rendered by Ghostscript.
           if cmd_name != 'gs':
@@ -7750,8 +7750,8 @@ class PdfData(object):
           continue
         new_obj = PdfObj(obj)
         # Resolve references.
-        new_obj.Set(b'Width', obj_width)
-        new_obj.Set(b'Height', obj_height)
+        new_obj.Set('Width', obj_width)
+        new_obj.Set('Height', obj_height)
         image_data.UpdatePdfObj(new_obj)
         obj_infos.append((new_obj.size, cmd_name, image_data.file_name,
                           new_obj, image_data))
@@ -7800,17 +7800,17 @@ class PdfData(object):
             (obj_num, obj_infos[0][2], obj_infos[0][0],
              FormatPercent(obj_infos[0][0], obj.size), method_sizes))
         bytes_saved += self.objs[obj_num].size - obj_infos[0][0]
-        if ('/JBIG2Decode' in (obj_infos[0][3].Get(b'Filter') or '') and
+        if ('/JBIG2Decode' in (obj_infos[0][3].Get('Filter') or '') and
             self.version < '1.4'):
           self.version = '1.4'
-        assert obj_infos[0][3].Get(b'Width') == obj_width
-        assert obj_infos[0][3].Get(b'Height') == obj_height
+        assert obj_infos[0][3].Get('Width') == obj_width
+        assert obj_infos[0][3].Get('Height') == obj_height
         self.objs[obj_num] = obj = obj_infos[0][3]
         if (obj_num in force_grayscale_obj_nums and
-            obj.Get(b'ColorSpace') != '/DeviceGray'):
+            obj.Get('ColorSpace') != '/DeviceGray'):
           raise AssertionError(
               'SMask image %d must have /ColorSpace /DeviceGray.' % obj_num)
-        # At this point, obj.Get(b'Mask') contains `x y R' if it contained it
+        # At this point, obj.Get('Mask') contains `x y R' if it contained it
         # before.
 
       if obj_infos[0][4] is not None:
