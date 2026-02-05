@@ -6041,8 +6041,8 @@ class PdfData(object):
             'different /%s values: target=%s source=%s' %
             (key, target_value, source_value))
 
-    source_bbox_str = PdfObj.ParseArray(source_fd.Get(b'FontBBox'))
-    target_bbox_str = PdfObj.ParseArray(target_fd.Get(b'FontBBox'))
+    source_bbox_str = PdfObj.ParseArray(source_fd.Get('FontBBox'))
+    target_bbox_str = PdfObj.ParseArray(target_fd.Get('FontBBox'))
     if source_bbox_str != target_bbox_str:
       source_bbox = map(PdfObj.GetNumber, source_bbox_str)
       target_bbox = map(PdfObj.GetNumber, target_bbox_str)
