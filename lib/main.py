@@ -1247,7 +1247,7 @@ class PdfObj(object):
   TODO(pts): Remove this, in favor of PDF_SIMPLE_REF_RE.
   """
 
-  PDF_SIMPLE_REF_RE = re.compile(r'([-+]?\d+) 0 R\b')
+  PDF_SIMPLE_REF_RE = re.compile(br'([-+]?\d+) 0 R\b')
   """Matches an <x> 0 R, separated by a single space."""
 
   PDF_HEX_STRING_OR_DICT_RE = re.compile(br'<<|<(?!<)([^>]*)>')
