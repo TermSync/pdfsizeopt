@@ -5598,7 +5598,7 @@ class PdfData(object):
       if (
           # (nonstandard behavior) eurotex2006.final.pdf has
           # /Type/FontDescriptor missing, so we don't match on that.
-          re.search(r'/FontName[\x00\t\n\r\f ]*/', obj.head) and
+          re.search(r'/FontName[\0\t\n\r\f ]*/', obj.head) and
           '/FontFile' in obj.head and  # /FontFile, /FontFile2 or /FontFile3
           '/Flags' in obj.head and
           obj.head.startswith('<<')):
@@ -5606,19 +5606,19 @@ class PdfData(object):
         # TODO(pts): Do only Type1 fonts have /FontFile ?
         # What about Type3 fonts?
         font_file_dict = {
-            'FontFile': obj.Get(b'FontFile'),
-            'FontFile2': obj.Get(b'FontFile2'),
-            'FontFile3': obj.Get(b'FontFile3'),
+            'FontFile': obj.Get('FontFile'),
+            'FontFile2': obj.Get('FontFile2'),
+            'FontFile3': obj.Get('FontFile3'),
         }
         font_file_count = sum(
-            1 for v in font_file_dict.values() if v is not None)
+            1 for v in font_file_dict.itervalues() if v is not None)
         if font_file_count != 1:
           continue
         if (good_font_file_tag is not None and
             font_file_dict.get(good_font_file_tag) is None):
           continue
         font_file_tag, font_file_value = (  # Get the only non-None value.
-            (k, v) for k, v in font_file_dict.items() if v is not None
+            (k, v) for k, v in font_file_dict.iteritems() if v is not None
             ).next()
         match = PdfObj.PDF_REF_AT_EOS_RE.match(str(font_file_value))
         if not match:
@@ -5626,7 +5626,7 @@ class PdfData(object):
         font_obj_num = int(match.group(1))
         font_obj = self.objs[font_obj_num]
         # Known values: /Type1, /Type1C, /CIDFontType0C.
-        subtype = font_obj.Get(b'Subtype')
+        subtype = font_obj.Get('Subtype')
         if subtype is not None:
           pass
         elif font_file_tag == 'FontFile':
@@ -5639,7 +5639,7 @@ class PdfData(object):
         if font_type is not None and font_type != subtype[1:]:
           pass
         elif do_obj_num_from_font_name:
-          font_name = obj.Get(b'FontName')
+          font_name = obj.Get('FontName')
           assert font_name is not None
           match = re.match(r'/(?:[A-Z]{6}[+])?Obj(\d+)\Z', font_name)
           assert match, 'GS generated non-Obj FontName: %s' % font_name
