@@ -3565,9 +3565,9 @@ class PdfObj(object):
     filter_value = self.ResolveReferences(filter_value, objs)
     decodeparms = self.ResolveReferences(decodeparms, objs)
     if not isinstance(filter_value, bytes):
-      raise FilterError('/Filter is not a str: %r' % (filter_value,))
+      raise FilterError('/Filter is not a bytestring: %r' % (filter_value,))
     if not isinstance(decodeparms, bytes):
-      raise FilterError('/DecodeParms is not a str.')
+      raise FilterError('/DecodeParms is not a bytestring.')
     if (filter_value in (b'/FlateDecode', b'[/FlateDecode]') and
         b'/Predictor' not in decodeparms):
       try:
@@ -3592,19 +3592,21 @@ class PdfObj(object):
       f.close()
       if not write_ok:
         os.remove(tmp_file_name)
-    decodeparms_pair = ''
+    decodeparms_pair = b''
     if decodeparms:
-      decodeparms_pair = '/DecodeParms ' + decodeparms
+      decodeparms_pair = b'/DecodeParms ' + decodeparms
 
     # !! batch all decompressions, so we don't have to run gs again.
 
+
     gs_code = (
-        '/i INFN(r)file<</CloseSource true '
-        '/Intent 2/Filter %s%s>>/ReusableStreamDecode filter def '
-        '/o(%%stdout)(w)file def/s 4096 string def '
-        '{i s readstring exch o exch writestring not{exit}if}loop '
-        'o closefile quit' %
+        b'/i INFN(r)file<</CloseSource true '
+        b'/Intent 2/Filter %s%s>>/ReusableStreamDecode filter def '
+        b'/o(%%stdout)(w)file def/s 4096 string def '
+        b'{i s readstring exch o exch writestring not{exit}if}loop '
+        b'o closefile quit' %
         (filter_value, decodeparms_pair))
+    
     if sys.platform.startswith('win'):
       # TODO(pts): If tmp_file_name contains funny characters, Ghostscript
       # will fails with data == ''. Fix it (possibly not use -s...="..." on
@@ -4605,7 +4607,7 @@ class PdfData(object):
         obj_starts.pop('xref', None)
       else:
         self.trailer = PdfObj.ParseTrailer(data, start=trailer_ofs)
-        self.trailer.Set('Prev', None)
+        self.trailer.Set(b'Prev', None)
         if 'xref' in obj_starts:
           last_ofs = min(trailer_ofs, obj_starts.pop('xref'))
       self.CheckNotEncrypted(trailer_obj=self.trailer)  # Also raised earlier.
@@ -4617,7 +4619,7 @@ class PdfData(object):
           (ShellQuoteFileName(self.file_name),
            ShellQuoteFileName(os.path.splitext(self.file_name)[0] +
            '.decrypted.pdf')))
-    if not (self.trailer.Get(b'Root') or '').endswith('R'):
+    if not (self.trailer.Get(b'Root') or '').endswith(b'R'):
       raise PdfMissingRootError('/Root reference not found in trailer.')
 
     obj_items = []
