@@ -1425,7 +1425,7 @@ class PdfObj(object):
             'indirect /Length not an integer at ofs=%s' % file_ofs)
       stream_end_idx = stream_start_idx + stream_length
       # Inline the reference to /Length
-      self._head = '%s/Length %d%s' % (
+      self._head = b'%s/Length %d%s' % (
           self._head[:match.start()], stream_length,
           self._head[match.end():])
     endstream_str = other[stream_end_idx : stream_end_idx + 128]
