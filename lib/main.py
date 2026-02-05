@@ -1895,7 +1895,9 @@ class PdfObj(object):
     with the PNG y-predictor, ZIP with the TIFF predictor acting as an
     y-predictor.
     """
-    if not isinstance(data, bytearray):
+    if isinstance(data, (bytes, memoryview)):
+      data = bytearray(data)
+    elif not isinstance(data, bytearray):
       raise TypeError
 
     items = [[None, 'uncompressed', PdfObj(self)]]
@@ -5316,7 +5318,7 @@ class PdfData(object):
       extra_width = 0
       #assert False, (len(data), max_ofs_size, extra_width)
     trailer_obj.SetStreamAndCompress(
-        bytearray(data), predictor_width=(max_ofs_size + extra_width),
+        data, predictor_width=(max_ofs_size + extra_width),
         is_flate_ok=is_flate_ok)
 
   def _AssertBeforeWrite(self):
@@ -5452,7 +5454,7 @@ class PdfData(object):
         objstm_obj.head = b'<<>>'
         # For the statistics below.
         objstm_size = len(objstm_output) + objstm_overhead_size
-        objstm_obj.SetStreamAndCompress(bytearray(objstm_output), is_flate_ok=is_flate_ok)
+        objstm_obj.SetStreamAndCompress(objstm_output, is_flate_ok=is_flate_ok)
         del objstm_output  # Save memory.
         objstm_obj.Set(b'Type', b'/ObjStm')
         objstm_obj.Set(b'N', objstm_objcount)
@@ -8832,7 +8834,7 @@ class PdfData(object):
     w0, w1, w2, unused_index, xref_data = trailer_obj.GetXrefStream()
     if (do_generate_xref_stream and
         bool(do_generate_object_stream) == bool(has_objstm_obj)):
-      xref_out = bytearray(xref_data)
+      xref_out = xref_data
     else:
       # We're sure we won't need xref_out, so we're not computing it.
       xref_out = None
