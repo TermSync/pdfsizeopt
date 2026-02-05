@@ -7843,16 +7843,16 @@ class PdfData(object):
     # We may also wan to convert 612. to 612 elsewhere, to save 1 byte.
     for obj_num in sorted(self.objs):
       obj = self.objs[obj_num]
-      if (obj.head.startswith('<<') and
+      if (obj.head.startswith(b'<<') and
           # !!! TODO(pts): Do proper PDF token sequence parsing.
-          re.search(r'/Subtype[\x00\t\n\r\f ]*/Form\b', obj.head) and
-          obj.Get(b'Subtype') == '/Form'):
+          re.search(br'/Subtype[\x00\t\n\r\f ]*/Form\b', obj.head) and
+          obj.Get(b'Subtype') == b'/Form'):
         matrix = obj.Get(b'Matrix')
-        if isinstance(matrix, str):
-          obj.Set('Matrix', obj.GetBadNumbersFixed(matrix))
+        if isinstance(matrix, bytes):
+          obj.Set(b'Matrix', obj.GetBadNumbersFixed(matrix))
         bbox = obj.Get(b'BBox')
-        if isinstance(bbox, str):
-          obj.Set('BBox', obj.GetBadNumbersFixed(bbox))
+        if isinstance(bbox, bytes):
+          obj.Set(b'BBox', obj.GetBadNumbersFixed(bbox))
     return self
 
   def RemoveUnusedObjs(self):
