@@ -6953,11 +6953,11 @@ class PdfData(object):
       width, height, image_obj = detect_ret
       # For testing: test_pts2e.pdf
       uninline_count += 1
-      colorspace = image_obj.Get(b'ColorSpace')
+      colorspace = image_obj.Get('ColorSpace')
       assert colorspace is not None
-      assert (image_obj.Get(b'BitsPerComponent') is not None or
-              image_obj.Get(b'ImageMask', False) is True)
-      #if image_obj.Get(b'Filter') == '/FlateDecode':
+      assert (image_obj.Get('BitsPerComponent') is not None or
+              image_obj.Get('ImageMask', False) is True)
+      #if image_obj.Get('Filter') == '/FlateDecode':
       # If we do a zlib.decompress(stream) now, it will succeed even if stream
       # has trailing garbage. But zlib.decompress(stream[:-1]) would fail. In
       # Python, there is no way to get te real end on the compressed zlib
@@ -6967,21 +6967,21 @@ class PdfData(object):
       if colorspace.startswith('[/Interpolate/'):
         # Fix bad decoding in PDF_NAME_ABBREVIATIONS.
         colorspace = '[/Indexed' + colorspace[13:]
-        image_obj.Set(b'ColorSpace', colorspace)
+        image_obj.Set('ColorSpace', colorspace)
       # TODO(pts): Get rid of /Type/XObject etc. from other objects as well
-      image_obj.Set(b'Type', None)  # /XObject, but optimized
-      image_obj.Set(b'Subtype', '/Image')
+      image_obj.Set('Type', None)  # /XObject, but optimized
+      image_obj.Set('Subtype', '/Image')
       image_obj.head = PdfObj.CompressValue(image_obj.head)
       # We cannot just replace obj by image_obj here, because we have to scale
       # (with the `cm' operator).
       image_obj_num = self.AddObj(image_obj)
       resources_obj = PdfObj(
-          '0 0 obj %s endobj' % obj.Get(b'Resources', '<<>>'))
-      assert resources_obj.Get(b'XObject') is None
+          '0 0 obj %s endobj' % obj.Get('Resources', '<<>>'))
+      assert resources_obj.Get('XObject') is None
       # Currently, typically resources_obj.head ==
       # '<</ProcSet[/PDF/ImageB]>>'. /ProcSet is optional since PDF 1.2.
       # TODO(pts): Remove /ProcSet from resources_obj.
-      resources_obj.Set(b'XObject', '<</S %s 0 R>>' % image_obj_num)
+      resources_obj.Set('XObject', '<</S %s 0 R>>' % image_obj_num)
       # TODO(pts): Instead of creating a /Subtype/Form which references a
       # /Subtype/Image (in its `/Resources<</XObject</S x 0 r>> >>'), we
       # should make content streams reference the /Subtype/Image directly,
@@ -6991,9 +6991,9 @@ class PdfData(object):
       # `q 1 0 0 1 0 0 cm /Im1 Do Q', which can conveniently be replaced.
       form_obj = PdfObj('0 0 obj<</Subtype/Form>>endobj')
       form_obj.stream = 'q %s 0 0 %s 0 0 cm/S Do Q' % (width, height)
-      form_obj.Set(b'BBox', '[0 0 %s %s]' % (width, height))
-      form_obj.Set(b'Resources', resources_obj.head)
-      form_obj.Set(b'Length', len(form_obj.stream))
+      form_obj.Set('BBox', '[0 0 %s %s]' % (width, height))
+      form_obj.Set('Resources', resources_obj.head)
+      form_obj.Set('Length', len(form_obj.stream))
       form_obj.head = PdfObj.CompressValue(form_obj.head)
       uninline_bytes_saved += obj.size - form_obj.size - image_obj.size
       # Throw away /Type, /Subtype/Form, /FormType, /PTEX.FileName,
