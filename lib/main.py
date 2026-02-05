@@ -217,6 +217,7 @@ import os
 import os.path
 import re
 import struct
+import subprocess
 import sys
 import time
 import zlib
@@ -283,27 +284,28 @@ def VerifyGs(gs_cmd, is_verbose):
   gs_cmd2 = gs_cmd + ' -dNODISPLAY -c %s/GSOK === quit%s' % (q, q)
   # It would also work without RedirectOutput, because Ghostscript writes
   # the interesting message to stdout.
-  f = os.popen(RedirectOutput(gs_cmd2, mode=True), 'rb')
-  data = f.read()
+  f = subprocess.Popen(RedirectOutput(gs_cmd2, mode=True), shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+  data = f.stdout.read()
+  f.wait()
   if is_verbose:
     LogInfo('output from Ghostscript: %r' % data)
-  if f.close():
+  if f.returncode:
     if is_verbose:
       LogInfo('Ghostscript failed')
     return False
-  lines = data.rstrip('\n').split('\n')
-  if not lines or lines[-1] != '/GSOK':
+  lines = data.rstrip(b'\n').split(b'\n')
+  if not lines or lines[-1] != b'/GSOK':
     if is_verbose:
       LogInfo('missing /GSOK from Ghostscript')
     return False
   lines.pop()
-  if not lines or ' Ghostscript ' not in lines[0]:
+  if not lines or b' Ghostscript ' not in lines[0]:
     if is_verbose:
       LogInfo('missing Ghostscript version info')
     return False
-  lines = [line for line in lines if not line.startswith('Copyright ') and
-           'NO WARRANTY' not in line]
-  data = '; '.join(lines)
+  lines = [line for line in lines if not line.startswith(b'Copyright ') and
+           b'NO WARRANTY' not in line]
+  data = b'; '.join(lines)
   # Example: data == 'GPL Ghostscript 9.02 (2011-03-30)'.
   if is_verbose:
     LogInfo('Ghostscript version info: %r' % (data,))
@@ -412,7 +414,7 @@ def GetGsCommand(is_verbose=False, _cache=[]):
       gs_cmd_print = gs_cmd
   else:
     gs_cmd_print = gs_cmd
-  LogInfo('using Ghostscript %s: %s' % (gs_cmd_print, data))
+  LogInfo('using Ghostscript %s: %s' % (gs_cmd_print, data.decode('latin1')))
   _cache.append(gs_cmd)
   return gs_cmd
 
@@ -3627,19 +3629,20 @@ class PdfObj(object):
       gs_defilter_cmd = (
           '%s -dNODISPLAY -sINFN=%s -q -P- -c %s' %
           (GetGsCommand(), ShellQuoteFileName(tmp_file_name, is_gs=True),
-           ShellQuote(gs_code)))
+           ShellQuote(gs_code.decode('latin1'))))
     LogProportionalInfo(
         'decompressing %d bytes with Ghostscript '
-        '/Filter%s%s' % (len(self.stream), filter_value, decodeparms_pair))
+        '/Filter%s%s' % (len(self.stream), filter_value.decode('latin1'), decodeparms_pair.decode('latin1')))
     sys.stdout.flush()
-    f = os.popen(RedirectOutput(gs_defilter_cmd, mode=True), 'rb')
-    # On Windows, data would start with 'Error: ' on a Ghostscript error, and
-    # data will be '' if gswin32c is not found.
-    data = f.read()  # TODO(pts): Handle IOError etc.
-    if f.close():
+    f = subprocess.Popen(RedirectOutput(gs_defilter_cmd, mode=True), shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    # On Windows, data would start with b'Error: ' on a Ghostscript error, and
+    # data will be b'' if gswin32c is not found.
+    data = f.stdout.read()  # TODO(pts): Handle IOError etc.
+    f.wait()
+    if f.returncode:
       raise FilterError(
           'Ghostscript decompression with filter %r failed: %s (%r)' %
-          (filter_value, gs_defilter_cmd, data))
+          (filter_value.decode('latin1'), gs_defilter_cmd, data.decode('latin1')))
     os.remove(tmp_file_name)
     if ps_file_name:
       os.remove(ps_file_name)
