@@ -1783,7 +1783,7 @@ class PdfObj(object):
   @classmethod
   def GetNumber(cls, data):
     """Return an int, log, float or None."""
-    if isinstance(data, int):
+    if isinstance(data, int) or isinstance(data, long):
       return int(data)
     elif isinstance(data, float):
       pass
