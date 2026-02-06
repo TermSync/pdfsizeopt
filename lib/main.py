@@ -7114,6 +7114,10 @@ class PdfData(object):
         'executing ImageRenderer with Ghostscript: %s' % gs_cmd)
     write_func = (lambda m: 0, sys.stderr.write)[NeedToolLogOutput()]
     sys.stdout.flush()
+    # We could add a 3rd argument `0' to os.popen to disable buffering, but
+    # it fails on Windows and Python 2.6 with
+    # ValueError('popen() arg 3 must be -1'). Fortunately we don't need this
+    # argument, output is not buffered even without it (on Linux and Windows).
     p = os.popen(RedirectOutput(gs_cmd, mode=True), 'rb')
     lines = []
     try:
