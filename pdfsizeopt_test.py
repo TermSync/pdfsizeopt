@@ -1679,11 +1679,11 @@ class PdfSizeOptTest(unittest.TestCase):
 
   def testGenerateImageDecode(self):
     f = main.PdfObj.GenerateImageDecode
-    self.assertEqual(b'[]', f(0, 0, 0))
-    self.assertEqual(b'[0 1]', f(False, 1, 0))
-    self.assertEqual(b'[0 1 0 1 0 1]', f(False, 3, 0))
-    self.assertEqual(b'[0 15 0 15 0 15]', f(False, 3, 4))
-    self.assertEqual(b'[15 0 15 0]', f(True, 2, 4))
+    self.assertEqual('[]', f(0, 0, 0))
+    self.assertEqual('[0 1]', f(False, 1, 0))
+    self.assertEqual('[0 1 0 1 0 1]', f(False, 3, 0))
+    self.assertEqual('[0 15 0 15 0 15]', f(False, 3, 4))
+    self.assertEqual('[15 0 15 0]', f(True, 2, 4))
 
   def testMergeBaseEncodingToFontObj(self):
     base_encoding = (

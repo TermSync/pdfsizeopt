@@ -3151,10 +3151,10 @@ class PdfObj(object):
     else:
       high = 1
     if is_inverted:
-      items = [b'%d' % high, b'0']
+      items = [str(high), '0']
     else:
-      items = [b'0', b'%d' % high]
-    return b'[' + b' '.join(items * samples_per_pixel) + b']'
+      items = ['0', str(high)]
+    return '[%s]' % ' '.join(items * samples_per_pixel)
 
   @classmethod
   def GetRgbPaletteSize(cls, palette):
