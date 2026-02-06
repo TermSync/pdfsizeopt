@@ -2282,14 +2282,18 @@ class PdfObj(object):
 
     # Continue with non-simplest keys.
     if not cls.PDF_WHITESPACE_AT_EOS_RE.match(data, start, end):
-      list_obj = cls._ParseTokens(data=data, start=start, end=end, count_limit=end)
+      list_obj = cls._ParseTokens(
+        data=data, start=start, end=end,
+        count_limit=end)
       if 0 != (len(list_obj) & 1):
         raise PdfTokenParseError('odd item count in dict')
       for i in range(0, len(list_obj), 2):
         key = list_obj[i]
         if not isinstance(key, (bytes, memoryview)) or not key.startswith(b'/'):
           # TODO(pts): Report the offset as well.
-          raise PdfTokenParseError('dict key expected, got %r... ' % (str(key)[0 : 16]))
+          raise PdfTokenParseError(
+            'dict key expected, got %r... ' %
+            (str(key)[0 : 16]))
         dict_obj[key[1:]] = list_obj[i + 1]
 
     return dict_obj
