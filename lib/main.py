@@ -5548,7 +5548,7 @@ class PdfData(object):
         j = i + 1
         while j < obj_count and obj_numbers[j] - 1 == obj_numbers[j - 1]:
           j += 1
-        output.append(b'xref\n0 %s\n0000000000 65535 f \n' % (j + 1))
+        output.append(b'xref\n0 %d\n0000000000 65535 f \n' % (j + 1))
         while i < j:
           output.append(b'%010d 00000 n \n' % obj_ofs[obj_numbers[i]])
           i += 1
@@ -9229,10 +9229,7 @@ class PdfData(object):
     del multivalent_output_data  # Save memory.
 
     if len(jobs) > 1:
-      def CompareJob(joba, jobb):
-        # Smallest output size first, then simplicity first.
-        return len(joba[3]).__cmp__(len(jobb[3])) or jobb[2].__cmp__(joba[2])
-      jobs.sort(CompareJob)
+      jobs.sort(key=lambda job: (len(job[3]), -job[2]))
       LogInfo(
           'jobs result: %s' %
           (' '.join(['%s=%d' % (job[1], len(job[3])) for job in jobs])))
