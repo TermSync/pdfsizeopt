@@ -118,7 +118,7 @@ FLAGS_HELP = r"""
   it deduplicates objects, it reserialize object headers etc. These
   optimizations don't depend on the object type.
 --do-optimize-obj-heads=YES_NO; default: yes
-  Reserialize object headers? Only relevant if --do-optimize-obs=no (otherwise
+  Reserialize object headers? Only relevant if --do-optimize-objs=no (otherwise
   it's enabled regardless of the flag). It removes unnecessary whitespace and
   comments.
 --do-ignore-generation-numbers=YES_NO; default: yes
@@ -707,7 +707,8 @@ def PermissiveZlibDecompress(data):
 
   Args:
     data: String containing RFC 1950 deflated data, the 4-byte ADLER32 checksum
-      being possibly truncated (to 0, 1, 2, 3 or 4 bytes).
+      being possibly truncated (to 0, 1, 2, 3 or 4 bytes), and the end-of-stream
+      (Z_FINISH) may not be explicitly indicated.
   Returns:
     String containing the uncompressed data.
   Raises:
@@ -716,20 +717,27 @@ def PermissiveZlibDecompress(data):
   try:
     return zlib.decompress(data)
   except zlib.error:
-    # This works if the ADLER32 is truncated, but it raises zlib.error on any
-    # other error.
-    uncompressed = zlib.decompressobj().decompress(data)
-    adler32_data = struct.pack('>L', zlib.adler32(uncompressed) & 0xffffffff)
-    try:
-      return zlib.decompress(data + adler32_data[3:])
-    except zlib.error:
-      try:
-        return zlib.decompress(data + adler32_data[2:])
-      except zlib.error:
-        try:
-          return zlib.decompress(data + adler32_data[1:])
-        except zlib.error:
-          return zlib.decompress(data + adler32_data)
+    cmf, flg = data[0], data[1]
+    wbits, cm = 8 + (cmf >> 4), cmf & 15
+    if (cmf << 8 | flg) % 31:  # `flg & 31' is set like this.
+      raise zlib.error('Bad zlib flag checksum.')
+    if cm != 8:
+      raise zlib.error('Unknown zlib compression method: %d' % cm)
+    if not (8 <= wbits <= 15):
+      raise zlib.error('Bad zlib wbits: %d' % wbits)
+    if flg & 32:
+      raise zlib.error('Unexpected zlib preset diectionary.')
+    # This won't work data = zlib.decompress(buffer(data, 2), -wbits)
+    # It may raise: zlib.error: Error -5 while decompressing data: incomplete or truncated stream
+    zd = zlib.decompressobj(-wbits)
+    data = zd.decompress(memoryview(data[2:]))
+    data += zd.flush()
+    if len(zd.unused_data) >= 4:  # Full Adler-32 checksum.
+      # Python 2.4 or 2.5 zlib.adler32(...) may return signed or unsigned.
+      adler32_data = struct.pack('>L', zlib.adler32(data) & 0xffffffff)
+      if adler32_data != zd.unused_data[:4]:
+        raise zlib.error('Bad zlib data Adler-32 checksum.')
+    return data
 
 
 NONWORD_RE = re.compile(r'\W+')
@@ -925,7 +933,7 @@ class PdfObj(object):
   """Matches any number (>= 1) of terminated comments and whitespace."""
 
   PDF_JUST_OBJ_DEF_RE = re.compile(
-      br'(\d+)[\x00\t\n\r\f ](\d+)[\x00\t\n\r\f ]+obj'
+      br'(\d+)[\x00\t\n\r\f ]+(\d+)[\x00\t\n\r\f ]+obj'
       br'(?=[\x00\t\n\r\f %/<\[({])')
   """Matches an `obj' definition without leading or trailing whitespace."""
 
@@ -1157,8 +1165,8 @@ class PdfObj(object):
   """Matches a single PDF xref entry: obj_num, offset and slot type."""
 
   PDF_OBJ_OR_TRAILER_RE = re.compile(
-      r'[\n\r](?:(\d+)[\x00\t\n\r\f ]+(\d+)[\x00\t\n\r\f ]+obj\b|'
-      r'trailer(?=[\x00\t\n\r\f ]|<<))')
+      br'[\n\r](?:(\d+)[\x00\t\n\r\f ]+(\d+)[\x00\t\n\r\f ]+obj\b|'
+      br'trailer(?=[\x00\t\n\r\f ]|<<))')
   """Matches an 'obj' start or a 'trailer' start."""
 
   PDF_TRAILER_WORD_RE = re.compile(r'[\x00\t\n\r\f ](trailer[\x00\t\n\r\f ]*<<)')
@@ -1237,19 +1245,19 @@ class PdfObj(object):
   """Matches a single comment line without a terminator."""
 
   PDF_SIMPLE2_REF_RE = re.compile(br'(\d+)[\x00\t\n\r\f ]+(\d+)[\x00\t\n\r\f ]+R\b')
-  """Matches `<obj> 0 R', not allowing comments.
+  """Matches `<obj> <gen> R', not allowing comments.
 
   TODO(pts): Remove this, in favor of PDF_SIMPLE_REF_RE.
   """
 
   PDF_SIMPLE_REF_RE = re.compile(br'([-+]?\d+) 0 R\b')
-  """Matches an <x> 0 R, separated by a single space."""
+  """Matches an <x> <gen> R, separated by a single space."""
 
   PDF_HEX_STRING_OR_DICT_RE = re.compile(br'<<|<(?!<)([^>]*)>')
   """Matches a hex string or <<."""
 
   PDF_SIMPLE_TOKEN_RE = re.compile(
-      br' |(/?[^/{}\[\]()<>\0\t\n\r\f %]+)|<<|>>|[\[\]]|<([a-f0-9]*)>')
+      br' |(/?[^/{}\[\]()<>\x00\t\n\r\f %]+)|<<|>>|[\[\]]|<([a-f0-9]*)>')
   """Matches a simple PDF token.
 
   PdfObj.CompressValue(data, do_emit_strings_as_hex=True emits) a string of
@@ -1986,7 +1994,6 @@ class PdfObj(object):
     trailer_obj = PdfObj(None)
     trailer_obj.head, _ = cls.ParseTokensToSafe(
         data, start=start, end_ofs_out=end_ofs_out, do_expect_startxref=True)
-    trailer_obj.Set(b'XRefStm', None)
     # We don't remove 'Prev' here, the caller might be interested.
     return trailer_obj
 
@@ -3541,6 +3548,22 @@ class PdfObj(object):
       end_ofs_out.append(i)
     return output_data
 
+  def CopyStreamObj(self, objs=None):
+    """Returns a new PdfObj containing just the stream of self."""
+    if self.stream is None:
+      raise ValueError('Missing stream in obj.')
+    obj = type(self)('1 0 obj<<>>endobj')
+    if not self.HasUncompressedStream():
+      if objs is None:
+        objs = {}
+      # Don't copy e.g. `/MetaData <n> 0 R', which Type1CParser won't be
+      # able to resolve.
+      for name in ('Filter', 'DecodeParms'):
+        obj.Set(name, self.ResolveReferences(self.Get(name), objs=objs))
+    obj.stream = self.stream
+    obj.Set('Length', len(obj.stream))
+    return obj
+
   def HasUncompressedStream(self):  # !!! Add unit tests.
     """Returns a bool indicating whether this obj has an uncompressed stream."""
     return (self.stream is not None and
@@ -4208,7 +4231,8 @@ class ImageData(object):
       # TODO(pts): Optimize memory use.
       chunk_type += chunk_data
       output.append(chunk_type)
-      output.append(struct.pack('>l', zlib.crc32(chunk_type)))
+      # Python 2.4 or 2.5 zlib.crc32(...) may return signed or unsigned.
+      output.append(struct.pack('>L', zlib.crc32(chunk_type) & 0xffffffff))
 
     if do_force_gray:
       assert (self.color_type.startswith('indexed-') or
@@ -4611,6 +4635,7 @@ class PdfData(object):
         obj_starts.pop(b'xref', None)
       else:
         self.trailer = PdfObj.ParseTrailer(data, start=trailer_ofs)
+        self.trailer.Set(b'XRefStm', None)
         self.trailer.Set(b'Prev', None)
         if b'xref' in obj_starts:
           last_ofs = min(trailer_ofs, obj_starts.pop(b'xref'))
@@ -4623,7 +4648,7 @@ class PdfData(object):
           (ShellQuoteFileName(self.file_name),
            ShellQuoteFileName(os.path.splitext(self.file_name)[0] +
            '.decrypted.pdf')))
-    if not (self.trailer.Get(b'Root') or '').endswith(b'R'):
+    if not (self.trailer.Get(b'Root') or b'').endswith(b'R'):
       raise PdfMissingRootError('/Root reference not found in trailer.')
 
     obj_items = []
@@ -4704,8 +4729,48 @@ class PdfData(object):
       raise PdfFileEncryptedError
 
   @classmethod
+  def YieldXrefStreamEntries(cls, w0, w1, w2, index, xref_data):
+    w01 = w0 + w1
+    w012 = w01 + w2
+    ii = 0
+    obj_num = None
+    ii_remaining = 0
+    for i in range(0, len(xref_data), w012):
+      if not ii_remaining:
+        # PdfObj.GetAndClearXrefStream() guarantees that we get a positive
+        # ii_remaining and we don't exhaust the index array below.
+        if ii >= len(index):
+          raise PdfXrefStreamError(
+              'Index too large: ii=%d index_size=%d' % (ii, len(index)))
+        if obj_num is not None and index[ii] <= obj_num:
+          # TODO(pts): Check in xref_obj.GetAndClearXrefStream() instead.
+          raise PdfXrefStreamError(
+              'Sections within an xref stream not increasing: '
+              'old_obj_num=%d new_obj_num=%d' %
+              (obj_num, index[ii]))
+        obj_num = index[ii]
+        ii_remaining = index[ii + 1] - 1
+        assert ii_remaining >= 0
+        ii += 2
+      else:
+        obj_num += 1
+        ii_remaining -= 1
+      if w0:
+        f0 = cls.MSBFirstToInteger(xref_data[i : i + w0])
+      else:
+        f0 = 1
+      f1 = cls.MSBFirstToInteger(xref_data[i + w0 : i + w01])
+      if w2:
+        f2 = cls.MSBFirstToInteger(xref_data[i + w01 : i + w012])
+      else:
+        f2 = 0
+      if not f0:  # A free object, ignore it.
+        continue
+      yield obj_num, f0, f1, f2
+
+  @classmethod
   def ParseUsingXrefStream(cls, data, do_ignore_generation_numbers,
-                           xref_ofs, xref_obj_num, xref_generation):
+                           xref_ofs, xref_obj_num, xref_generation, obj_starts=None, do_allow_duplicate_obj=False):
     """Determine obj offsets in a PDF file using the cross-reference stream.
 
     Args:
@@ -4724,8 +4789,9 @@ class PdfData(object):
     """
     has_generational_objs = False
     # Parse the cross-reference stream (xref stream).
-    # Maps object numbers to offset or (objstm_obj_num, index) values.
-    obj_starts = {b'xref': xref_ofs}  # 'xref' is just informational.
+    if obj_starts is None:
+      # Maps object numbers to offset or (objstm_obj_num, index) values.
+      obj_starts = {b'xref': xref_ofs}  # 'xref' is just informational.
     # Maps /Type/ObjStm object numbers to compressed_obj_headbufs, or
     # None if that object stream is not loaded yet.
     obj_streams = {}
@@ -4757,48 +4823,14 @@ class PdfData(object):
       #            xref_obj.GetUncompressedStream().
       w0, w1, w2, index, xref_data = xref_obj.GetAndClearXrefStream(
           xref_ofs=xref_ofs, xref_obj_num=xref_obj_num)
-      w01 = w0 + w1
-      w012 = w01 + w2
-      ii = 0
-      obj_num = None
-      ii_remaining = 0
-      for i in range(0, len(xref_data), w012):
-        if not ii_remaining:
-          # PdfObj.GetAndClearXrefStream() guarantees that we get a positive
-          # ii_remaining and we don't exhaust the index array below.
-          if ii >= len(index):
-            raise PdfXrefStreamError(
-                'Index too large: ii=%d index_size=%d' % (ii, len(index)))
-          if obj_num is not None and index[ii] <= obj_num:
-            # TODO(pts): Check in xref_obj.GetAndClearXrefStream() instead.
-            raise PdfXrefStreamError(
-                'Sections within an xref stream not increasing: '
-                'old_obj_num=%d new_obj_num=%d' %
-                (obj_num, index[ii]))
-          obj_num = index[ii]
-          ii_remaining = index[ii + 1] - 1
-          assert ii_remaining >= 0
-          ii += 2
-        else:
-          obj_num += 1
-          ii_remaining -= 1
-        if w0:
-          f0 = cls.MSBFirstToInteger(xref_data[i : i + w0])
-        else:
-          f0 = 1
-        f1 = cls.MSBFirstToInteger(xref_data[i + w0 : i + w01])
-        if w2:
-          f2 = cls.MSBFirstToInteger(xref_data[i + w01 : i + w012])
-        else:
-          f2 = 0
-        if not f0:  # A free object, ignore it.
-          continue
+      for obj_num, f0, f1, f2 in cls.YieldXrefStreamEntries(w0, w1, w2, index, xref_data):
         if obj_num in obj_starts:
           if obj_num in keep_obj_starts:
             if f0 == 2:
               compressed_objects_to_ignore.add((obj_num, f1))
             continue  # Ignore this entry, obj defined in higher xref stream.
-          raise PdfXrefStreamError('duplicate obj %d' % obj_num)
+          if not do_allow_duplicate_obj:
+            raise PdfXrefStreamError('duplicate obj %d' % obj_num)
         if f0 == 1:  # f1 is the object offset in the file.
           if f2:
             if not do_ignore_generation_numbers:
@@ -4857,7 +4889,7 @@ class PdfData(object):
     assert trailer_obj
     LogProportionalInfo(
         'found %d obj offsets and %d obj streams in xref stream' %
-        (len(obj_starts) - 1,  # `- 1' for the key 'xref' itself.
+        (len(obj_starts) - ('xref' in obj_starts) - ('trailer' in obj_starts),
          len(obj_streams)))
     max_obj_num = None
     for xref_obj_num in sorted(xref_obj_nums):
@@ -4865,7 +4897,7 @@ class PdfData(object):
       if obj_start is None:
         if max_obj_num is None:
           max_obj_num = max(
-              (obj_num != b'xref' and obj_num or 0) for obj_num in obj_starts)
+              (obj_num != b'xref' and obj_num != b'trailer' and obj_num or 0) for obj_num in obj_starts)
         if xref_obj_num != max_obj_num + 1:
           # pgfmanual.pdf in
           # https://code.google.com/p/pdfsizeopt/issues/detail?id=75
@@ -4980,8 +5012,8 @@ class PdfData(object):
     # https://github.com/pts/pdfsizeopt/issues/80
     # Example: https://github.com/pts/pdfsizeopt/issues/86
     for match in PdfObj.PDF_STARTXREF_EOF_RE.finditer(data[-400:]):
-      break
-    else:
+      pass  # Find the last math.
+    if match is None:
       raise PdfXrefError('startxref+%%EOF not found')
     xref_ofs = int(match.group(1))
     match = PdfObj.PDF_OBJ_DEF_RE.match(data, xref_ofs)
@@ -4996,6 +5028,7 @@ class PdfData(object):
     obj_starts_rev = {}
     # Set of object numbers not to be overwritten.
     keep_obj_nums = set()
+    xrefstm_objs = []
     _xref_re = PdfObj.PDF_XREF_SUBSECTION_OR_TRAILER_RE
     _xref_section_re = PdfObj.PDF_XREF_SECTION_RE
     _xref_entry_re = PdfObj.PDF_XREF_ENTRY_RE
@@ -5063,9 +5096,21 @@ class PdfData(object):
 
       # TODO(pts): How to test this?
       try:
-        xref_ofs = PdfObj.ParseTrailer(data, start=xref_ofs).Get(b'Prev')
+        trailer_obj = PdfObj.ParseTrailer(data, start=xref_ofs)
       except PdfTokenParseError as exc:
         raise PdfXrefError(str(exc))
+      xrefstm_ofs = trailer_obj.Get(b'XRefStm')
+      if xrefstm_ofs is not None:  # Hybrid.
+        if not isinstance(xrefstm_ofs, int):
+          raise PdfXrefError('/XRefStm offset not an int: %r' % (xrefstm_ofs,))
+        match = PdfObj.PDF_OBJ_DEF_RE.match(data, xrefstm_ofs)
+        if not match:
+          raise PdfXrefStreamError('/XRefStm obj definition expected at %d' % xrefstm_ofs)
+        xrefstm_obj_num = int(match.group(1))
+        xrefstm_obj_generation = int(match.group(2))
+        xrefstm_objs.append((xrefstm_ofs, xrefstm_obj_num, xrefstm_obj_generation))
+      xref_ofs = trailer_obj.Get(b'Prev')
+      del trailer_obj  # Save memory.
       if xref_ofs is None:
         break
       if not isinstance(xref_ofs, int):
@@ -5074,6 +5119,18 @@ class PdfData(object):
       # we've already created.
       # for testing: obj 5 in bfilter.pdf
       keep_obj_nums.update(obj_starts)
+    if xrefstm_objs:
+      obj_start_nums = set(obj_starts)
+      obj_start_nums.add(b'trailer')
+      obj_start_nums.add(b'xref')
+      for xrefstm_ofs, xrefstm_obj_num, xrefstm_obj_generation in xrefstm_objs:
+        obj_starts_copy = dict(obj_starts)
+        # Updates obj_starts, changes obj_starts['trailer'] to a PdfObj.
+        cls.ParseUsingXrefStream(data, do_ignore_generation_numbers, xrefstm_ofs, xrefstm_obj_num,
+                                 xrefstm_obj_generation, obj_starts_copy, do_allow_duplicate_obj=True)
+        for obj_num, obj_ofs in obj_starts_copy.items():
+          if obj_num not in obj_start_nums:
+            obj_starts[obj_num] = obj_ofs
     return obj_starts, has_generational_objs
 
   @classmethod
@@ -5849,7 +5906,10 @@ class PdfData(object):
     type1_size = 0
     for obj_num in sorted(objs):
       type1_size += objs[obj_num].size
-      objs[obj_num].AppendTo(output, obj_num)
+      obj = objs[obj_num]
+      if obj.stream is None:
+        raise ValueError('Missing stream in Type1C obj %d' % obj_num)
+      obj.CopyStreamObj().AppendTo(output, obj_num)
     output.append('(Type1CParser: all OK\\n) print flush\n%%EOF\n')
     output_str = ''.join(output)
     LogInfo(
@@ -7214,6 +7274,7 @@ class PdfData(object):
     # Maps obj_nums (to be modified) to obj_nums (to be modified to).
     modify_obj_nums = {}
     force_grayscale_obj_nums = set()
+    removed_entries = {}
     for obj_num in sorted(self.objs):
       obj = self.objs[obj_num]
       if (not obj.head.startswith('<<') or '/Image' not in obj.head or
@@ -7235,7 +7296,10 @@ class PdfData(object):
           force_grayscale_obj_nums.add(int(match.group(1)))
 
       if obj.Get('Type') is not None:
-        if obj.Get('Type') != '/XObject':
+        # /Xobject is nonstandard, but some PDF files have it (see
+        # /https://github.com/pts/pdfsizeopt/issues/133), and pdfimages
+        # /seems to be ignoring it:
+        if obj.Get('Type') not in ('/XObject', '/Xobject'):
           continue  # Something is wrong with this object, don't touch it.
         obj.Set('Type', None)  # Remove explicit default.
 
@@ -7365,6 +7429,19 @@ class PdfData(object):
                       r'/Indexed[\0\t\n\r\f ]*'
                       r'/Device(?:RGB|Gray)[\0\t\n\r\f (<\[/])', colorspace):
         continue
+
+      # These entries may contain references we don't want to resolve
+      # (especially /Metadata and /SMask). Also we don't want to pass these
+      # entries to GhostScript with RenderImages.
+      #
+      # TODO(pts): Can we remove /Metadata from images and Type 1 fonts?
+      for name in ('Metadata', 'SMask', 'Name', 'Intent'):
+        value = obj.Get(name)
+        if value is not None:
+          if obj_num not in removed_entries:
+            removed_entries[obj_num] = {}
+          removed_entries[obj_num][name] = value
+          obj.Set(name, None)
 
       # We've already called ResolveReferences on /Filter, /BitsPerComponent,
       # /ColorSpace, /Width, /Height, /Decode, /DecodeParms, /ImageMask.
@@ -7684,8 +7761,10 @@ class PdfData(object):
           assert oi_image.height == obj_height
           assert oi_image.compression == 'zip-png'
           assert not oi_image.is_interlaced
-          assert oi_image.bpc == np_image_bpc
-          assert oi_image.color_type == np_image_color_type
+          # These may not match: e.g. oi_image (sam2p_pr) is Indexed4,
+          # np_image is Rgb1 (non-standard PNG activated by -pdf:2).
+          if oi_image.color_type == np_image_color_type:
+            assert oi_image.bpc == np_image_bpc, (oi_image.bpc, np_image_bpc)
 
           # !! add /FlateEncode again to all obj_images to find the smallest
           #    (maybe to UpdatePdfObj)
@@ -7835,6 +7914,10 @@ class PdfData(object):
 
     for obj_num in modify_obj_nums:
       self.objs[obj_num] = PdfObj(self.objs[modify_obj_nums[obj_num]])
+    for obj_num in removed_entries:
+      obj = self.objs[obj_num]
+      for name, value in removed_entries[obj_num].iteritems():
+        obj.Set(name, value)
 
     return self
 
@@ -8359,10 +8442,11 @@ class PdfData(object):
         # TODO(pts): What if there are multiple trailers (linearized)?
         self.trailer = PdfObj.ParseTrailer(
             data, start=i, end_ofs_out=end_ofs_out)
+        self.trailer.Set('XRefStm', None)
+        self.trailer.Set('Prev', None)
         if self.trailer.Get(b'Type') is not None:
           raise PdfTokenParseError(
               'unexpected trailer obj type: %s' % self.trailer.Get(b'Type'))
-        self.trailer.Set(b'Prev', None)  # Why?
         i = end_ofs_out[-1]
         if data[i : i + 1] in ws:
           i += 1
@@ -9378,7 +9462,10 @@ def SetupTmpPrefix(output_file_name, tmp_dir):
     else:
       tmp_dir = os.getenv('TMPDIR', '')
     if not (tmp_dir and os.path.isdir(tmp_dir)):
-      tmp_dir = os.path.dirname(output_file_name)
+      if output_file_name:
+        tmp_dir = os.path.dirname(output_file_name)
+      else:
+        tmp_dir = '.'
   tmp_basename = 'psotmp.%d.' % os.getpid()
   if tmp_dir == '.':
     TMP_PREFIX = tmp_basename
@@ -9586,6 +9673,9 @@ def main(argv, script_dir=None, zip_file=None):
     PrependToPath(used_script_dir)  # ... otherwise, find them in script dir.
   del used_script_dir  # Make sure it's not used.
 
+  # Call it before the first call to GetGsCommand(...).
+  SetupTmpPrefix(output_file_name, f.tmp_dir)
+
   if f.do_debug_gs:
     LogInfo('PATH: %s' % os.getenv('PATH', ''))
     LogInfo('getcwd: %s' % os.getcwd())
@@ -9629,7 +9719,6 @@ def main(argv, script_dir=None, zip_file=None):
 
   if output_file_name is None:  # Just --do-debug-gs=yes.
     return
-  SetupTmpPrefix(output_file_name, f.tmp_dir)
 
   # It's OK that file_name == output_file_name: we don't read and write them
   # at the same time.
