@@ -892,7 +892,7 @@ class PdfObj(object):
       br'[\x00\t\n\r\f ]R(?=[\x00\t\n\r\f /%(<>\[\]]|\Z)')
   """Matches the whitespace, the 'R' and looks ahead 1 char."""
 
-  PDF_REF_END_RE = re.compile(r'[\x00\t\n\r\f ]R\Z')
+  PDF_REF_END_RE = re.compile(br'[\x00\t\n\r\f ]R\Z')
   """Matches a whitespace char and an R at the end of the string."""
 
   PDF_REF_AT_EOS_RE = re.compile(
@@ -1169,7 +1169,7 @@ class PdfObj(object):
       br'trailer(?=[\x00\t\n\r\f ]|<<))')
   """Matches an 'obj' start or a 'trailer' start."""
 
-  PDF_TRAILER_WORD_RE = re.compile(r'[\x00\t\n\r\f ](trailer[\x00\t\n\r\f ]*<<)')
+  PDF_TRAILER_WORD_RE = re.compile(br'[\x00\t\n\r\f ](trailer[\x00\t\n\r\f ]*<<)')
   """Matches whitespace, the 'trailer' and some more chars."""
 
   PDF_ENDSTREAM_ENDOBJ_RE = re.compile(
@@ -1789,21 +1789,21 @@ class PdfObj(object):
     return not (a in b')>]' or b in b'(<[/')
 
   @classmethod
-  def GetNumber(cls, data):
+  def GetNumber(cls, data: bytes):
     """Return an int, log, float or None."""
-    if isinstance(data, int) or isinstance(data, long):
+    if isinstance(data, int):
       return int(data)
     elif isinstance(data, float):
       pass
     elif not isinstance(data, str):
       return None
-    elif data == '.':
+    elif data == b'.':
       return 0
-    elif re.match(r'-?\d+[.]', data):
+    elif re.match(br'-?\d+[.]', data):
       data = float(data[:-1])
     else:
       try:
-        if '.' in data:
+        if b'.' in data:
           data = float(data)
         else:
           return int(data)
@@ -3228,18 +3228,18 @@ class PdfObj(object):
     """
     # !! TODO(pts): What about PDF comments between /Subtype and /Form?
     #               Also everywhere else.
-    if (not re.search(r'/Subtype[\x00\t\n\r\f ]*/Form\b', self.head) or
-        not self.head.startswith('<<') or
+    if (not re.search(br'/Subtype[\x00\t\n\r\f ]*/Form\b', self.head) or
+        not self.head.startswith(b'<<') or
         not self.stream is not None or
-        self.Get(b'Subtype') != '/Form' or
+        self.Get(b'Subtype') != b'/Form' or
         self.Get(b'FormType', 1) != 1 or
         # !! get rid of these checks once we can decompress anything
-        self.Get(b'Filter') not in (None, '/FlateDecode') or
+        self.Get(b'Filter') not in (None, b'/FlateDecode') or
         self.Get(b'DecodeParms') is not None or
-        not str(self.Get(b'BBox')).startswith('[')):
+        not self.Get(b'BBox').startswith(b'[')):
       return None
 
-    bbox = map(PdfObj.GetNumber, PdfObj.ParseArray(self.Get(b'BBox')))
+    bbox = list(map(PdfObj.GetNumber, PdfObj.ParseArray(self.Get(b'BBox'))))
     if (len(bbox) != 4 or bbox[0] != 0 or bbox[1] != 0 or
         bbox[2] is None or bbox[2] < 1 or bbox[2] != int(bbox[2]) or
         bbox[3] is None or bbox[3] < 1 or bbox[3] != int(bbox[3])):
@@ -3267,13 +3267,13 @@ class PdfObj(object):
     stream_tail = stream[-16:]
     # TODO(pts): What if \r\n in front of EI? We don't support that.
     match = re.search(
-        r'[\x00\t\n\r\f ]EI[\x00\t\n\r\f ]+Q[\x00\t\n\r\f ]*\Z', stream_tail)
+        br'[\x00\t\n\r\f ]EI[\x00\t\n\r\f ]+Q[\x00\t\n\r\f ]*\Z', stream_tail)
     if not match:
       return None
     stream_end = len(stream) - len(stream_tail) + match.start()
     stream = stream[stream_start : stream_end]
 
-    image_obj = PdfObj('0 0 obj<</Length 0 %s>>stream endstream endobj' %
+    image_obj = PdfObj(b'0 0 obj<</Length 0 %s>>stream endstream endobj' %
                        self.ExpandAbbreviations(inline_dict))
     if (image_obj.Get(b'Width') != width or
         image_obj.Get(b'Height') != height):
@@ -4958,7 +4958,7 @@ class PdfData(object):
               'obj_num_in_objstm=%d objstm_obj_num=%d i=%d' %
               (obj_num, compressed_obj_nums[i], objstm_obj_num, i))
         compressed_obj_nums[i] = None
-        assert isinstance(compressed_obj_headbufs[i], (memoryview, str))
+        assert isinstance(compressed_obj_headbufs[i], (memoryview, bytes))
         obj_starts[obj_num] = compressed_obj_headbufs[i] = PdfObj(
             b'%d 0 obj\n%s\nendobj\n' % (obj_num, compressed_obj_headbufs[i]))
     for obj_num in sorted(obj_streams):
@@ -5618,7 +5618,7 @@ class PdfData(object):
         j = i + 1
         while j < obj_count and obj_numbers[j] - 1 == obj_numbers[j - 1]:
           j += 1
-        output.append(b'%s %s\n' % (obj_numbers[i], j - i))
+        output.append(b'%d %d\n' % (obj_numbers[i], j - i))
         while i < j:
           output.append(b'%010d 00000 n \n' % obj_ofs[obj_numbers[i]])
           i += 1
@@ -6105,8 +6105,8 @@ class PdfData(object):
             'different /%s values: target=%s source=%s' %
             (key, target_value, source_value))
 
-    source_bbox_str = PdfObj.ParseArray(source_fd.Get('FontBBox'))
-    target_bbox_str = PdfObj.ParseArray(target_fd.Get('FontBBox'))
+    source_bbox_str = PdfObj.ParseArray(source_fd.Get(b'FontBBox'))
+    target_bbox_str = PdfObj.ParseArray(target_fd.Get(b'FontBBox'))
     if source_bbox_str != target_bbox_str:
       source_bbox = map(PdfObj.GetNumber, source_bbox_str)
       target_bbox = map(PdfObj.GetNumber, target_bbox_str)
@@ -7853,18 +7853,9 @@ class PdfData(object):
           assert obj_info[4].width == obj_width
           assert obj_info[4].height == obj_height
 
-      # SUXX: Python2.4 min(...) and sorted(...) doesn't compare tuples
-      # properly ([0] first)) if one of them is an object. So we implement
-      # our own comparator.
-      # !! TODO(pts): Analyze this. How does sorted(...) break here?
-      def CompareStr(a, b):
-        return (a < b and -1) or (a > b and 1) or 0
-
-      def CompareObjInfo(a, b):
-        # Compare first by byte size, then by command name.
-        return a[0].__cmp__(b[0]) or CompareStr(a[1], b[1])
-
-      obj_infos.sort(CompareObjInfo)
+      # Sort by byte size first, then by command name.
+      # Python 3's tuple sorting naturally handles this correctly.
+      obj_infos.sort(key=lambda info: (info[0], info[1]))
       method_sizes = ','.join(
           ['%s:%s' % (obj_info[1], obj_info[0]) for obj_info in obj_infos])
 
