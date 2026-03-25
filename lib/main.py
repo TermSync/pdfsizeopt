@@ -1264,7 +1264,7 @@ class PdfObj(object):
   simple tokens, possibly concatenated by a single space.
   """
 
-  PDF_FONT_FILE_KEYS = ('FontFile', 'FontFile2', 'FontFile3')
+  PDF_FONT_FILE_KEYS = (b'FontFile', b'FontFile2', b'FontFile3')
   """Tuple of keys in /Type/FontDescriptor referring to the font data obj."""
 
   PDF_NAME_ABBREVIATIONS = {
@@ -3643,14 +3643,22 @@ class PdfObj(object):
         f.write(gs_code)
       finally:
         f.close()
+
+      # --permit-file-read grants GS read access to the specific temp file it
+      # needs to open via `INFN (r) file`, without disabling SAFER mode
+      # entirely. GS SAFER mode began blocking this path in 10.03.x as part of
+      # the executeonly hardening; --permit-file-read with the exact file path
+      # is the minimal grant needed and works on GS 10.03+.
       gs_defilter_cmd = (
-          '%s -dNODISPLAY -sINFN=%s -q -P- %s' %
+          '%s --permit-file-read=%s -dNODISPLAY -sINFN=%s -q -P- %s' %
           (GetGsCommand(), ShellQuoteFileName(tmp_file_name, is_gs=True),
+           ShellQuoteFileName(tmp_file_name, is_gs=True),
            ShellQuoteFileName(ps_file_name, is_gs=True)))
     else:
       gs_defilter_cmd = (
-          '%s -dNODISPLAY -sINFN=%s -q -P- -c %s' %
+          '%s --permit-file-read=%s -dNODISPLAY -sINFN=%s -q -P- -c %s' %
           (GetGsCommand(), ShellQuoteFileName(tmp_file_name, is_gs=True),
+           ShellQuoteFileName(tmp_file_name, is_gs=True),
            ShellQuote(gs_code.decode('latin1'))))
     LogProportionalInfo(
         'decompressing %d bytes with Ghostscript '
@@ -5923,9 +5931,10 @@ class PdfData(object):
 
     EnsureRemoved(data_tmp_file_name)
     gs_cmd = (
-        '%s -q -P- -dNOPAUSE -dBATCH -sDEVICE=nullpage '
+        '%s --permit-file-write=%s -q -P- -dNOPAUSE -dBATCH -sDEVICE=nullpage '
         '-sDataFile=%s -f %s'
         % (GetGsCommand(), ShellQuoteFileName(data_tmp_file_name, is_gs=True),
+           ShellQuoteFileName(data_tmp_file_name, is_gs=True),
            ShellQuoteFileName(ps_tmp_file_name, is_gs=True)))
     LogInfo(
         'executing Type1CParser with Ghostscript: %s' % gs_cmd)
@@ -8427,14 +8436,14 @@ class PdfData(object):
         if trailer_ofs > j:
           # TODO(pts): Also add comments in here.
           callback_calls.append(
-              (None, data[j : trailer_ofs], 'whitespace_after_xref'))
+              (None, data[j : trailer_ofs], b'whitespace_after_xref'))
         i = trailer_ofs
         del end_ofs_out[:]
         # TODO(pts): What if there are multiple trailers (linearized)?
         self.trailer = PdfObj.ParseTrailer(
             data, start=i, end_ofs_out=end_ofs_out)
-        self.trailer.Set('XRefStm', None)
-        self.trailer.Set('Prev', None)
+        self.trailer.Set(b'XRefStm', None)
+        self.trailer.Set(b'Prev', None)
         if self.trailer.Get(b'Type') is not None:
           raise PdfTokenParseError(
               'unexpected trailer obj type: %s' % self.trailer.Get(b'Type'))
@@ -8447,10 +8456,10 @@ class PdfData(object):
         if match:
           i = match.end()
         if PdfObj.PDF_STARTXREF_EOF_AT_EOS_RE.match(data, i - 1):
-          callback_calls.append((None, data[trailer_ofs : i1], 'trailer'))
+          callback_calls.append((None, data[trailer_ofs : i1], b'trailer'))
           if i > i1:
             callback_calls.append(
-                (None, data[i1 : i], 'whitespace_after_trailer'))
+                (None, data[i1 : i], b'whitespace_after_trailer'))
           for callback_call in callback_calls:
             setitem_callback(*callback_call)
           callback_calls = None  # Save memory.
@@ -8531,25 +8540,25 @@ class PdfData(object):
     trailer_obj_num = [None]
     # All values are in bytes.
     stats = {
-        'nonjpeg_image_objs': 0,
-        'jpeg_image_objs': 0,
-        'xref': 0,
-        'trailer': 0,
+        b'nonjpeg_image_objs': 0,
+        b'jpeg_image_objs': 0,
+        b'xref': 0,
+        b'trailer': 0,
         # TODO(pts): Count hyperlinks seperately, but they may be part of
         # content streams, and we don't have the infrastructure to inspect
         # that.
-        'other_stream_objs': 0,
+        b'other_stream_objs': 0,
         # Non-stream objs in object streams are counted as non-stream objs.
-        'other_nonstream_objs': 0,
+        b'other_nonstream_objs': 0,
         # Space wasted (e.g. in comments and whitespace) between objs.
-        'wasted_between_objs': 0,
-        'header': 0,
+        b'wasted_between_objs': 0,
+        b'header': 0,
         # `startxref' and what follows.
-        'footer': 0,
+        b'footer': 0,
         # Objects which are content streams or forms.
-        'drawing_objs': 0,
-        'font_data_objs': 0,
-        'linearized_xref': 0,
+        b'drawing_objs': 0,
+        b'font_data_objs': 0,
+        b'linearized_xref': 0,
         # TODO(pts): Add computing the size of inline images. Discovery of
         # drawing_objs (and parsing them again) makes it hard, and then it's
         # hard to detect the end of the image (r'EI[\0\t\n\r\f /%\[]' may end
@@ -8587,13 +8596,13 @@ class PdfData(object):
 
     def SetItemCallback(obj_num, pdf_obj, end_ofs):
       if obj_num is None:
-        assert isinstance(pdf_obj, str)
+        assert isinstance(pdf_obj, bytes)
         if end_ofs in (
-            'header', 'linearized_xref', 'trailer', 'xref'):
+            b'header', b'linearized_xref', b'trailer', b'xref'):
           # For testing linearized_xref: inkscape_manual.pdf
           stats[end_ofs] += len(pdf_obj)
         else:
-          stats['wasted_between_objs'] += len(pdf_obj)
+          stats[b'wasted_between_objs'] += len(pdf_obj)
         return
       assert isinstance(pdf_obj, PdfObj)
       obj_ofs = offsets_out[-1]
@@ -8604,16 +8613,16 @@ class PdfData(object):
         assert pdf.trailer.stream is not None
         trailer_obj_num[0] = obj_num
         xref_size = len(pdf.trailer.stream) + 20
-        stats['xref'] += xref_size
-        stats['trailer'] += obj_size - xref_size
+        stats[b'xref'] += xref_size
+        stats[b'trailer'] += obj_size - xref_size
         return
       if (pdf_obj.stream is None or
-          (pdf_obj.head.startswith('<<') and pdf_obj.Get(b'Type') == '/ObjStm')):
+          (pdf_obj.head.startswith(b'<<') and pdf_obj.Get(b'Type') == b'/ObjStm')):
         other_nonstream_obj_nums.add(obj_num)
       else:
         other_stream_obj_nums.add(obj_num)
-      if pdf_obj.head.startswith('<<'):
-        if pdf_obj.Get(b'Type') == '/ObjStm':
+      if pdf_obj.head.startswith(b'<<'):
+        if pdf_obj.Get(b'Type') == b'/ObjStm':
           # We have to parse this to find /Contents and /FontFile*
           # references.
 
@@ -8625,7 +8634,8 @@ class PdfData(object):
           # pdf_reference_1-7.pdf.
 
           obj_data = pdf_obj.GetUncompressedStream()
-          for head in PdfObj.ParseArray('[%s]' % obj_data):
+          for head in PdfObj.ParseArray(b'[' + obj_data + b']'):
+            print(head)
             if isinstance(head, str) and head.startswith('<<'):
               dict_obj = PdfObj.ParseDict(head)
               if (dict_obj.get('Type') == '/Page' and
@@ -8647,7 +8657,7 @@ class PdfData(object):
 
         # Some PDFs generated by early pdftexs have /Type/FontDescriptor
         # missing.
-        if pdf_obj.Get(b'Type') in ('/FontDescriptor', None):
+        if pdf_obj.Get(b'Type') in (b'/FontDescriptor', None):
           for key in PdfObj.PDF_FONT_FILE_KEYS:
             ref_data = pdf_obj.Get(key)
             if isinstance(ref_data, str):
@@ -8658,11 +8668,11 @@ class PdfData(object):
 
         # TODO(pts): reorder parsing to resolve future objects in
         # objs=pdf.objs below.
-        if (pdf_obj.Get(b'Subtype') == '/Image' or
+        if (pdf_obj.Get(b'Subtype') == b'/Image' or
             pdf_obj.DetectInlineImage(objs=pdf.objs)):
           if obj_num in drawing_obj_nums:
             drawing_obj_nums.remove(obj_num)
-          if '/DCTDecode' in str(pdf_obj.Get(b'Filter')):
+          if b'/DCTDecode' in pdf_obj.Get(b'Filter', b''):
             jpeg_image_obj_nums.add(obj_num)
           else:
             nonjpeg_image_obj_nums.add(obj_num)
@@ -8686,33 +8696,33 @@ class PdfData(object):
             'objects counted multiple times')
 
     for obj_num in other_stream_obj_nums:
-      stats['other_stream_objs'] += obj_size_by_num[obj_num]
+      stats[b'other_stream_objs'] += obj_size_by_num[obj_num]
     for obj_num in other_nonstream_obj_nums:
-      stats['other_nonstream_objs'] += obj_size_by_num[obj_num]
+      stats[b'other_nonstream_objs'] += obj_size_by_num[obj_num]
     for obj_num in nonjpeg_image_obj_nums:
       obj_size = obj_size_by_num.get(obj_num)
       if obj_size is not None:
-        stats['nonjpeg_image_objs'] += obj_size
+        stats[b'nonjpeg_image_objs'] += obj_size
     for obj_num in jpeg_image_obj_nums:
       obj_size = obj_size_by_num.get(obj_num)
       if obj_size is not None:
-        stats['jpeg_image_objs'] += obj_size
+        stats[b'jpeg_image_objs'] += obj_size
     for obj_num in drawing_obj_nums:
       obj_size = obj_size_by_num.get(obj_num)
       if obj_size is not None:
-        stats['drawing_objs'] += obj_size
+        stats[b'drawing_objs'] += obj_size
     for obj_num in font_data_obj_nums:
       obj_size = obj_size_by_num.get(obj_num)
       if obj_size is not None:
-        stats['font_data_objs'] += obj_size
+        stats[b'font_data_objs'] += obj_size
 
-    assert stats['other_nonstream_objs'] > 0  # We must have a page catalog.
-    #assert stats['content_objs'] > 0  # We must have a content stream. (Only if there are pages.)
+    assert stats[b'other_nonstream_objs'] > 0  # We must have a page catalog.
+    #assert stats[b'content_objs'] > 0  # We must have a content stream. (Only if there are pages.)
     # offsets_out[-1] is the offset of 'startxref'.
     assert len(offsets_out) == offsets_idx[0] + 1
-    stats['footer'] += len(data) - offsets_out[-1]
-    assert stats['trailer'] > 0
-    assert stats['xref'] > 0
+    stats[b'footer'] += len(data) - offsets_out[-1]
+    assert stats[b'trailer'] > 0
+    assert stats[b'xref'] > 0
     # if trailer_obj_num[0] is None: ...  # Without xref stream.
 
     for key in sorted(stats):
