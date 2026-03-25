@@ -8380,9 +8380,12 @@ class PdfData(object):
     # We set xref_ofs if available. It is not an error not to have it
     # (e.g. with a broken PDF with xref + trailer).
     xref_ofs = None
-    i = data.rfind(b'startxref')
-    if i >= 0:
-      match = PdfObj.PDF_STARTXREF_EOF_AT_EOS_RE.match(data, i - 1)
+    last_startxref_i = data.rfind(b'startxref')
+    if last_startxref_i >= 0:
+      match = PdfObj.PDF_STARTXREF_EOF_AT_EOS_RE.match(data, last_startxref_i - 1)
+      if not match:
+        # Tolerate trailing garbage after %%EOF (corrupt/truncated PDFs).
+        match = PdfObj.PDF_STARTXREF_EOF_RE.match(data, last_startxref_i - 1)
       if match:
         xref_ofs = int(match.group(1))
 
@@ -8404,7 +8407,7 @@ class PdfData(object):
     # When this loop exist, data[i : i + 16].startswith('startxref') will be true.
     while 1:
       if i >= len(data):
-        raise PdfTokenParseError('unexpeted EOF in PDF')
+        raise PdfTokenParseError('unexpected EOF in PDF')
       i0 = i
 
       # It's important that it doesn't match leading whitespace, so we'll count
@@ -8420,7 +8423,24 @@ class PdfData(object):
 
       prefix = data[i : i + 16]
       if prefix.startswith(b'startxref'):
-        break
+        # For linearized PDFs, there may be an intermediate `startxref ...
+        # %%EOF' section followed by more objects. Only break if this is the
+        # final startxref (i.e. nothing follows after %%EOF up to end-of-file).
+        # Also break if this is the last startxref in the file, to tolerate
+        # corrupt/truncated PDFs with trailing garbage after %%EOF.
+        if (PdfObj.PDF_STARTXREF_EOF_AT_EOS_RE.match(data, i - 1) or
+            i == last_startxref_i):
+          break
+        # This is an intermediate startxref (linearized PDF). Skip past it
+        # and continue scanning for objects.
+        startxref_match = PdfObj.PDF_STARTXREF_EOF_RE.match(data, i - 1)
+        if startxref_match:
+          i_end = startxref_match.end()
+        else:
+          i_end = match.end()  # Skip past the matched startxref + whitespace.
+        setitem_callback(None, data[i : i_end], 'linearized_startxref')
+        i = i_end
+        continue
       if prefix.startswith(b'xref'):
         i0 = i
         match = PdfObj.PDF_TRAILER_WORD_RE.search(data, i)
@@ -8455,7 +8475,15 @@ class PdfData(object):
         match = PdfObj.PDF_COMMENTS_OR_WHITESPACE_RE.match(data, i)
         if match:
           i = match.end()
-        if PdfObj.PDF_STARTXREF_EOF_AT_EOS_RE.match(data, i - 1):
+        is_final_xref = bool(PdfObj.PDF_STARTXREF_EOF_AT_EOS_RE.match(data, i - 1))
+        if not is_final_xref:
+          # Tolerate trailing garbage after %%EOF (corrupt/truncated PDFs):
+          # treat as final if the next startxref in the file is the last one.
+          next_sxref = data.find(b'startxref', i)
+          if next_sxref == last_startxref_i:
+            is_final_xref = True
+            i = next_sxref  # Advance i to point at startxref for post-loop.
+        if is_final_xref:
           callback_calls.append((None, data[trailer_ofs : i1], b'trailer'))
           if i > i1:
             callback_calls.append(
@@ -8514,8 +8542,12 @@ class PdfData(object):
     offsets_out.append(i)  # startxref
     match = PdfObj.PDF_STARTXREF_EOF_AT_EOS_RE.match(data, i - 1)
     if not match:
+      # Tolerate trailing garbage after %%EOF (corrupt/truncated PDFs).
+      match = PdfObj.PDF_STARTXREF_EOF_RE.match(data, i - 1)
+    if not match:
       raise PdfTokenParseError('startxref syntax error at ofs=%d' % i)
-    assert xref_ofs == int(match.group(1))
+    if xref_ofs is not None:
+      assert xref_ofs == int(match.group(1))
 
     if self.trailer is None:
       raise PdfTokenParseError('trailer/xref obj not found')
@@ -8608,7 +8640,14 @@ class PdfData(object):
       obj_ofs = offsets_out[-1]
       offsets_idx[0] = len(offsets_out)
       # The object spans from obj_ofs to end_ofs.
-      obj_size_by_num[obj_num] = obj_size = end_ofs - obj_ofs
+      obj_size = end_ofs - obj_ofs
+      if obj_num in obj_size_by_num:
+        # Duplicate object number from an incremental update. The earlier
+        # occurrence is superseded; count its bytes as wasted.
+        stats[b'wasted_between_objs'] += obj_size_by_num[obj_num]
+        other_stream_obj_nums.discard(obj_num)
+        other_nonstream_obj_nums.discard(obj_num)
+      obj_size_by_num[obj_num] = obj_size
       if pdf.trailer is pdf_obj:  # Only in an xref stream.
         assert pdf.trailer.stream is not None
         trailer_obj_num[0] = obj_num
@@ -8635,7 +8674,6 @@ class PdfData(object):
 
           obj_data = pdf_obj.GetUncompressedStream()
           for head in PdfObj.ParseArray(b'[' + obj_data + b']'):
-            print(head)
             if isinstance(head, str) and head.startswith('<<'):
               dict_obj = PdfObj.ParseDict(head)
               if (dict_obj.get('Type') == '/Page' and
@@ -8728,7 +8766,7 @@ class PdfData(object):
     for key in sorted(stats):
       LogInfo(
           'stat %s = %s bytes (%s)' %
-          (key, stats[key], FormatPercentTwoDigits(stats[key], len(data))))
+          (key.decode('latin-1'), stats[key], FormatPercentTwoDigits(stats[key], len(data))))
     LogInfo('end of stats')
     assert not [1 for value in stats.values() if value < 0], (
         'stats has negative values')
