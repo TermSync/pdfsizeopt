@@ -717,6 +717,8 @@ def PermissiveZlibDecompress(data):
   try:
     return zlib.decompress(data)
   except zlib.error:
+    if len(data) < 2:
+      raise zlib.error('Insufficient data for zlib decompression')
     cmf, flg = data[0], data[1]
     wbits, cm = 8 + (cmf >> 4), cmf & 15
     if (cmf << 8 | flg) % 31:  # `flg & 31' is set like this.
@@ -1129,7 +1131,7 @@ class PdfObj(object):
   """Matches whitespace (or >), startxref, offset, then EOF at EOS."""
 
   PDF_VERSION_HEADER_RE = re.compile(
-      br'%PDF-(1[.]\d)%?(\r?\n%[\x80-\xff]{1,4}\r?\n|[\x00\t\n\r\f ])')
+      br'%PDF-([12][.]\d)%?(\r?\n%[\x80-\xff]{1,4}\r?\n|[\x00\t\n\r\f ])')
   """Matches the header with the version at the beginning of the PDF."""
 
   PDF_TRAILER_RE = re.compile(
@@ -1183,7 +1185,9 @@ class PdfObj(object):
       br'(?s)[\x00\t\n\r\f ]*('
       br'\[.*?\]|<<.*?>>|<[^>]*>|\(.*?\)|%[^\n\r]*|'
       + PDF_REF_RE.pattern + b'|'
-      br'/?[^\[\]()<>{}/\x00\t\n\r\f %]+)')
+      # Name token: '/' + zero-or-more non-delimiters (allows empty name '/'),
+      # or one-or-more non-delimiters without leading '/'.
+      br'(?:/[^\[\]()<>{}/\x00\t\n\r\f %]*|[^\[\]()<>{}/\x00\t\n\r\f %]+))')
   """Matches a single PDF token or comment in a simplistic way.
 
   For [...], <<...>> and (...) which contain nested delimiters, only a prefix
@@ -1564,7 +1568,7 @@ class PdfObj(object):
           # Like NormalizePdfName, but we don't need the extra check.
           output.append(_escape_hex(match.group(4)))
         elif match.group(5):  # An empty name token (/).
-          raise PdfTokenParseError('Found empty name token.')
+          output.append(b'/')  # Valid per PDF spec; emit as bare '/'.
         elif match.group(6):  # A hex-escape (usually in a name or a keyword).
           output.append(_escape_hex(match.group(6)))
         elif match.group(7):  # A hex string literal or <<.
@@ -1658,8 +1662,8 @@ class PdfObj(object):
       #     (token_parsing_speed.txt)
       #     Seems to be tolerable for pdf_reference_1-7.pdf with >100000 objs.
       # !!! Report statistics about nonsimple obj parsing percentage.
-      if cls.PDF_EMPTY_NAME_TOKEN_RE.search(data):
-        raise PdfTokenParseError('Found empty name token.')
+      # Empty names ('//') are valid per PDF spec; pass through to downstream
+      # parsers (ParseDict/_ParseTokens) which handle them via PDF_SIMPLE_VALUE_RE.
       end = len(data)
       # We check for syntax errors before ReplacementWhiteSpace changes '< <'
       # to '<<' etc.
@@ -5013,14 +5017,15 @@ class PdfData(object):
       other: If the PDF file us totally unparsable. Example: zlib.error.
     """
     match = None
-    # Some PDFs have a few bytes of garbage at the end, so we don't anchor
-    # this regexp to the end of the string, but we try to find the last match.
+    # Some PDFs have startxref far from the end (e.g. with large null padding),
+    # so search the full file rather than just the last 400 bytes.
     #
     # Example: server-based-java-programming.pdf in
     # https://github.com/pts/pdfsizeopt/issues/80
     # Example: https://github.com/pts/pdfsizeopt/issues/86
-    for match in PdfObj.PDF_STARTXREF_EOF_RE.finditer(data[-400:]):
-      pass  # Find the last math.
+    last_startxref_i = data.rfind(b'startxref')
+    if last_startxref_i > 0:
+      match = PdfObj.PDF_STARTXREF_EOF_RE.match(data, last_startxref_i - 1)
     if match is None:
       raise PdfXrefError('startxref+%%EOF not found')
     xref_ofs = int(match.group(1))
