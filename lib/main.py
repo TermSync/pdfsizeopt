@@ -875,11 +875,13 @@ class PdfObj(object):
   PDF_WHITESPACES_RE = re.compile(b'[' + PDF_WHITESPACE_CHARS + b']+')
   """Matches one or more PDF whitespace characters."""
 
-  PDF_STREAM_OR_ENDOBJ_RE = re.compile(br'(stream(?:[\x00\t\f ]*\r?\n|[\x00\t\f ])|endobj(?:\r\n|[\x00\t\n\r\f /%]|\Z))')
+  PDF_STREAM_OR_ENDOBJ_RE = re.compile(br'(stream(?:[\x00\t\f ]*\r?\n|[\x00\t\r\f ])|endobj(?:\r\n|[\x00\t\n\r\f /%]|\Z))')
   """Matches stream or endobj in a PDF obj in .group(1).
 
   pdf_reference_1-7.pdf requires stream\r?\n, we are more permissive.
   Example: 2019-05-21-azure.pdf in https://github.com/pts/pdfsizeopt/issues/117
+  The second alternative [\x00\t\r\f ] also handles stream\r (bare CR), which
+  is technically non-conformant per spec but produced by some PDF generators.
   """
 
   PDF_PREFIXED_STREAM_OR_ENDOBJ_RE = re.compile(br'[\x00\t\n\r\f \)>\]]' + PDF_STREAM_OR_ENDOBJ_RE.pattern)
@@ -5045,6 +5047,7 @@ class PdfData(object):
     _xref_re = PdfObj.PDF_XREF_SUBSECTION_OR_TRAILER_RE
     _xref_section_re = PdfObj.PDF_XREF_SECTION_RE
     _xref_entry_re = PdfObj.PDF_XREF_ENTRY_RE
+    saw_obj_zero = False
     while 1:
       # Maybe PDF doesn't allow multiple consecutive `xref' sections,
       # but we accept that.
@@ -5065,6 +5068,8 @@ class PdfData(object):
           break
         obj_num = int(match.group(1))
         obj_count = int(match.group(2))
+        if obj_num == 0 and obj_count > 0:
+          saw_obj_zero = True
         xref_ofs = match.end()
         while obj_count > 0:
           match = _xref_entry_re.match(data, xref_ofs)
@@ -5144,6 +5149,14 @@ class PdfData(object):
         for obj_num, obj_ofs in obj_starts_copy.items():
           if obj_num not in obj_start_nums:
             obj_starts[obj_num] = obj_ofs
+    if not saw_obj_zero:
+      # The xref table never covers obj 0, which the PDF spec requires. This
+      # usually means the object numbers in the xref are offset from the
+      # numbers used in the object headers and internal references. Fall back
+      # to ParseWithoutXref which uses header numbers directly.
+      raise PdfXrefError(
+          'xref table has no subsection covering obj 0; '
+          'object numbering may be inconsistent with file body')
     return obj_starts, has_generational_objs
 
   @classmethod
