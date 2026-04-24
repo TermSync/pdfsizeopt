@@ -1,4 +1,4 @@
-#!/usr/bin/python3.10
+#!/usr/bin/python3
 
 """:" # pdfsizeopt: PDF file size optimizer
 
@@ -11,19 +11,20 @@ type -p python3.13 >/dev/null 2>&1 && exec python3.13 -- "$P" ${1+"$@"}
 type -p python3.12 >/dev/null 2>&1 && exec python3.12 -- "$P" ${1+"$@"}
 type -p python3.11 >/dev/null 2>&1 && exec python3.11 -- "$P" ${1+"$@"}
 type -p python3.10 >/dev/null 2>&1 && exec python3.10 -- "$P" ${1+"$@"}
+type -p python3.9 >/dev/null 2>&1 && exec python3.9 -- "$P" ${1+"$@"}
 exec python -- "$P" ${1+"$@"}; exit 1
 
 This is a Python 3.10+ script, it works with Python 3.10 or newer. It
 doesn't work with Python 2.x. Feel free to replace the #! line with
-`#! /usr/bin/python', `#! /usr/bin/env python' or whatever suits you best.
+`#! /usr/bin/python3', `#! /usr/bin/env python' or whatever suits you best.
 """
 
 import os
 import os.path
 import sys
 
-if sys.version_info[:2] < (3, 10):
-  sys.stderr.write('fatal: Python version 3.10+ needed for: %s\n' % __file__)
+if sys.version_info[:2] < (3, 9):
+  sys.stderr.write('fatal: Python version 3.9+ needed for: %s\n' % __file__)
   sys.exit(1)
 
 script_dir = os.path.dirname(__file__)
