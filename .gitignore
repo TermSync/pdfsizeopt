@@ -11,3 +11,4 @@ docker/busybox
 docker/pdfsizeopt.single
 docker/pdfsizeopt_libexec_linux.tar.gz
 docker_extraimgopt/pdfsizeopt_libexec_extraimgopt_linux.tar.gz
+.DS_Store

@@ -4,7 +4,7 @@ It's moved to a separate file so that it can be better compressed by ZIP, and
 also minified  by MinifyPostScript in mksingle.py.
 """
 
-GENERIC = r'''
+GENERIC = br'''
 % <ProcSet>
 % PostScript procset of generic PDF parsing routines
 % by pts@fazekas.hu at Sun Mar 29 11:19:06 CEST 2009
@@ -263,7 +263,7 @@ GENERIC = r'''
 % </ProcSet>
 '''
 
-TYPE1C_CONVERTER = r'''
+TYPE1C_CONVERTER = br'''
 % <ProcSet>
 % PDF Type1 font extraction and typesetter procset
 % by pts@fazekas.hu at Sun Mar 29 11:19:06 CEST 2009

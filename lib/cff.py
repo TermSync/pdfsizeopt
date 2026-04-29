@@ -9,17 +9,6 @@ import struct
 
 from lib import float_util
 
-try:
-  from itertools import izip
-except ImportError:
-  def izip(*iterables):  # Fallback for pythonmu2.7-static.
-    iterables = map(iter, iterables)
-    while 1:
-      result = tuple(it.next() for it in iterables)  # Raises StopIteration.
-      if not result:
-        break
-      yield result
-
 
 class Error(Exception):
   """Comon base class for exceptions defined in this module."""
@@ -222,99 +211,99 @@ CFF_PRIVATE_DELTA_OPERATORS = (
 """Contains CFF private dict operators with delta values."""
 
 CFF_STANDARD_STRINGS = (  # 391 strings.
-    '.notdef', 'space', 'exclam', 'quotedbl', 'numbersign', 'dollar',
-    'percent', 'ampersand', 'quoteright', 'parenleft', 'parenright',
-    'asterisk', 'plus', 'comma', 'hyphen', 'period', 'slash', 'zero', 'one',
-    'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine',
-    'colon', 'semicolon', 'less', 'equal', 'greater', 'question', 'at', 'A',
-    'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
-    'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'bracketleft',
-    'backslash', 'bracketright', 'asciicircum', 'underscore', 'quoteleft',
-    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',
-    'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'braceleft',
-    'bar', 'braceright', 'asciitilde', 'exclamdown', 'cent', 'sterling',
-    'fraction', 'yen', 'florin', 'section', 'currency', 'quotesingle',
-    'quotedblleft', 'guillemotleft', 'guilsinglleft', 'guilsinglright',
-    'fi', 'fl', 'endash', 'dagger', 'daggerdbl', 'periodcentered',
-    'paragraph', 'bullet', 'quotesinglbase', 'quotedblbase',
-    'quotedblright', 'guillemotright', 'ellipsis', 'perthousand',
-    'questiondown', 'grave', 'acute', 'circumflex', 'tilde', 'macron',
-    'breve', 'dotaccent', 'dieresis', 'ring', 'cedilla', 'hungarumlaut',
-    'ogonek', 'caron', 'emdash', 'AE', 'ordfeminine', 'Lslash', 'Oslash',
-    'OE', 'ordmasculine', 'ae', 'dotlessi', 'lslash', 'oslash', 'oe',
-    'germandbls', 'onesuperior', 'logicalnot', 'mu', 'trademark', 'Eth',
-    'onehalf', 'plusminus', 'Thorn', 'onequarter', 'divide', 'brokenbar',
-    'degree', 'thorn', 'threequarters', 'twosuperior', 'registered',
-    'minus', 'eth', 'multiply', 'threesuperior', 'copyright', 'Aacute',
-    'Acircumflex', 'Adieresis', 'Agrave', 'Aring', 'Atilde', 'Ccedilla',
-    'Eacute', 'Ecircumflex', 'Edieresis', 'Egrave', 'Iacute', 'Icircumflex',
-    'Idieresis', 'Igrave', 'Ntilde', 'Oacute', 'Ocircumflex', 'Odieresis',
-    'Ograve', 'Otilde', 'Scaron', 'Uacute', 'Ucircumflex', 'Udieresis',
-    'Ugrave', 'Yacute', 'Ydieresis', 'Zcaron', 'aacute', 'acircumflex',
-    'adieresis', 'agrave', 'aring', 'atilde', 'ccedilla', 'eacute',
-    'ecircumflex', 'edieresis', 'egrave', 'iacute', 'icircumflex',
-    'idieresis', 'igrave', 'ntilde', 'oacute', 'ocircumflex', 'odieresis',
-    'ograve', 'otilde', 'scaron', 'uacute', 'ucircumflex', 'udieresis',
-    'ugrave', 'yacute', 'ydieresis', 'zcaron', 'exclamsmall',
-    'Hungarumlautsmall', 'dollaroldstyle', 'dollarsuperior',
-    'ampersandsmall', 'Acutesmall', 'parenleftsuperior',
-    'parenrightsuperior', 'twodotenleader', 'onedotenleader',
-    'zerooldstyle', 'oneoldstyle', 'twooldstyle', 'threeoldstyle',
-    'fouroldstyle', 'fiveoldstyle', 'sixoldstyle', 'sevenoldstyle',
-    'eightoldstyle', 'nineoldstyle', 'commasuperior', 'threequartersemdash',
-    'periodsuperior', 'questionsmall', 'asuperior', 'bsuperior',
-    'centsuperior', 'dsuperior', 'esuperior', 'isuperior', 'lsuperior',
-    'msuperior', 'nsuperior', 'osuperior', 'rsuperior', 'ssuperior',
-    'tsuperior', 'ff', 'ffi', 'ffl', 'parenleftinferior',
-    'parenrightinferior', 'Circumflexsmall', 'hyphensuperior', 'Gravesmall',
-    'Asmall', 'Bsmall', 'Csmall', 'Dsmall', 'Esmall', 'Fsmall', 'Gsmall',
-    'Hsmall', 'Ismall', 'Jsmall', 'Ksmall', 'Lsmall', 'Msmall', 'Nsmall',
-    'Osmall', 'Psmall', 'Qsmall', 'Rsmall', 'Ssmall', 'Tsmall', 'Usmall',
-    'Vsmall', 'Wsmall', 'Xsmall', 'Ysmall', 'Zsmall', 'colonmonetary',
-    'onefitted', 'rupiah', 'Tildesmall', 'exclamdownsmall', 'centoldstyle',
-    'Lslashsmall', 'Scaronsmall', 'Zcaronsmall', 'Dieresissmall',
-    'Brevesmall', 'Caronsmall', 'Dotaccentsmall', 'Macronsmall',
-    'figuredash', 'hypheninferior', 'Ogoneksmall', 'Ringsmall',
-    'Cedillasmall', 'questiondownsmall', 'oneeighth', 'threeeighths',
-    'fiveeighths', 'seveneighths', 'onethird', 'twothirds', 'zerosuperior',
-    'foursuperior', 'fivesuperior', 'sixsuperior', 'sevensuperior',
-    'eightsuperior', 'ninesuperior', 'zeroinferior', 'oneinferior',
-    'twoinferior', 'threeinferior', 'fourinferior', 'fiveinferior',
-    'sixinferior', 'seveninferior', 'eightinferior', 'nineinferior',
-    'centinferior', 'dollarinferior', 'periodinferior', 'commainferior',
-    'Agravesmall', 'Aacutesmall', 'Acircumflexsmall', 'Atildesmall',
-    'Adieresissmall', 'Aringsmall', 'AEsmall', 'Ccedillasmall',
-    'Egravesmall', 'Eacutesmall', 'Ecircumflexsmall', 'Edieresissmall',
-    'Igravesmall', 'Iacutesmall', 'Icircumflexsmall', 'Idieresissmall',
-    'Ethsmall', 'Ntildesmall', 'Ogravesmall', 'Oacutesmall',
-    'Ocircumflexsmall', 'Otildesmall', 'Odieresissmall', 'OEsmall',
-    'Oslashsmall', 'Ugravesmall', 'Uacutesmall', 'Ucircumflexsmall',
-    'Udieresissmall', 'Yacutesmall', 'Thornsmall', 'Ydieresissmall',
-    '001.000', '001.001', '001.002', '001.003', 'Black', 'Bold', 'Book',
-    'Light', 'Medium', 'Regular', 'Roman', 'Semibold',
+    b'.notdef', b'space', b'exclam', b'quotedbl', b'numbersign', b'dollar',
+    b'percent', b'ampersand', b'quoteright', b'parenleft', b'parenright',
+    b'asterisk', b'plus', b'comma', b'hyphen', b'period', b'slash', b'zero', b'one',
+    b'two', b'three', b'four', b'five', b'six', b'seven', b'eight', b'nine',
+    b'colon', b'semicolon', b'less', b'equal', b'greater', b'question', b'at', b'A',
+    b'B', b'C', b'D', b'E', b'F', b'G', b'H', b'I', b'J', b'K', b'L', b'M', b'N', b'O',
+    b'P', b'Q', b'R', b'S', b'T', b'U', b'V', b'W', b'X', b'Y', b'Z', b'bracketleft',
+    b'backslash', b'bracketright', b'asciicircum', b'underscore', b'quoteleft',
+    b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j', b'k', b'l', b'm', b'n',
+    b'o', b'p', b'q', b'r', b's', b't', b'u', b'v', b'w', b'x', b'y', b'z', b'braceleft',
+    b'bar', b'braceright', b'asciitilde', b'exclamdown', b'cent', b'sterling',
+    b'fraction', b'yen', b'florin', b'section', b'currency', b'quotesingle',
+    b'quotedblleft', b'guillemotleft', b'guilsinglleft', b'guilsinglright',
+    b'fi', b'fl', b'endash', b'dagger', b'daggerdbl', b'periodcentered',
+    b'paragraph', b'bullet', b'quotesinglbase', b'quotedblbase',
+    b'quotedblright', b'guillemotright', b'ellipsis', b'perthousand',
+    b'questiondown', b'grave', b'acute', b'circumflex', b'tilde', b'macron',
+    b'breve', b'dotaccent', b'dieresis', b'ring', b'cedilla', b'hungarumlaut',
+    b'ogonek', b'caron', b'emdash', b'AE', b'ordfeminine', b'Lslash', b'Oslash',
+    b'OE', b'ordmasculine', b'ae', b'dotlessi', b'lslash', b'oslash', b'oe',
+    b'germandbls', b'onesuperior', b'logicalnot', b'mu', b'trademark', b'Eth',
+    b'onehalf', b'plusminus', b'Thorn', b'onequarter', b'divide', b'brokenbar',
+    b'degree', b'thorn', b'threequarters', b'twosuperior', b'registered',
+    b'minus', b'eth', b'multiply', b'threesuperior', b'copyright', b'Aacute',
+    b'Acircumflex', b'Adieresis', b'Agrave', b'Aring', b'Atilde', b'Ccedilla',
+    b'Eacute', b'Ecircumflex', b'Edieresis', b'Egrave', b'Iacute', b'Icircumflex',
+    b'Idieresis', b'Igrave', b'Ntilde', b'Oacute', b'Ocircumflex', b'Odieresis',
+    b'Ograve', b'Otilde', b'Scaron', b'Uacute', b'Ucircumflex', b'Udieresis',
+    b'Ugrave', b'Yacute', b'Ydieresis', b'Zcaron', b'aacute', b'acircumflex',
+    b'adieresis', b'agrave', b'aring', b'atilde', b'ccedilla', b'eacute',
+    b'ecircumflex', b'edieresis', b'egrave', b'iacute', b'icircumflex',
+    b'idieresis', b'igrave', b'ntilde', b'oacute', b'ocircumflex', b'odieresis',
+    b'ograve', b'otilde', b'scaron', b'uacute', b'ucircumflex', b'udieresis',
+    b'ugrave', b'yacute', b'ydieresis', b'zcaron', b'exclamsmall',
+    b'Hungarumlautsmall', b'dollaroldstyle', b'dollarsuperior',
+    b'ampersandsmall', b'Acutesmall', b'parenleftsuperior',
+    b'parenrightsuperior', b'twodotenleader', b'onedotenleader',
+    b'zerooldstyle', b'oneoldstyle', b'twooldstyle', b'threeoldstyle',
+    b'fouroldstyle', b'fiveoldstyle', b'sixoldstyle', b'sevenoldstyle',
+    b'eightoldstyle', b'nineoldstyle', b'commasuperior', b'threequartersemdash',
+    b'periodsuperior', b'questionsmall', b'asuperior', b'bsuperior',
+    b'centsuperior', b'dsuperior', b'esuperior', b'isuperior', b'lsuperior',
+    b'msuperior', b'nsuperior', b'osuperior', b'rsuperior', b'ssuperior',
+    b'tsuperior', b'ff', b'ffi', b'ffl', b'parenleftinferior',
+    b'parenrightinferior', b'Circumflexsmall', b'hyphensuperior', b'Gravesmall',
+    b'Asmall', b'Bsmall', b'Csmall', b'Dsmall', b'Esmall', b'Fsmall', b'Gsmall',
+    b'Hsmall', b'Ismall', b'Jsmall', b'Ksmall', b'Lsmall', b'Msmall', b'Nsmall',
+    b'Osmall', b'Psmall', b'Qsmall', b'Rsmall', b'Ssmall', b'Tsmall', b'Usmall',
+    b'Vsmall', b'Wsmall', b'Xsmall', b'Ysmall', b'Zsmall', b'colonmonetary',
+    b'onefitted', b'rupiah', b'Tildesmall', b'exclamdownsmall', b'centoldstyle',
+    b'Lslashsmall', b'Scaronsmall', b'Zcaronsmall', b'Dieresissmall',
+    b'Brevesmall', b'Caronsmall', b'Dotaccentsmall', b'Macronsmall',
+    b'figuredash', b'hypheninferior', b'Ogoneksmall', b'Ringsmall',
+    b'Cedillasmall', b'questiondownsmall', b'oneeighth', b'threeeighths',
+    b'fiveeighths', b'seveneighths', b'onethird', b'twothirds', b'zerosuperior',
+    b'foursuperior', b'fivesuperior', b'sixsuperior', b'sevensuperior',
+    b'eightsuperior', b'ninesuperior', b'zeroinferior', b'oneinferior',
+    b'twoinferior', b'threeinferior', b'fourinferior', b'fiveinferior',
+    b'sixinferior', b'seveninferior', b'eightinferior', b'nineinferior',
+    b'centinferior', b'dollarinferior', b'periodinferior', b'commainferior',
+    b'Agravesmall', b'Aacutesmall', b'Acircumflexsmall', b'Atildesmall',
+    b'Adieresissmall', b'Aringsmall', b'AEsmall', b'Ccedillasmall',
+    b'Egravesmall', b'Eacutesmall', b'Ecircumflexsmall', b'Edieresissmall',
+    b'Igravesmall', b'Iacutesmall', b'Icircumflexsmall', b'Idieresissmall',
+    b'Ethsmall', b'Ntildesmall', b'Ogravesmall', b'Oacutesmall',
+    b'Ocircumflexsmall', b'Otildesmall', b'Odieresissmall', b'OEsmall',
+    b'Oslashsmall', b'Ugravesmall', b'Uacutesmall', b'Ucircumflexsmall',
+    b'Udieresissmall', b'Yacutesmall', b'Thornsmall', b'Ydieresissmall',
+    b'001.000', b'001.001', b'001.002', b'001.003', b'Black', b'Bold', b'Book',
+    b'Light', b'Medium', b'Regular', b'Roman', b'Semibold',
 )
 """CFF standard strings."""
 
 SIMPLE_POSTSCRIPT_TOKEN_RE = re.compile(
-    r'(def)|'  # 1: def.
-    r'(true|false|null)|'  # 2: Unique values.
-    r'([-+]?(?:\d+(?:[.]\d*)?|[.]\d+)(?:[eE][+-]?\d+)?)|'  #  3: Decimal number literal.
-    r'(/[^/\[\]{}()<>%\0\t\n\r\f ]+)|'  #  4. Name literal.
-    r'\(([^\\()]*)\)|'  # 5. String literal (matches only a subset of strings).
-    r'<([a-fA-F0-9\0\t\n\r\f ]*)>|'  # 6. Hex string literal.
-    r'(%[^\r\n]*|[\0\t\n\r\f ]+)|'  #  7: Comment or whitespace.
-    r'([-+_.a-zA-Z0-9]+)|'  # 8: Invalid ASCII command.
-    r'([/(<])|' # 9: Invalid token.
-    r'([^\0\t\n\r\f %])')  # 10: 1 character of anything else, invalid.
+    br'(def)|'  # 1: def.
+    br'(true|false|null)|'  # 2: Unique values.
+    br'([-+]?(?:\d+(?:[.]\d*)?|[.]\d+)(?:[eE][+-]?\d+)?)|'  #  3: Decimal number literal.
+    br'(/[^/\[\]{}()<>%\0\t\n\r\f ]+)|'  #  4. Name literal.
+    br'\(([^\\()]*)\)|'  # 5. String literal (matches only a subset of strings).
+    br'<([a-fA-F0-9\0\t\n\r\f ]*)>|'  # 6. Hex string literal.
+    br'(%[^\r\n]*|[\0\t\n\r\f ]+)|'  #  7: Comment or whitespace.
+    br'([-+_.a-zA-Z0-9]+)|'  # 8: Invalid ASCII command.
+    br'([/(<])|' # 9: Invalid token.
+    br'([^\0\t\n\r\f %])')  # 10: 1 character of anything else, invalid.
 """Matches a token of a simplified subset of PostScript."""
 
-SIMPLE_POSTSCRIPT_UNIQUE_VALUES = {'true': True, 'false': False, 'null': None}
+SIMPLE_POSTSCRIPT_UNIQUE_VALUES = {b'true': True, b'false': False, b'null': None}
 """Maps string to Python representation of simple PostScript unique values."""
 
-POSTSCRIPT_WHITESPACE_RE = re.compile('[\0\t\n\r\f ]+')
+POSTSCRIPT_WHITESPACE_RE = re.compile(b'[\0\t\n\r\f ]+')
 """Matches 1 or more PostScript whitespace."""
 
-NAME_CHAR_TO_HEX_KEEP_ESCAPED_RE = re.compile(r'[^-+A-Za-z0-9_.]')
+NAME_CHAR_TO_HEX_KEEP_ESCAPED_RE = re.compile(br'[^-+A-Za-z0-9_.]')
 """Matches a single character to be kept escaped internally to pdfsizeopt."""
 
 
@@ -327,11 +316,11 @@ def ParseCffDict(data, start=0, end=None):
   floating point real number.
 
   Args:
-    data: str or buffer.
+    data: bytestring or memoryview.
     start: Start offset.
     end: End offset or None to mean end of data.
   """
-  # TODO(pts): Take a buffer rather than start and end.
+  # TODO(pts): Take a memoryview rather than start and end.
   cff_dict = {}
   if end is None:
     end = len(data)
@@ -341,34 +330,34 @@ def ParseCffDict(data, start=0, end=None):
   i = start
   operands = []
   while i < end:
-    b0 = ord(data[i])
+    b0 = data[i]
     i += 1
     if 32 <= b0 <= 246:
       operands.append(b0 - 139)
     elif 247 <= b0 <= 250:
       if i >= end:
         raise ValueError('Unexpected EOF in CFF dict t247.')
-      b1 = ord(data[i])
+      b1 = data[i]
       i += 1
       operands.append((b0 - 247) * 256 + b1 + 108)
     elif 251 <= b0 <= 254:
       if i >= end:
         raise ValueError('Unexpected EOF in CFF dict t251.')
-      b1 = ord(data[i])
+      b1 = data[i]
       i += 1
       operands.append(-(b0 - 251) * 256 - b1 - 108)
     elif b0 == 28:
       if i + 2 > end:
         raise ValueError('Unexpected EOF in CFF dict t28.')
-      operands.append(ord(data[i]) << 8 | ord(data[i + 1]))
+      operands.append(data[i] << 8 | data[i + 1])
       i += 2
       if operands[-1] >= 0x8000:
         operands[-1] -= 0x10000
     elif b0 == 29:
       if i + 4 > end:
         raise ValueError('Unexpected EOF in CFF dict t29.')
-      operands.append(ord(data[i]) << 24 | ord(data[i + 1]) << 16 |
-                      ord(data[i + 2]) << 8 | ord(data[i + 3]))
+      operands.append(data[i] << 24 | data[i + 1] << 16 |
+                      data[i + 2] << 8 | data[i + 3])
       if operands[-1] >= 0x80000000:
         operands[-1] = int(operands[-1] & 0x100000000)
       i += 4
@@ -377,7 +366,7 @@ def ParseCffDict(data, start=0, end=None):
       while 1:
         if i >= end:
           raise ValueError('Unexpected EOF in CFF dict t30.')
-        b0 = ord(data[i])
+        b0 = data[i]
         i += 1
         real_chars.append(CFF_REAL_CHARS[b0 >> 4])
         real_chars.append(CFF_REAL_CHARS[b0 & 15])
@@ -404,7 +393,7 @@ def ParseCffDict(data, start=0, end=None):
       if b0 == 12:
         if i >= end:
           raise ValueError('Unexpected EOF in CFF dict t12.')
-        b0 = 12000 + ord(data[i])
+        b0 = 12000 + data[i]
         i += 1
       # Possible b0 (operator) values here are: 0..11, 13..21,
       # 12000..12255.
@@ -432,44 +421,40 @@ def SerializeCffDict(cff_dict):
         # missing the '.' and 'e' in floating point literals.
         operand = float_util.FormatFloatShort(operand, is_int_ok=True)
         operand = operand.replace('e-', 'f')
-        nibbles = map(CFF_REAL_CHARS_REV.__getitem__, operand)
+        nibbles = list(map(CFF_REAL_CHARS_REV.__getitem__, operand))
         nibbles.append(0xf)
         if (len(nibbles) & 1) != 0:
           nibbles.append(0xf)
-        output.append('\x1e')
-        output.append(''.join(
-            chr(nibbles[i] << 4 | nibbles[i + 1])
-            for i in xrange(0, len(nibbles), 2)))
-      elif isinstance(operand, int) or isinstance(operand, long):
+        output.append(b'\x1e')
+        output.append(b''.join(
+            bytes([nibbles[i] << 4 | nibbles[i + 1]])
+            for i in range(0, len(nibbles), 2)))
+      elif isinstance(operand, int):
         # This also covers bool (with False==0 and True==1). Good.
 
         if -107 <= operand <= 107:
-          output.append(chr(operand + 139))
-          assert 32 <= ord(output[-1][0]) <= 246
+          output.append(bytes([operand + 139]))
+          assert 32 <= output[-1][0] <= 246
         elif 108 <= operand <= 1131:
-          output.append(
-              '%c%c' %
-              (((operand - 108) >> 8) + 247, (operand - 108) & 255))
-          assert 247 <= ord(output[-1][0]) <= 250
+          output.append(bytes([((operand - 108) >> 8) + 247, (operand - 108) & 255]))
+          assert 247 <= output[-1][0] <= 250
         elif -1131 <= operand <= -108:
-          output.append(
-              '%c%c' %
-              (((-operand - 108) >> 8) + 251, (-operand - 108) & 255))
-          assert 251 <= ord(output[-1][0]) <= 254
+          output.append(bytes([((-operand - 108) >> 8) + 251, (-operand - 108) & 255]))
+          assert 251 <= output[-1][0] <= 254
         elif -32768 <= operand <= 32767:
-          output.append(chr(28) + struct.pack('>H', operand & 0xffff))
+          output.append(bytes([28]) + struct.pack('>H', operand & 0xffff))
         elif ~0x7fffffff <= operand <= 0x7fffffff:
-          output.append(chr(29) + struct.pack('>L', operand & 0xffffffff))
+          output.append(bytes([29]) + struct.pack('>L', operand & 0xffffffff))
         else:
           raise ValueError(
               'CFF dict integer operand %r out of range.' % operand)
       else:
         raise ValueError('Invalid CFF dict operand type: %r' % type(operand))
     if operator >= 12000:
-      output.append('\014%c' % (operator - 12000))
+      output.append(bytes([12, operator - 12000]))
     else:
-      output.append(chr(operator))
-  return ''.join(output)
+      output.append(bytes([operator]))
+  return b''.join(output)
 
 
 def ParseCffIndex(data):
@@ -478,34 +463,32 @@ def ParseCffIndex(data):
   A CFF index is just a fancy name for a list of byte strings.
 
   Args:
-    data: str or buffer starting with the CFF index.
+    data: str or memoryview starting with the CFF index.
   Returns:
-    (offset_after_the_cff_index, list_of_buffers).
+    (offset_after_the_cff_index, list_of_memoryviews).
   """
-  if data[:2] == '\0\0':  # Empty index. (No need to check len(data).)
+  if data[:2] == b'\0\0':  # Empty index. (No need to check len(data).)
     return 2, []
   if len(data) < 3:
     raise ValueError('CFF index too short for header.')
-  count, off_size = struct.unpack('>HB', buffer(data, 0, 3))
+  count, off_size = struct.unpack('>HB', memoryview(data[:3]))
   if len(data) < 3 + (count + 1) * off_size:
     raise ValueError('CFF index too short for offsets.')
   if off_size == 1:
-    offsets = struct.unpack('>%dB' % (count + 1), buffer(data, 3, count + 1))
+    offsets = struct.unpack('>%dB' % (count + 1), memoryview(data[3:count+4]))
     j = count + 3
   elif off_size == 2:
-    offsets = struct.unpack('>%dH' % (count + 1),
-                            buffer(data, 3, (count + 1) << 1))
+    offsets = struct.unpack('>%dH' % (count + 1),memoryview(data[3:3+((count + 1) << 1)]))
     j = ((count + 1) << 1) + 2
   elif off_size == 3:
     j, offsets = 3, []
-    for i in xrange(count + 1):
-      a, b = struct.unpack('>BH', buffer(data, j, 3))
+    for i in range(count + 1):
+      a, b = struct.unpack('>BH', memoryview(data[j:j+3]))
       offsets.append(a << 16 | b)
       j += 3
     j -= 1
   elif off_size == 4:
-    offsets = struct.unpack('>%dL' % (count + 1),
-                            buffer(data, 3, (count + 1) << 2))
+    offsets = struct.unpack('>%dL' % (count + 1),memoryview(data[3:3+((count + 1) << 2)]))
     j = ((count + 1) << 2) + 2
   else:
     # 5176.CFF.pdf requires 1, 2, 3 or 4.
@@ -513,10 +496,10 @@ def ParseCffIndex(data):
   if len(data) < j + offsets[count]:
     raise ValueError('CFF index too short for strings.')
   buffers = []
-  for i in xrange(count):
+  for i in range(count):
     if not (1 <= offsets[i] <= offsets[i + 1]):
       raise ValueError('Invalid CFF index offset: %d' % offsets[i])
-    buffers.append(buffer(data, j + offsets[i], offsets[i + 1] - offsets[i]))
+    buffers.append(memoryview(data[j + offsets[i]:j + offsets[i + 1]]))
   return j + offsets[count], buffers
 
 
@@ -526,24 +509,24 @@ def GetCffFontNameOfs(data):
   Error reporting in this function is sparse.
 
   Args:
-    data: str or buffer containing a CFF font program.
+    data: str or memoryview containing a CFF font program.
   Returns:
     Offset of the first font name.
   """
-  ai0 = ord(data[2])  # Skip header.
-  count, off_size = struct.unpack('>HB', buffer(data, ai0, 3))
+  ai0 = data[2]  # Skip header.
+  count, off_size = struct.unpack('>HB', memoryview(data[ai0:ai0+3]))
   ai3 = ai0 + 3
   if count <= 0:
     raise ValueError('Found count == 0.')
   if off_size == 1:
-    return ai3 + count + struct.unpack('>B', buffer(data, ai3, 1))[0]
+    return ai3 + count + struct.unpack('>B', memoryview(data[ai3:ai3+1]))[0]
   elif off_size == 2:
-    return ai3 + (count << 1) + 1 + struct.unpack('>H', buffer(data, ai3, 2))[0]
+    return ai3 + (count << 1) + 1 + struct.unpack('>H', memoryview(data[ai3:ai3+2]))[0]
   elif off_size == 3:
-    a, b = struct.unpack('>BH', buffer(data, ai3, 3))
+    a, b = struct.unpack('>BH', memoryview(data)[ai3:ai3+3])
     return ai3 + (count * 3) + 2 + (a << 16 | b)
   elif off_size == 4:
-    return ai3 + (count << 2) + 3 + struct.unpack('>L', buffer(data, ai3, 4))[0]
+    return ai3 + (count << 2) + 3 + struct.unpack('>L', memoryview(data[ai3:ai3+4]))[0]
   else:
     raise ValueError('Invalid CFF index off_size: %d' % off_size)
 
@@ -553,37 +536,37 @@ def ParseCffHeader(data, do_need_single_font=True, do_parse_rest=True):
   if len(data) < 4:
     raise ValueError('CFF too short.')
   major, minor, hdr_size, cff_off_size = struct.unpack(
-      '>BBBB', buffer(data, 0, 4))
+      '>BBBB', memoryview(data[:4]))
   if not (1 <= cff_off_size <= 4):
     raise ValueError('Invalid CFF off_size: %d' % cff_off_size)
   if hdr_size < 4:
-    raise ValueError('CFF header too short, got: %d' % header_size)
-  ai1, font_name_bufs = ParseCffIndex(buffer(data, hdr_size))
+    raise ValueError('CFF header too short, got: %d' % hdr_size)
+  ai1, font_name_bufs = ParseCffIndex(memoryview(data[hdr_size:]))
   if not font_name_bufs:
     raise ValueError('CFF contains no fonts.')
   if len(font_name_bufs) != 1 and do_need_single_font:
     raise ValueError(
         'CFF name index count should be 1, got %d' % len(font_name_bufs))
-  cff_font_name = str(font_name_bufs[0])
+  cff_font_name = font_name_bufs[0].tobytes()
   if not cff_font_name:
     raise ValueError('Empty CFF font name.')
-  ai2, top_dict_bufs = ParseCffIndex(buffer(data, hdr_size + ai1))
+  ai2, top_dict_bufs = ParseCffIndex(memoryview(data[hdr_size+ai1:]))
   if len(font_name_bufs) != len(top_dict_bufs):
      raise ValueError(
          'CFF font count mismatch: font_name=%d top_dict=%d' %
          (len(font_name_bufs), len(top_dict_bufs)))
   rest_ofs = hdr_size + ai1 + ai2
-  cff_rest_buf = buffer(data, rest_ofs)
+  cff_rest_buf = memoryview(data[rest_ofs:])
   if do_parse_rest:
     ai3, cff_string_bufs = ParseCffIndex(cff_rest_buf)
-    ai4, cff_global_subr_bufs = ParseCffIndex(buffer(cff_rest_buf, ai3))
+    ai4, cff_global_subr_bufs = ParseCffIndex(memoryview(cff_rest_buf[ai3:]))
     cff_rest2_ofs = rest_ofs + ai3 + ai4
   else:
     cff_string_bufs = cff_global_subr_bufs = None
     cff_rest2_ofs = rest_ofs
   return ((major, minor),
           cff_font_name,
-          tuple(izip(font_name_bufs, top_dict_bufs)),
+          tuple(zip(font_name_bufs, top_dict_bufs)),
           cff_string_bufs,
           cff_global_subr_bufs,
           cff_rest_buf,
@@ -627,7 +610,7 @@ def SerializeCffIndexHeader(off_size, buffers):
 
   if off_size == 0:
     assert len(offsets) == 1  # Empty index, guaranteed above.
-    data = '\0\0'
+    data = b'\0\0'
   elif off_size == 1:
     data = struct.pack('>HB%dB' % len(offsets), count, 1, *offsets)
   elif off_size == 2:
@@ -637,7 +620,7 @@ def SerializeCffIndexHeader(off_size, buffers):
       yield struct.pack('>HB', count, 3)
       for offset in offsets:
         yield struct.pack('>BH', offset >> 16, offset & 65535)
-    data = ''.join(emit3())
+    data = b''.join(emit3())
   elif off_size == 4:
     data = struct.pack('>HB%dL' % len(offsets), count, 4, *offsets)
   else:
@@ -651,7 +634,7 @@ def FixFontNameInCff(data, new_font_name, len_deltas_out=None):
   (cff_version, cff_font_name, cff_font_items, cff_string_bufs,
    cff_global_subr_bufs, cff_rest_buf, cff_off_size, cff_rest2_ofs,
   ) = ParseCffHeader(data, do_need_single_font=True, do_parse_rest=False)
-  cff_header_buf = data[:ord(data[2])]
+  cff_header_buf = data[:data[2]]
   cff_top_dict_buf = cff_font_items[0][1]
 
   if cff_font_name == new_font_name:
@@ -661,7 +644,7 @@ def FixFontNameInCff(data, new_font_name, len_deltas_out=None):
     cff_font_name_ofs = GetCffFontNameOfs(data)
     assert data[cff_font_name_ofs : cff_font_name_ofs + len(cff_font_name)] == (
         cff_font_name)  # Guaranteed by GetCffFontNameOfs.
-    return ''.join((
+    return b''.join((
         data[:cff_font_name_ofs], new_font_name,
         data[cff_font_name_ofs + len(cff_font_name):]))
   old_rest_ofs = len(data) - len(cff_rest_buf)
@@ -703,10 +686,10 @@ def FixFontNameInCff(data, new_font_name, len_deltas_out=None):
   assert top_dict == top_dict_parsed2, (
       'CFF dict serialize mismatch: new=%r parsed=%r' %
       (top_dict, top_dict_parsed2))
-  return ''.join((str(cff_header_buf),  # CFF header.
+  return b''.join((cff_header_buf,  # CFF header.
                   idxhdrfn, new_font_name,  # CFF name index.
                   idxhdrtd, top_dict_data,  # CFF top dict index.
-                  str(cff_rest_buf)))
+                  cff_rest_buf))
 
 
 def IsCffValueEqual(a, b):
@@ -715,7 +698,7 @@ def IsCffValueEqual(a, b):
   elif isinstance(a, (list, tuple)):
     if not isinstance(b, (list, tuple)) or len(a) != len(b):
       return False
-    for av, bv in izip(a, b):
+    for av, bv in zip(a, b):
       if not IsCffValueEqual(av, bv):
         return False
     return True
@@ -724,8 +707,8 @@ def IsCffValueEqual(a, b):
   elif (isinstance(a, str) and isinstance(b, str) and
         (a.startswith('<') or b.startswith('<'))):
     return False
-  elif (isinstance(a, (str, float, int, long)) and
-        isinstance(b, (str, float, int, long))):
+  elif (isinstance(a, (str, float, int)) and
+        isinstance(b, (str, float, int))):
     # !!! '42.9139' vs '42.913898'
     return (float(a) - float(b)) < 1e-3  # !!! pGS has 0.04379, ParseCff1 has .043790001. for /Private.BlueScale in i=1.
     return float(a) == float(b)
@@ -736,18 +719,15 @@ def IsCffValueEqual(a, b):
 CFF_TOP_OP_DEFAULTS = [
     (op_name, op_default)
     for op, (op_name, op_type, op_default) in
-       sorted(CFF_TOP_OP_MAP.iteritems())
+       sorted(CFF_TOP_OP_MAP.items())
     if op_name not in ('charset', 'Encoding', 'CharStrings', 'Private') and
         op_default is not None]
-del op, op_name, op_type, op_default
 
 CFF_PRIVATE_OP_DEFAULTS = [
     (op_name, op_default)
     for op, (op_name, op_type, op_default) in
-       sorted(CFF_PRIVATE_OP_MAP.iteritems())
+       sorted(CFF_PRIVATE_OP_MAP.items())
     if op_name not in ('Subrs', 'GlobalSubrs') and op_default is not None]
-del op, op_name, op_type, op_default
-
 
 def RemoveCffDefaults(parsed_dict):
   """Returns a new parsed_dict dict with default values for fields removed."""
@@ -834,55 +814,55 @@ def GetParsedCffDifferences(a, b):
     if a is None and b is None:
       return True
     if type(a) != dict or type(b) != dict:
-      return false
+      return False
     # !! Better compare floats etc.
-    return sorted(a.iteritems()) == sorted(b.iteritems())
+    return sorted(a.items()) == sorted(b.items())
 
   diff = []
   if type(a.get('Private')) != dict or type(b.get('Private')) != dict:
     diff.append('/Private')
     return diff
   if a['CharStrings'] != b['CharStrings']:
-    print a['CharStrings']
-    print b['CharStrings']
+    print(a['CharStrings'])
+    print(b['CharStrings'])
     diff.append('/CharStrings')
   if a['Encoding'] != b['Encoding']:
     a_encoding = NormalizeEncoding(a['Encoding'], set(a['CharStrings']))
     b_encoding = NormalizeEncoding(b['Encoding'], set(b['CharStrings']))
     if a_encoding != b_encoding:
-      print a_encoding
-      print b_encoding
+      print(a_encoding)
+      print(b_encoding)
       diff.append('/Encoding')
   if a['FontName'] != b['FontName']:
-    print a['FontName']
-    print b['FontName']
+    print(a['FontName'])
+    print(b['FontName'])
     diff.append('/FontName')
 
-  for op, (op_name, op_type, op_default) in sorted(CFF_TOP_OP_MAP.iteritems()):
+  for op, (op_name, op_type, op_default) in sorted(CFF_TOP_OP_MAP.items()):
     if op_name not in ('charset', 'Encoding', 'CharStrings', 'Private'):
       if not IsCffValueEqual(a.get(op_name), b.get(op_name)):
-        print '-- /%s' % op_name
-        print a.get(op_name)
-        print b.get(op_name)
+        print('-- /%s' % op_name)
+        print(a.get(op_name))
+        print(b.get(op_name))
         diff.append('/%s' % op_name)
-  for op, (op_name, op_type, op_default) in sorted(CFF_PRIVATE_OP_MAP.iteritems()):
+  for op, (op_name, op_type, op_default) in sorted(CFF_PRIVATE_OP_MAP.items()):
     if op_name not in ('Subrs', 'GlobalSubrs'):
       if not IsCffValueEqual(a['Private'].get(op_name), b['Private'].get(op_name)):
-        print '-- /Private.%s' % op_name
-        print a['Private'].get(op_name)
-        print b['Private'].get(op_name)
+        print('-- /Private.%s' % op_name)
+        print(a['Private'].get(op_name))
+        print(b['Private'].get(op_name))
         diff.append('/Private.%s' % op_name)
   if a['Private'].get('Subrs') != b['Private'].get('Subrs'):
-    print a['Private'].get('Subrs')
-    print b['Private'].get('Subrs')
+    print(a['Private'].get('Subrs'))
+    print(b['Private'].get('Subrs'))
     diff.append('/Subrs')
   if a['Private'].get('GlobalSubrs') != b['Private'].get('GlobalSubrs'):
-    print a['Private'].get('GlobalSubrs')
-    print b['Private'].get('GlobalSubrs')
+    print(a['Private'].get('GlobalSubrs'))
+    print(b['Private'].get('GlobalSubrs'))
     diff.append('/GlobalSubrs')
   if not IsDictOptEqual(a['Private'].get('ParsedPostScript'), b['Private'].get('ParsedPostScript')):
-    print a['Private'].get('ParsedPostScript')
-    print b['Private'].get('ParsedPostScript')
+    print(a['Private'].get('ParsedPostScript'))
+    print(b['Private'].get('ParsedPostScript'))
     diff.append('/ParsedPostScript')
   # !! Compare all other fields as well.
   # !! Apply defaults to missing fields.
@@ -912,23 +892,23 @@ def YieldParsePostScriptTokenList(data):
           f = float(match.group(3))
         except ValueError:
           raise ValueError('Invalid PostScript number: %r' % match.group(3))
-        yield float_util.FormatFloatShort(f, is_int_ok=False)
+        yield bytes(float_util.FormatFloatShort(f, is_int_ok=False), 'ascii')
     elif match.group(4):
       # PostScript supports the empty name literal (/), but we don't, because
       # it's hard to convert it to a PDF name, and then to omit the subsequent
       # whitespace.
       if _NAME_CHAR_TO_HEX_KEEP_ESCAPED_RE.search(match.group(4), 1):
-        yield '/' + _NAME_CHAR_TO_HEX_KEEP_ESCAPED_RE.sub(
-            lambda match: '#%02X' % ord(match.group(0)), match.group(4)[1:])
+        yield b'/' + _NAME_CHAR_TO_HEX_KEEP_ESCAPED_RE.sub(
+            lambda match: b'#%02X' % ord(match.group(0)), match.group(4)[1:])
       else:
         yield match.group(4)
     elif match.group(5) is not None:
-      yield '<%s>' % str(match.group(5)).encode('hex')
+      yield b'<%s>' % bytes(match.group(5).hex(), 'ascii')
     elif match.group(6) is not None:
-      value = _POSTSCRIPT_WHITESPACE_RE.sub('', match.group(6))
+      value = _POSTSCRIPT_WHITESPACE_RE.sub(b'', match.group(6))
       if len(value) % 2:
         raise ValueError('Odd number of PostScript hex nibbles.')
-      yield '<%s>' % value.lower()
+      yield b'<%s>' % value.lower()
       del value
     elif match.group(7):
       pass
@@ -947,16 +927,16 @@ def YieldParsePostScriptTokenList(data):
 def ParsePostScriptDefs(data):
   """Returns a dict of tokens, similar types as PdfObj token values."""
   result = {}
-  state, key, = 0, ''
+  state, key, = 0, b''
   for token in YieldParsePostScriptTokenList(data):
     if state == 0:
-      if not isinstance(token, str) or not token.startswith('/'):
+      if not isinstance(token, bytes) or not token.startswith(b'/'):
         raise ValueError('Unexpected PostScript key: %r' % token)
       key, state = token[1:], 1
     elif state == 1:
       result[key], state = token, 2
     else:
-      if token != 'def':
+      if token != b'def':
         raise ValueError('Expected def in PostScript, got: %r' % token)
       state = 0
   if state:
@@ -974,7 +954,7 @@ def ParseCffNumber(op, number):
       raise ValueError('Invalid CFF float value for op %d: %r' %
                        (op, number))
     return float_util.FormatFloatShort(number, is_int_ok=False)
-  elif isinstance(number, (int, long)):
+  elif isinstance(number, int):
     return int(number)
   else:
     raise ValueError('Invalid CFF number value for op %d: %r' %
@@ -984,14 +964,14 @@ def ParseCffNumber(op, number):
 def CffStringToName(
     data, _NAME_CHAR_TO_HEX_KEEP_ESCAPED_RE=NAME_CHAR_TO_HEX_KEEP_ESCAPED_RE):
   """Prepends '/', hex-escapes the rest."""
-  if data == '.notdef':  # Intern it to optimize for memory.
-    return '/.notdef'
+  if data == b'.notdef':  # Intern it to optimize for memory.
+    return b'/.notdef'
   if _NAME_CHAR_TO_HEX_KEEP_ESCAPED_RE.search(data):
     data = _NAME_CHAR_TO_HEX_KEEP_ESCAPED_RE.sub(
-        lambda match: '#%02X' % ord(match.group(0)), data)
-  if data.startswith('/'):
+        lambda match: b'#%02X' % ord(match.group(0)), data)
+  if data.startswith(b'/'):
     raise ValueError('CFF name string starts with /: %s' % data)
-  return '/' + data
+  return b'/' + data
 
 
 _CFF_EXPERT_CHARSET_SIDS = (
@@ -1021,7 +1001,7 @@ CFF_EXPERT_SUBSET_CHARSET = tuple(CffStringToName(CFF_STANDARD_STRINGS[i])
                                   for i in _CFF_EXPERT_SUBSET_CHARSET_SIDS)
 
 
-_CFF_ISO_ADOBE_CHARSET_SIDS = xrange(229)
+_CFF_ISO_ADOBE_CHARSET_SIDS = range(229)
 CFF_ISO_ADOBE_CHARSET = tuple(CffStringToName(CFF_STANDARD_STRINGS[i])
                               for i in _CFF_ISO_ADOBE_CHARSET_SIDS)
 
@@ -1033,14 +1013,14 @@ def ParseCffCharset(charset_value, data, len_charstrings, cff_all_string_bufs):
     charset_value: a small int containing the standard charset index.
     data: str or data containing the /Encoding array as a prefix.
     len_charstrings: Number of elements in /CharStrings.
-    cff_all_string_bufs: Sequence of buffer or str objects containing the
+    cff_all_string_bufs: Sequence of memoryview or str objects containing the
         standard and file-specific strings.
   Returns:
     A new list of name strings, each not starting with a '/', and
     not hex-escaped, starting with '.notdef'. The length is the same as
     len_charstrings.
   """
-  if not isinstance(charset_value, (int, long)):
+  if not isinstance(charset_value, int):
     raise TypeError
   if not isinstance(len_charstrings, int):
     raise TypeError
@@ -1060,38 +1040,38 @@ def ParseCffCharset(charset_value, data, len_charstrings, cff_all_string_bufs):
     return charset[:len_charstrings]
   if not data:
     raise ValueError('CFF /charset too short for format.')
-  format = ord(data[0])
+  format = data[0]
   charset = ['.notdef']
   if format == 0:  # 7920/8958; .
     if (len_charstrings << 1) - 1 > len(data):
       raise ValueError('CFF /charset too short for format 0.')
     charset.extend(str(cff_all_string_bufs[sid]) for sid in struct.unpack(
         '>%dH' % (len_charstrings - 1),
-        buffer(data, 1, (len_charstrings - 1) << 1)))
+        memoryview(data[1:1+((len_charstrings - 1) << 1)])))
   elif format == 1:  # 1007/8958; .
     i = 1
     while len(charset) < len_charstrings:
       if i + 3 > len(data):
         raise ValueError('CFF /charset too short for format 1.')
-      first_sid, count1 = struct.unpack('>HB', buffer(data, i, 3))
+      first_sid, count1 = struct.unpack('>HB', memoryview(data[i:i+3]))
       i += 3
       count = count1 + 1
       if len(charset) + count > len_charstrings:
         raise ValueError('CFF /charset format 1 contains a too long range.')
       charset.extend(str(cff_all_string_bufs[sid]) for sid in
-                     xrange(first_sid, first_sid + count))
+                     range(first_sid, first_sid + count))
   elif format == 2:  # 9/8958; .
     i = 1
     while len(charset) < len_charstrings:
       if i + 4 > len(data):
         raise ValueError('CFF /charset too short for format 1.')
-      first_sid, count1 = struct.unpack('>HH', buffer(data, i, 4))
+      first_sid, count1 = struct.unpack('>HH', memoryview(data[i:i+4]))
       i += 4
       count = count1 + 1
       if len(charset) + count > len_charstrings:
         raise ValueError('CFF /charset format 1 contains a too long range.')
       charset.extend(str(cff_all_string_bufs[sid]) for sid in
-                     xrange(first_sid, first_sid + count))
+                     range(first_sid, first_sid + count))
   else:
     raise ValueError('Invalid CFF /charset format: %d' % format)
   assert len(charset) == len_charstrings
@@ -1144,13 +1124,13 @@ def ParseCffEncoding(encoding_value, data, charset, cff_all_string_bufs):
     encoding_value: a small int containing the standard encoding index.
     data: str or data containing the /Encoding array as a prefix.
     charset: List of glyph names, e.g. '/exclam'.
-    cff_all_string_bufs: Sequence of buffer or str objects containing the
+    cff_all_string_bufs: Sequence of memoryview or str objects containing the
         standard and file-specific strings.
   Returns:
     A list of 256 glyph name strings, each starting with a '/', and
     hex-escaped.
   """
-  if not isinstance(encoding_value, (int, long)):
+  if not isinstance(encoding_value, int):
     raise TypeError
   _CffStringToName = CffStringToName
   if encoding_value < 10:
@@ -1167,14 +1147,14 @@ def ParseCffEncoding(encoding_value, data, charset, cff_all_string_bufs):
     # 1: 402/8958; .
     # 128: 174/8958; .
     # 129: 22/8958; .
-    format_hi = ord(data[0])
+    format_hi = data[0]
     has_supplement = bool(format_hi & 128)
     format = format_hi & 127
     i = 1
     if format == 0:  # 7800/8958; .
       if i >= len(data):
         raise ValueError('CFF /Encoding too short for format 0 code_count.')
-      code_count = ord(data[i])
+      code_count = data[i]
       i += 1
       if i + code_count > len(data):
         raise ValueError('CFF /Encoding too short for format 0 codes.')
@@ -1183,26 +1163,26 @@ def ParseCffEncoding(encoding_value, data, charset, cff_all_string_bufs):
             'CFF /Encoding with format 0 longer than /CharStrings.')
       encoding = ['/.notdef'] * 256
       for j, code in enumerate(struct.unpack(
-          '>%dB' % code_count, buffer(data, i, code_count))):
+          '>%dB' % code_count, memoryview(data[i:i+code_count]))):
         assert code < len(encoding)
         encoding[code] = charset[j + 1]
       i += code_count
     elif format == 1:  # 524/8958; .
       if i >= len(data):
         raise ValueError('CFF /Encoding too short for format 1 range_count.')
-      range_count = ord(data[i])
+      range_count = data[i]
       i += 1
       if i + (range_count << 1) > len(data):
         raise ValueError('CFF /Encoding too short for format 0 codes.')
       encoding = ['/.notdef'] * 256
       j = 1
-      for _ in xrange(range_count):
-        first_code, count1 = struct.unpack('>BB', buffer(data, i, 2))
+      for _ in range(range_count):
+        first_code, count1 = struct.unpack('>BB', memoryview(data[i:i+2]))
         if j + count1 >= len(charset):
           raise ValueError(
               'CFF /Encoding with format 1 longer than /CharStrings.')
         i += 2
-        for code in xrange(first_code, first_code + count1 + 1):
+        for code in range(first_code, first_code + count1 + 1):
           encoding[code] = charset[j]
           j += 1
     else:
@@ -1211,12 +1191,12 @@ def ParseCffEncoding(encoding_value, data, charset, cff_all_string_bufs):
     if has_supplement:
       if i >= len(data):
         raise ValueError('CFF /Encoding too short for supplement length.')
-      count = ord(data[i])
+      count = data[i]
       i += 1
       if i + 3 * count > len(data):
         raise ValueError('CFF /Encoding too short for supplement.')
-      for _ in xrange(count):
-        code, sid = struct.unpack('>BH', buffer(data, i, 3))
+      for _ in range(count):
+        code, sid = struct.unpack('>BH', memoryview(data[i:i+3]))
         i += 3
         encoding[code] = _CffStringToName(str(cff_all_string_bufs[sid]))
   assert len(encoding) == 256
@@ -1265,7 +1245,7 @@ def ParseCffOp(op, op_value, op_name, op_type, op_default):
         except ValueError:
           raise ValueError('Invalid CFF float delta value for op %d: %r' %
                            (op, number))
-      elif isinstance(number, (int, long)):
+      elif isinstance(number, int):
         prev_number += int(number)
       else:
         raise ValueError('Invalid CFF number delta value for op %d: %r' %
@@ -1295,7 +1275,7 @@ def ParseCffOp(op, op_value, op_name, op_type, op_default):
       raise ValueError('Invalid size for CFF integer value for op %d: %d' %
                        (op, op_value))
     op_value = op_value[0]
-    if not isinstance(op_value, (int, long)):
+    if not isinstance(op_value, int):
       raise ValueError('Invalid CFF integer value for op %d: %r' %
                        (op, op_value))
     return int(op_value)
@@ -1305,7 +1285,7 @@ def ParseCffOp(op, op_value, op_name, op_type, op_default):
                        (op, op_value))
     result = []
     for number in op_value:
-      if not isinstance(number, (int, long)):
+      if not isinstance(number, int):
         raise ValueError('Invalid CFF integer value for op %d: %r' %
                          (op, number))
       result.append(int(number))
@@ -1333,7 +1313,7 @@ def ParseCff1(data, is_careful=False):
   """Parses a CFF font program.
 
   Args:
-    data: str or buffer containing the CFF font program.
+    data: str or memoryview containing the CFF font program.
     is_careful: bool indicating whether extra consistency checks should be done
         on the implementation. These are not input validation checks.
   Returns:
@@ -1355,7 +1335,7 @@ def ParseCff1(data, is_careful=False):
   # It's OK to have long font names. 5176.CFF.pdf says that the maximum
   # ``should be'' 127, but we don't check it.
   if CFF_NON_FONTNAME_CHAR_RE.search(cff_font_name):
-    raise ValueError('CFF font name %r contains invalid chars.' % font_name)
+    raise ValueError('CFF font name %r contains invalid chars.' % cff_font_name)
   cff_top_dict_buf = cff_font_items[0][1]
   top_dict = ParseCffDict(cff_top_dict_buf)
   if is_careful:
@@ -1379,7 +1359,7 @@ def ParseCff1(data, is_careful=False):
   cff_all_string_bufs.extend(cff_string_bufs)
   string_index_limit = len(cff_all_string_bufs)
   del cff_string_bufs
-  for op, op_value in sorted(top_dict.iteritems()):
+  for op, op_value in sorted(top_dict.items()):
     if op in _CFF_TOP_CIDFONT_OPERATORS:
       # First such operator must be /ROS in the top dict, but we don't care
       # about the order.
@@ -1404,7 +1384,7 @@ def ParseCff1(data, is_careful=False):
       if (len(op_value) != 1 or not isinstance(op_value[0], int) or
           op_value[0] <= 0):
         raise ValueError('Invalid SID value for CFF /%s: %r' %
-                         (op_name, value))
+                         (op_name, op_value))
       op_value = op_value[0]
       if op_value < string_index_limit:
         # TODO(pts): Deduplicate these values as both hex and regular strings.
@@ -1438,7 +1418,7 @@ def ParseCff1(data, is_careful=False):
       private_dict2 = ParseCffDict(private_dict_ser)
       assert private_dict == private_dict2, (private_dict, private_dict2)
       del private_dict_ser, private_dict2
-    for op, op_value in sorted(private_dict.iteritems()):
+    for op, op_value in sorted(private_dict.items()):
       op_entry = _CFF_PRIVATE_OP_MAP.get(op)
       op_name = op_entry[0]
       if op_entry is None:
@@ -1452,7 +1432,7 @@ def ParseCff1(data, is_careful=False):
         raise ValueError(
             'Invalid CFF /Subrs offset %d, expected at least %d.' %
             (subrs_ofs, cff_rest2_ofs))
-      _, subr_bufs = ParseCffIndex(buffer(data, subrs_ofs))
+      _, subr_bufs = ParseCffIndex(memoryview(data[subrs_ofs:]))
       op_value = ['<%s>' % str(buf).encode('hex') for buf in subr_bufs]
       del subr_bufs
       if op_value:
@@ -1478,19 +1458,19 @@ def ParseCff1(data, is_careful=False):
     raise ValueError(
         'Invalid CFF /CharStrings offset %d, expected at least %d.' %
         (charstrings_ofs, cff_rest2_ofs))
-  _, charstring_bufs = ParseCffIndex(buffer(data, charstrings_ofs))
+  _, charstring_bufs = ParseCffIndex(memoryview(data[charstrings_ofs:]))
   if [1 for c in charstring_bufs if not c]:
     raise ValueError('Empty string found in CFF /CharStrings.')
   charset = parsed_dict.get('charset', 0)  # Default same as _CFF_TOP_OP_MAP.
   charset = ParseCffCharset(
-      charset, buffer(data, charset), len(charstring_bufs), cff_all_string_bufs)
-  parsed_dict['CharStrings'] = dict(izip(
+      charset, memoryview(data[charset:]), len(charstring_bufs), cff_all_string_bufs)
+  parsed_dict['CharStrings'] = dict(zip(
       (glyph_name[1:] for glyph_name in charset),
       ('<%s>' % str(buf).encode('hex') for buf in charstring_bufs)))
   del charstring_bufs
   encoding = parsed_dict.get('Encoding', 0)  # Default same as _CFF_TOP_OP_MAP.
   parsed_dict['Encoding'] = ParseCffEncoding(
-      encoding, buffer(data, encoding), charset, cff_all_string_bufs)
+      encoding, memoryview(data[encoding:]), charset, cff_all_string_bufs)
 
   if parsed_dict.get('PostScript'):
     # Statistics from the cff.pgs corpus (all tested in pdfsizeopt_test.py):
@@ -1510,7 +1490,7 @@ def ParseCff1(data, is_careful=False):
           parsed_dict['PostScript'][1 : -1].decode('hex'))
     except ValueError:
       parsed_ps = ()
-    if parsed_ps is not ():
+    if parsed_ps != ():
       if parsed_ps:
         parsed_dict['ParsedPostScript'] = parsed_ps
       parsed_dict.pop('PostScript')
@@ -1522,6 +1502,6 @@ def ParseCff1(data, is_careful=False):
   # !! when serializing: /FamilyOtherBlues must occur right after /FamilyBlues
   # !!! why? pGS (ParseType1CFonts) emits /Weight as 'FamilyName', and doesn't emit /FamilyName. This is compensated in cff.pgs by renaming to 'Weight'.
 
-  #print parsed_dict
+  #print(parsed_dict)
   return parsed_dict
   # !! Add unit tests for code coverage on everything cff.pgs covers.
